@@ -424,3 +424,33 @@ Os comandos pressupõem que `apps/api/app/main.py` já existe e exporta `app = F
 ---
 
 **Recomendação final:** começar por **React Flow + símbolos SVG próprios + JSON canónico + FastAPI + solver MNA DC**. Introduzir Schemdraw como ferramenta de exportação e ngspice numa segunda fase. Esta separação evita acoplar a interface a um formato de desenho ou motor de simulação específico.
+
+CircuitForge/
+│
+├── .gitignore
+├── README.md
+├── docker-compose.yml
+│
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   ├── pnpm-lock.yaml
+│   └── vite.config.ts
+│
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── models/
+│   │   ├── components/
+│   │   ├── simulation/
+│   │   └── main.py
+│   ├── tests/
+│   ├── requirements.txt
+│   └── .env.example
+│
+├── circuits/
+│   └── examples/
+│
+└── docs/
+    └── architecture.md
