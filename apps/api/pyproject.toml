@@ -1,0 +1,9 @@
+[project]
+name = "vcccircuitlab-api"
+version = "0.1.0"
+description = "API Python do VCCCircuitLab (geração, validação e simulação de circuitos)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
