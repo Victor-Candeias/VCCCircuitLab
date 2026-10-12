@@ -422,6 +422,8 @@ Os comandos pressupõem que `apps/api/app/main.py` já existe e exporta `app = F
 | 6 | Nome e estrutura | Aplicação **VCCCircuitLab**; estrutura monorepo da secção 9 (`apps/` + `packages/`). |
 | 7 | Gestor de pacotes | **pnpm** com workspaces (via Corepack); não usar npm/yarn nem outros lockfiles. |
 
+As decisões estão registadas como ADRs em [`Docs/adr/`](adr/README.md); a licença escolhida é MIT (ADR 0005).
+
 ## 16. Referências técnicas
 
 - React: https://react.dev/
