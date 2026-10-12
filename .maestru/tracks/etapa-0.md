@@ -16,7 +16,7 @@ status: active
 <!-- maestru:work-items-list -->
 | ID | Title | Status | Created | Owner | Priority | Completed | Template | Blocked By | Spec |
 |---|---|---|---|---|---|---|---|---|---|
-| E0-01 | Inicializar monorepo pnpm (package.json raiz, pnpm-workspace.yaml, Corepack) | backlog | 2026-10-12 | developer | high |  |  |  |  |
+| E0-01 | Inicializar monorepo pnpm (package.json raiz, pnpm-workspace.yaml, Corepack) | done | 2026-10-12 | developer | high | 2026-10-12 |  |  | [E0-01](../specs/etapa-0/e0-01-spec.md) |
 | E0-02 | README, licença open source e ADRs iniciais | backlog | 2026-10-12 | developer | medium |  |  |  |  |
 | E0-03 | Criar apps/web com Vite + React + TypeScript | backlog | 2026-10-12 | developer | high |  |  | E0-01 |  |
 | E0-04 | Criar apps/api com FastAPI e endpoint /health | backlog | 2026-10-12 | developer | high |  |  |  |  |
