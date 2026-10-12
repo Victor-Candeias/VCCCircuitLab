@@ -1,0 +1,32 @@
+# API do VCCCircuitLab em contentor não privilegiado.
+# Uso: docker compose up -d --build  →  http://127.0.0.1:8000/health
+# A porta só é publicada em loopback; o acesso externo deve passar por um reverse proxy HTTPS
+# ou Cloudflare Tunnel (ver Docs/arquitetura_simulador_circuitos.md §13).
+name: vcccircuitlab
+
+services:
+  api:
+    build:
+      context: ./apps/api
+    image: vcccircuitlab-api:local
+    restart: unless-stopped
+    init: true
+    ports:
+      - '127.0.0.1:${API_PORT:-8000}:8000'
+    environment:
+      UVICORN_WORKERS: '${API_WORKERS:-1}'
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

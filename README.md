@@ -58,6 +58,16 @@ ruff format apps/api     # formatação Python
 
 Configuração: Prettier em `.prettierrc.json`/`.prettierignore` (Markdown, `.maestru/`, `Docs/`, `apps/api/` e tipos gerados ficam de fora); ESLint em `apps/web/eslint.config.js` (com `eslint-config-prettier`); ruff em `apps/api/pyproject.toml`.
 
+### API em Docker
+
+```bash
+docker compose up -d --build     # http://127.0.0.1:8000/health
+docker compose ps                # estado (healthy) do health check
+docker compose down
+```
+
+O `docker-compose.yml` constrói `apps/api/Dockerfile` e corre a API como utilizador não privilegiado (uid 10001). O sistema de ficheiros é só de leitura (exceto `/tmp` em tmpfs), sem capabilities e com `no-new-privileges`, limites de memória, CPU e PIDs, health check e `restart: unless-stopped`. A porta só é publicada em `127.0.0.1`; o acesso externo deve passar por um reverse proxy HTTPS ou Cloudflare Tunnel. As variáveis `API_PORT` (8000) e `API_WORKERS` (1) permitem ajustar a porta e o número de processos.
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

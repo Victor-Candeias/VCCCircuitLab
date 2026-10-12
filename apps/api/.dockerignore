@@ -1,0 +1,6 @@
+# Só app/ e requirements.txt entram na imagem.
+*
+!app/
+!requirements.txt
+**/__pycache__
+**/*.py[cod]
