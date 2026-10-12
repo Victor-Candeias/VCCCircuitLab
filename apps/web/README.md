@@ -9,6 +9,8 @@ pnpm install
 pnpm --filter @vcccircuitlab/web dev       # servidor de desenvolvimento
 pnpm --filter @vcccircuitlab/web build     # tsc -b + vite build → apps/web/dist
 pnpm --filter @vcccircuitlab/web lint
+pnpm --filter @vcccircuitlab/web test      # Vitest + Testing Library (jsdom)
+pnpm --filter @vcccircuitlab/web test:watch
 pnpm --filter @vcccircuitlab/web preview
 ```
 

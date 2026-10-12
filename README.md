@@ -45,13 +45,18 @@ pip install -r apps/api/requirements-dev.txt
 ```bash
 pnpm dev                 # frontend em http://localhost:5173/VCCCircuitLab/
 pnpm build
-pnpm lint
-pnpm format
-pnpm test
+pnpm lint                # ESLint (apps/web)
+pnpm format              # Prettier em todo o workspace JS/TS/JSON/CSS
+pnpm format:check        # verificação sem escrever (para CI)
+pnpm test                # Vitest + Testing Library (apps/web) e node:test (packages/circuit-schema)
 
 uvicorn app.main:app --app-dir apps/api --reload   # API em http://127.0.0.1:8000/health
 pytest apps/api
+ruff check apps/api      # lint Python
+ruff format apps/api     # formatação Python
 ```
+
+Configuração: Prettier em `.prettierrc.json`/`.prettierignore` (Markdown, `.maestru/`, `Docs/`, `apps/api/` e tipos gerados ficam de fora); ESLint em `apps/web/eslint.config.js` (com `eslint-config-prettier`); ruff em `apps/api/pyproject.toml`.
 
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 

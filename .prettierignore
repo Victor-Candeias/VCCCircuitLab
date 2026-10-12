@@ -1,0 +1,15 @@
+# Gerido por outras ferramentas
+pnpm-lock.yaml
+apps/api/
+.venv/
+.maestru/
+Docs/
+
+# Documentação em prosa (sem reformatação automática de tabelas)
+*.md
+
+# Gerados
+dist/
+coverage/
+packages/circuit-schema/src/circuit.ts
+packages/circuit-schema/src/catalog.ts
