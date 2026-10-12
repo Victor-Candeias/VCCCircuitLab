@@ -1,7 +1,7 @@
-# Arquitetura e plano de desenvolvimento — Simulador Web de Circuitos
+# Arquitetura e plano de desenvolvimento — VCCCircuitLab (Simulador Web de Circuitos)
 
-**Versão:** 1.0  
-**Data:** 11-10-2026  
+**Versão:** 1.1  
+**Data:** 12-10-2026  
 **Estado:** Proposta técnica / MVP  
 **Idioma:** Português (Portugal)
 
@@ -37,6 +37,7 @@ Ambos os modos devem produzir **o mesmo modelo canónico de circuito em JSON**. 
 | Camada | Tecnologia | Finalidade | Notas |
 |---|---|---|---|
 | Frontend | React + TypeScript + Vite | Aplicação SPA | Adequado a GitHub Pages |
+| Gestor de pacotes | pnpm (workspaces) | Monorepo `apps/` + `packages/` | Ativar via Corepack; único lockfile `pnpm-lock.yaml` |
 | Editor gráfico | React Flow (`@xyflow/react`) + SVG personalizados | Nós, terminais, ligações e interação | Para esquemas elétricos, implementar fios ortogonais e junções explicitamente |
 | Estado | Zustand | Estado do editor, seleção, histórico | Separar estado visual do circuito elétrico |
 | Formulários | React Hook Form + Zod | Propriedades e validação de entradas | Tipos TS partilhados por esquema JSON |
@@ -163,7 +164,7 @@ React Flow fornece nós, arestas e interações, mas **não é um CAD elétrico 
 
 ### 6.1 Fluxo
 
-1. Utilizador escolhe template (`serie`, `paralelo`, `divisor_tensao`, `iluminacao_escada` etc.).
+1. Utilizador escolhe template (`serie`, `paralelo`, `divisor_tensao`, `circuito_interruptor` etc.). O template `iluminacao_escada` (circuito de 230 V com comutadores de escada) fica para uma **segunda fase**, fora do âmbito DC do MVP.
 2. Define parâmetros e componentes predefinidos.
 3. Frontend envia pedido validado à API.
 4. Python constrói componentes e conexões em JSON canónico.
@@ -244,7 +245,7 @@ Exemplo de resultado:
 ## 9. Estrutura do repositório
 
 ```text
-circuit-lab/
+VCCCircuitLab/
 ├── apps/
 │   ├── web/                    # React + Vite + TypeScript
 │   │   ├── src/components/     # UI e símbolos SVG
@@ -263,10 +264,16 @@ circuit-lab/
 │   └── circuit-schema/        # JSON Schema versionado
 ├── examples/                  # Projetos JSON de referência
 ├── tests/                     # E2E e integração
+├── Docs/                      # Arquitetura e decisões (ADRs)
 ├── .github/workflows/
 ├── docker-compose.yml
+├── package.json               # Scripts raiz do workspace
+├── pnpm-workspace.yaml        # apps/web, packages/*
+├── pnpm-lock.yaml
 └── README.md
 ```
+
+O backend Python (`apps/api`) não pertence ao workspace pnpm; gere as dependências com `requirements.txt` (ou ficheiro lock equivalente) e um ambiente virtual próprio.
 
 ## 10. Plano de desenvolvimento por etapas
 
@@ -372,12 +379,15 @@ circuit-lab/
 ### Comandos iniciais (exemplo)
 
 ```bash
-# Frontend
-npm create vite@latest apps/web -- --template react-ts
-cd apps/web
-npm install
-npm install @xyflow/react zustand zod react-hook-form dexie
-npm run dev
+# Pré-requisitos: Node.js LTS (inclui Corepack) e o ficheiro pnpm-workspace.yaml na raiz
+# Fixar a versão no package.json raiz: "packageManager": "pnpm@10.x.x"
+corepack enable            # ou usar diretamente: corepack pnpm@10 <comando>
+
+# Frontend (a partir da raiz)
+pnpm create vite apps/web --template react-ts
+pnpm install
+pnpm --filter ./apps/web add @xyflow/react zustand zod react-hook-form dexie
+pnpm --filter ./apps/web dev
 
 # Backend (noutra shell, a partir da raiz)
 python -m venv .venv
@@ -400,13 +410,17 @@ Os comandos pressupõem que `apps/api/app/main.py` já existe e exporta `app = F
 - [ ] CI verde, documentação de instalação e exemplos.
 - [ ] Deploy frontend GitHub Pages e backend Python HTTPS.
 
-## 15. Decisões em aberto
+## 15. Decisões tomadas
 
-1. **Âmbito inicial:** apenas DC de baixa tensão, recomendado para MVP, ou também AC/instalações 230/400 V?
-2. **Simbologia:** IEC europeia como padrão? Suportar ANSI mais tarde?
-3. **Desenho:** fidelidade CAD rigorosa ou editor esquemático simples?
-4. **Offline:** backend obrigatório ou simulação DC também no browser?
-5. **Projeto:** repositório público open source ou privado? Validar licenças de componentes e motores.
+| # | Tema | Decisão |
+|---|---|---|
+| 1 | Âmbito inicial | Apenas DC de baixa tensão no MVP; AC e instalações 230/400 V ficam para fases posteriores. |
+| 2 | Simbologia | IEC europeia como padrão; ANSI poderá ser suportada mais tarde. |
+| 3 | Desenho | Editor esquemático simples (sem fidelidade CAD rigorosa). |
+| 4 | Offline | Backend Python obrigatório no MVP; simulação no browser fica como evolução opcional. |
+| 5 | Projeto | Repositório público open source; escolher licença e validar licenças de dependências, componentes e motores. |
+| 6 | Nome e estrutura | Aplicação **VCCCircuitLab**; estrutura monorepo da secção 9 (`apps/` + `packages/`). |
+| 7 | Gestor de pacotes | **pnpm** com workspaces (via Corepack); não usar npm/yarn nem outros lockfiles. |
 
 ## 16. Referências técnicas
 
@@ -424,33 +438,3 @@ Os comandos pressupõem que `apps/api/app/main.py` já existe e exporta `app = F
 ---
 
 **Recomendação final:** começar por **React Flow + símbolos SVG próprios + JSON canónico + FastAPI + solver MNA DC**. Introduzir Schemdraw como ferramenta de exportação e ngspice numa segunda fase. Esta separação evita acoplar a interface a um formato de desenho ou motor de simulação específico.
-
-CircuitForge/
-│
-├── .gitignore
-├── README.md
-├── docker-compose.yml
-│
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   ├── package.json
-│   ├── pnpm-lock.yaml
-│   └── vite.config.ts
-│
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── models/
-│   │   ├── components/
-│   │   ├── simulation/
-│   │   └── main.py
-│   ├── tests/
-│   ├── requirements.txt
-│   └── .env.example
-│
-├── circuits/
-│   └── examples/
-│
-└── docs/
-    └── architecture.md
