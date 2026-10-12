@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0",
+  "id": "circuit-001",
+  "name": "Fonte e resistência",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": { "x": 100, "y": 180 },
+      "rotation": 0,
+      "properties": { "voltageV": 12 },
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "position": { "x": 300, "y": 100 },
+      "rotation": 0,
+      "properties": { "resistanceOhm": 100 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": { "x": 100, "y": 320 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["gnd"]
+    }
+  ],
+  "nets": [
+    { "id": "N_PLUS", "terminals": ["V1.positive", "R1.a"] },
+    { "id": "N_GND", "terminals": ["V1.negative", "R1.b", "GND1.gnd"] }
+  ],
+  "wires": [
+    { "id": "W1", "from": "V1.positive", "to": "R1.a", "waypoints": [] },
+    { "id": "W2", "from": "R1.b", "to": "V1.negative", "waypoints": [] },
+    { "id": "W3", "from": "GND1.gnd", "to": "V1.negative", "waypoints": [] }
+  ]
+}

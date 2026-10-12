@@ -22,6 +22,6 @@ status: active
 | E0-04 | Criar apps/api com FastAPI e endpoint /health | done | 2026-10-12 | developer | high | 2026-10-12 |  |  | [E0-04](../specs/etapa-0/e0-04-spec.md) |
 | E0-05 | Configurar lint, format e testes (frontend e backend) | backlog | 2026-10-12 | developer | medium |  |  | E0-03, E0-04 |  |
 | E0-06 | Pipelines CI no GitHub Actions (frontend e backend separados) | backlog | 2026-10-12 | developer | medium |  |  | E0-05 |  |
-| E0-07 | Definir JSON Schema 1.0 do circuito (packages/circuit-schema) | backlog | 2026-10-12 | developer | high |  |  |  |  |
+| E0-07 | Definir JSON Schema 1.0 do circuito (packages/circuit-schema) | done | 2026-10-12 | developer | high | 2026-10-12 |  |  | [E0-07](../specs/etapa-0/e0-07-spec.md) |
 | E0-08 | Catálogo inicial de componentes e convenções | backlog | 2026-10-12 | developer | high |  |  | E0-07 |  |
 <!-- /maestru:work-items-list -->

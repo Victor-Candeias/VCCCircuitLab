@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vcccircuitlab:circuit-schema:1.0",
+  "title": "CircuitDocument",
+  "description": "Documento canónico de circuito do VCCCircuitLab (schemaVersion 1.0). A conectividade elétrica é definida por `wires` e `junctions`; `nets` é derivado e opcional.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "units", "components", "wires"],
+  "properties": {
+    "schemaVersion": {
+      "description": "Versão do schema do documento. Alterações incompatíveis exigem nova versão e migração.",
+      "const": "1.0"
+    },
+    "id": { "$ref": "#/$defs/DocumentId" },
+    "name": {
+      "description": "Nome do circuito apresentado ao utilizador.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "units": {
+      "description": "Sistema de unidades das propriedades (SI). As unidades são explícitas no sufixo do nome da propriedade.",
+      "const": "SI"
+    },
+    "components": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Component" }
+    },
+    "junctions": {
+      "description": "Junções explícitas fio-a-fio. Fios cruzados sem junção (ou terminal) comum não ficam ligados.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/Junction" }
+    },
+    "wires": {
+      "description": "Ligações entre extremidades (terminais ou junções). Fonte de verdade da conectividade e da geometria dos fios.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/Wire" }
+    },
+    "nets": {
+      "description": "Redes elétricas derivadas pelo normalizador a partir de `wires` e `junctions`. Opcional; nunca é aceite como fonte de verdade se for inconsistente com os fios.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/Net" }
+    }
+  },
+  "$defs": {
+    "DocumentId": {
+      "title": "DocumentId",
+      "description": "Identificador do documento.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+    },
+    "ElementId": {
+      "title": "ElementId",
+      "description": "Identificador estável de componente, junção, fio ou rede. Sensível a maiúsculas, único em todo o documento e sem '.', que é reservado como separador `Componente.pino`.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+    },
+    "PinId": {
+      "title": "PinId",
+      "description": "Identificador de pino, único dentro do componente.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$"
+    },
+    "TerminalRef": {
+      "title": "TerminalRef",
+      "description": "Referência a um terminal no formato `<ElementId do componente>.<PinId>` (ex.: `R1.a`).",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}\\.[A-Za-z][A-Za-z0-9_]{0,31}$"
+    },
+    "WireEndpoint": {
+      "title": "WireEndpoint",
+      "description": "Extremidade de um fio: um terminal (`Componente.pino`) ou o ElementId de uma junção (sem '.').",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}(\\.[A-Za-z][A-Za-z0-9_]{0,31})?$"
+    },
+    "ComponentType": {
+      "title": "ComponentType",
+      "description": "Tipo do componente no catálogo (snake_case, ex.: `resistor`, `dc_voltage_source`).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "Point": {
+      "title": "Point",
+      "description": "Coordenadas no canvas, em unidades de canvas (px a zoom 1), com o eixo y para baixo.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "Rotation": {
+      "title": "Rotation",
+      "description": "Rotação em graus, no sentido horário, em torno de `position`.",
+      "enum": [0, 90, 180, 270]
+    },
+    "ComponentProperties": {
+      "title": "ComponentProperties",
+      "description": "Propriedades tipadas do componente. Nomes em camelCase com sufixo de unidade SI (ex.: `voltageV`, `resistanceOhm`, `currentA`, `powerW`); booleanos para estados (ex.: `closed`).",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][A-Za-z0-9]{0,63}$" },
+      "additionalProperties": { "type": ["number", "boolean"] }
+    },
+    "Component": {
+      "title": "Component",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "position", "rotation", "properties", "pins"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ElementId" },
+        "type": { "$ref": "#/$defs/ComponentType" },
+        "label": {
+          "description": "Etiqueta opcional apresentada no esquema.",
+          "type": "string",
+          "maxLength": 64
+        },
+        "position": { "$ref": "#/$defs/Point" },
+        "rotation": { "$ref": "#/$defs/Rotation" },
+        "properties": { "$ref": "#/$defs/ComponentProperties" },
+        "pins": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/PinId" }
+        }
+      }
+    },
+    "Junction": {
+      "title": "Junction",
+      "description": "Ponto de ligação explícito entre fios.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "position"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ElementId" },
+        "position": { "$ref": "#/$defs/Point" }
+      }
+    },
+    "Wire": {
+      "title": "Wire",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "to", "waypoints"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ElementId" },
+        "from": { "$ref": "#/$defs/WireEndpoint" },
+        "to": { "$ref": "#/$defs/WireEndpoint" },
+        "waypoints": {
+          "description": "Pontos intermédios do traçado (fios ortogonais), excluindo as extremidades.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Point" }
+        }
+      }
+    },
+    "Net": {
+      "title": "Net",
+      "description": "Rede elétrica: conjunto de terminais ao mesmo potencial.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "terminals"],
+      "properties": {
+        "id": { "$ref": "#/$defs/ElementId" },
+        "terminals": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/TerminalRef" }
+        }
+      }
+    }
+  }
+}

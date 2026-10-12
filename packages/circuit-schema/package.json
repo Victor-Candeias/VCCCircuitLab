@@ -1,0 +1,21 @@
+{
+  "name": "@vcccircuitlab/circuit-schema",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JSON Schema 1.0 do circuito canónico do VCCCircuitLab e tipos TypeScript gerados",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./circuit.schema.json": "./schema/circuit.schema.json"
+  },
+  "scripts": {
+    "generate": "node scripts/generate-types.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test && tsc --noEmit"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "typescript": "~6.0.3"
+  }
+}

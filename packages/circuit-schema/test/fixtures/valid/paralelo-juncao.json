@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0",
+  "id": "paralelo-juncao",
+  "name": "Duas resistências em paralelo com junções explícitas",
+  "description": "R1 e R2 em paralelo ligadas à fonte através das junções J1 e J2; inclui interruptor fechado.",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": { "x": 80, "y": 200 },
+      "rotation": 90,
+      "properties": { "voltageV": 9 },
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "S1",
+      "type": "switch",
+      "label": "Interruptor",
+      "position": { "x": 180, "y": 80 },
+      "rotation": 0,
+      "properties": { "closed": true },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "position": { "x": 320, "y": 200 },
+      "rotation": 90,
+      "properties": { "resistanceOhm": 220 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "position": { "x": 440, "y": 200 },
+      "rotation": 90,
+      "properties": { "resistanceOhm": 330.5 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": { "x": 80, "y": 360 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["gnd"]
+    }
+  ],
+  "junctions": [
+    { "id": "J1", "position": { "x": 320, "y": 80 } },
+    { "id": "J2", "position": { "x": 320, "y": 320 } }
+  ],
+  "wires": [
+    { "id": "W1", "from": "V1.positive", "to": "S1.a", "waypoints": [{ "x": 80, "y": 80 }] },
+    { "id": "W2", "from": "S1.b", "to": "J1", "waypoints": [] },
+    { "id": "W3", "from": "J1", "to": "R1.a", "waypoints": [] },
+    { "id": "W4", "from": "J1", "to": "R2.a", "waypoints": [{ "x": 440, "y": 80 }] },
+    { "id": "W5", "from": "R1.b", "to": "J2", "waypoints": [] },
+    { "id": "W6", "from": "R2.b", "to": "J2", "waypoints": [{ "x": 440, "y": 320 }] },
+    { "id": "W7", "from": "J2", "to": "V1.negative", "waypoints": [{ "x": 80, "y": 320 }] },
+    { "id": "W8", "from": "GND1.gnd", "to": "V1.negative", "waypoints": [] }
+  ]
+}
