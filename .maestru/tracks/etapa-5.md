@@ -1,0 +1,25 @@
+---
+maestru: "0.4"
+type: work-track
+id: etapa-5
+title: Etapa 5 — Publicação
+created: 2026-10-12
+description: "CI/CD, deploy do frontend no GitHub Pages e do backend em Debian com HTTPS. Aceitação: site público acessível, API segura, health check e exemplos funcionais."
+owner: developer
+status: active
+---
+
+# etapa-5: Etapa 5 — Publicação
+
+## Summary
+
+<!-- maestru:work-items-list -->
+| ID | Title | Status | Created | Owner | Priority | Completed | Template | Blocked By | Spec |
+|---|---|---|---|---|---|---|---|---|---|
+| E5-01 | Deploy do frontend no GitHub Pages | backlog | 2026-10-12 | developer | high |  |  | etapa-0/E0-06, etapa-4/E4-05 |  |
+| E5-02 | Containerizar a API (Docker não privilegiado e docker-compose) | backlog | 2026-10-12 | developer | high |  |  | etapa-0/E0-04 |  |
+| E5-03 | Deploy do backend em Debian com HTTPS | backlog | 2026-10-12 | developer | high |  |  | E5-02 |  |
+| E5-04 | Segurança operacional da API | backlog | 2026-10-12 | developer | high |  |  | E5-03 |  |
+| E5-05 | Monitorização, logs e health check | backlog | 2026-10-12 | developer | medium |  |  | E5-03 |  |
+| E5-06 | Testes em desktop, tablet e browsers principais | backlog | 2026-10-12 | developer | medium |  |  | E5-01, E5-03 |  |
+<!-- /maestru:work-items-list -->

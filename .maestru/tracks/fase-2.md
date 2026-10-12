@@ -1,0 +1,28 @@
+---
+maestru: "0.4"
+type: work-track
+id: fase-2
+title: Fase 2 — Evolução pós-MVP
+created: 2026-10-12
+description: "Funcionalidades fora do MVP (secção 11): ngspice, transitórios, instrumentos virtuais, semicondutores, 230/400 V e iluminação de escada."
+owner: developer
+status: draft
+---
+
+# fase-2: Fase 2 — Evolução pós-MVP
+
+## Summary
+
+<!-- maestru:work-items-list -->
+| ID | Title | Status | Created | Owner | Priority | Completed | Template | Blocked By | Spec |
+|---|---|---|---|---|---|---|---|---|---|
+| F2-01 | Integração ngspice (tradutor JSON → netlist SPICE) | backlog | 2026-10-12 | developer | high |  |  |  |  |
+| F2-02 | Condensadores, bobinas e análise transitória | backlog | 2026-10-12 | developer | high |  |  | F2-01 |  |
+| F2-03 | Instrumentos virtuais: voltímetro, amperímetro e osciloscópio | backlog | 2026-10-12 | developer | high |  |  | F2-02 |  |
+| F2-04 | Díodos, LEDs e transístores | backlog | 2026-10-12 | developer | medium |  |  | F2-01 |  |
+| F2-05 | Importação/exportação SPICE | backlog | 2026-10-12 | developer | medium |  |  | F2-01 |  |
+| F2-06 | Gerador de circuitos por linguagem natural | backlog | 2026-10-12 | developer | medium |  |  |  |  |
+| F2-07 | Catálogo IEC e modelos para instalações 230/400 V | backlog | 2026-10-12 | developer | medium |  |  |  |  |
+| F2-08 | Template de geração iluminacao_escada (230 V) | backlog | 2026-10-12 | developer | medium |  |  | F2-07 |  |
+| F2-09 | Contas, partilha e colaboração | backlog | 2026-10-12 | developer | low |  |  |  |  |
+<!-- /maestru:work-items-list -->
