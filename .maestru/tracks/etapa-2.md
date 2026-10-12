@@ -16,7 +16,7 @@ status: active
 <!-- maestru:work-items-list -->
 | ID | Title | Status | Created | Owner | Priority | Completed | Template | Blocked By | Spec |
 |---|---|---|---|---|---|---|---|---|---|
-| E2-01 | Modelos Pydantic e normalizador de redes (union-find) | backlog | 2026-10-12 | developer | high |  |  | etapa-0/E0-04, etapa-0/E0-07 |  |
+| E2-01 | Modelos Pydantic e normalizador de redes (union-find) | done | 2026-10-12 | developer | high | 2026-10-12 |  | etapa-0/E0-04, etapa-0/E0-07 | [E2-01](../specs/etapa-2/e2-01-spec.md) |
 | E2-02 | Validador topológico e de valores | backlog | 2026-10-12 | developer | high |  |  | E2-01 |  |
 | E2-03 | Solver MNA DC | backlog | 2026-10-12 | developer | critical |  |  | E2-02 |  |
 | E2-04 | Testes do solver com resultados analíticos | backlog | 2026-10-12 | developer | high |  |  | E2-03 |  |
