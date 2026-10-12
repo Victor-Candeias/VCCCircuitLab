@@ -1,20 +1,21 @@
 # @vcccircuitlab/circuit-schema
 
-JSON Schema **1.0** do documento canónico de circuito do VCCCircuitLab (`schema/circuit.schema.json`, draft 2020-12) e tipos TypeScript gerados (`src/circuit.ts`).
+JSON Schema **1.0** do documento canónico de circuito do VCCCircuitLab (`schema/circuit.schema.json`, draft 2020-12), catálogo de componentes (`catalog/components.json`, validado por `schema/catalog.schema.json`) e tipos TypeScript gerados (`src/circuit.ts`, `src/catalog.ts`).
 
 ```ts
-import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
+import type { CircuitDocument, ComponentCatalog } from '@vcccircuitlab/circuit-schema';
 import schema from '@vcccircuitlab/circuit-schema/circuit.schema.json';
+import catalog from '@vcccircuitlab/circuit-schema/catalog.json';
 ```
 
 ## Comandos
 
 ```bash
-pnpm --filter @vcccircuitlab/circuit-schema generate   # regenerar src/circuit.ts a partir do schema
-pnpm --filter @vcccircuitlab/circuit-schema test       # validar fixtures + tipos sincronizados + tsc
+pnpm --filter @vcccircuitlab/circuit-schema generate   # regenerar src/circuit.ts e src/catalog.ts a partir dos schemas
+pnpm --filter @vcccircuitlab/circuit-schema test       # validar fixtures + catálogo + tipos sincronizados + tsc
 ```
 
-`src/circuit.ts` é gerado — não editar à mão. O teste falha se não estiver sincronizado com o schema.
+`src/circuit.ts` e `src/catalog.ts` são gerados — não editar à mão. O teste falha se não estiverem sincronizados com os schemas.
 
 ## Estrutura do documento
 
@@ -65,6 +66,29 @@ pnpm --filter @vcccircuitlab/circuit-schema test       # validar fixtures + tipo
 
 - `schemaVersion` identifica a versão do documento. Alterações incompatíveis exigem nova versão e uma migração.
 
+## Catálogo de componentes
+
+`catalog/components.json` separa, por tipo de componente, o **símbolo**, os **terminais**, a **validação de propriedades** e o **modelo elétrico** (§4.1 da arquitetura).
+
+| Tipo | Prefixo | Pinos | Propriedades (omissão) | Modelo elétrico |
+|---|---|---|---|---|
+| `dc_voltage_source` | `V` | `positive`, `negative` | `voltageV` = 12 (0 < V ≤ 120) | `dc_voltage_source` |
+| `dc_current_source` | `I` | `positive`, `negative` | `currentA` = 0.1 (0 < A ≤ 10) | `dc_current_source` |
+| `resistor` | `R` | `a`, `b` | `resistanceOhm` = 1000 (> 0) | `resistor` |
+| `switch` | `S` | `a`, `b` | `closed` = false | `ideal_switch` |
+| `lamp` | `H` | `a`, `b` | `ratedVoltageV` = 12 (0 < V ≤ 120), `ratedPowerW` = 5 (> 0) | `resistive_lamp` (R = V²/P) |
+| `ground` | `GND` | `gnd` | — | `ground` |
+
+Convenções do catálogo:
+
+- **Grelha**: `gridSize` = 20 unidades de canvas; as posições dos pinos são múltiplos da grelha.
+- **Pinos**: `position` é relativa a `Component.position` com `rotation` = 0; o editor aplica a rotação (horária) para obter a posição absoluta. Os pinos ficam dentro de `size` (centrado na âncora).
+- **Polaridade**: na fonte de tensão, `positive` está `voltageV` acima de `negative`; na fonte de corrente, a corrente entra por `negative` e sai por `positive` para o circuito externo.
+- **Prefixos de ID**: novas instâncias recebem `<idPrefix><n>` (ex.: `R1`, `R2`); `H` é usado para lâmpadas para não colidir com `L` (bobinas, fase futura).
+- **Propriedades**: `number` (com `unit`, `default` e limites `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`, com a semântica do JSON Schema) ou `boolean`. O `default` respeita os limites.
+- **Modelo elétrico**: `simulationModel` = `null` marca um componente que pode ser desenhado mas é **não suportado pelo solver**.
+- Os testes verificam que as fixtures de circuito só usam tipos, pinos e propriedades válidos do catálogo.
+
 ## Regras fora do JSON Schema
 
 Verificadas pelo validador do backend (E2-02), não pelo schema:
@@ -73,4 +97,4 @@ Verificadas pelo validador do backend (E2-02), não pelo schema:
 - referências de fios/redes a componentes, pinos e junções existentes;
 - `from` ≠ `to` num fio;
 - consistência de `nets` com `wires`/`junctions`;
-- propriedades exigidas e limites de valores por tipo de componente (catálogo, E0-08).
+- propriedades exigidas e limites de valores por tipo de componente (definidos em `catalog/components.json`).

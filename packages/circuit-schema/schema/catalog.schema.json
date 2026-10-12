@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vcccircuitlab:catalog-schema:1.0",
+  "title": "ComponentCatalog",
+  "description": "Catálogo de componentes do VCCCircuitLab. Separa símbolo, terminais, validação de propriedades e modelo elétrico.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["catalogVersion", "gridSize", "components"],
+  "properties": {
+    "catalogVersion": {
+      "description": "Versão do formato do catálogo.",
+      "const": "1.0"
+    },
+    "gridSize": {
+      "description": "Passo da grelha do editor em unidades de canvas. As posições dos pinos são múltiplos deste valor.",
+      "type": "integer",
+      "exclusiveMinimum": 0
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ComponentDefinition" }
+    }
+  },
+  "$defs": {
+    "ComponentCategory": {
+      "title": "ComponentCategory",
+      "description": "Categoria usada para agrupar a paleta.",
+      "enum": ["source", "passive", "switch", "load", "reference"]
+    },
+    "SimulationModel": {
+      "title": "SimulationModel",
+      "description": "Modelo elétrico usado pelo solver. `null` indica `não suportado pelo solver` (o componente pode ser desenhado mas não simulado).",
+      "enum": [
+        "dc_voltage_source",
+        "dc_current_source",
+        "resistor",
+        "ideal_switch",
+        "resistive_lamp",
+        "ground",
+        null
+      ]
+    },
+    "PinKind": {
+      "title": "PinKind",
+      "description": "Natureza elétrica do pino: `passive` (sem polaridade), `positive`/`negative` (polaridade de fontes) ou `reference` (terra).",
+      "enum": ["passive", "positive", "negative", "reference"]
+    },
+    "PinDefinition": {
+      "title": "PinDefinition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "position"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$"
+        },
+        "kind": { "$ref": "#/$defs/PinKind" },
+        "position": {
+          "description": "Posição do pino relativa a `position` do componente, com rotação 0, em unidades de canvas.",
+          "$ref": "#/$defs/RelativePoint"
+        }
+      }
+    },
+    "RelativePoint": {
+      "title": "RelativePoint",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "integer" },
+        "y": { "type": "integer" }
+      }
+    },
+    "Size": {
+      "title": "Size",
+      "description": "Caixa envolvente do símbolo com rotação 0, centrada em `position`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "exclusiveMinimum": 0 },
+        "height": { "type": "integer", "exclusiveMinimum": 0 }
+      }
+    },
+    "NumberPropertyDefinition": {
+      "title": "NumberPropertyDefinition",
+      "description": "Propriedade numérica. Os campos de validação seguem as palavras-chave do JSON Schema.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "unit", "default"],
+      "properties": {
+        "type": { "const": "number" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "unit": {
+          "description": "Símbolo da unidade SI apresentado na interface (ex.: `V`, `A`, `Ω`, `W`).",
+          "type": "string",
+          "minLength": 1
+        },
+        "default": { "type": "number" },
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" },
+        "exclusiveMinimum": { "type": "number" },
+        "exclusiveMaximum": { "type": "number" }
+      }
+    },
+    "BooleanPropertyDefinition": {
+      "title": "BooleanPropertyDefinition",
+      "description": "Propriedade booleana (estado).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "default"],
+      "properties": {
+        "type": { "const": "boolean" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "default": { "type": "boolean" }
+      }
+    },
+    "PropertyDefinition": {
+      "title": "PropertyDefinition",
+      "oneOf": [
+        { "$ref": "#/$defs/NumberPropertyDefinition" },
+        { "$ref": "#/$defs/BooleanPropertyDefinition" }
+      ]
+    },
+    "ComponentDefinition": {
+      "title": "ComponentDefinition",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "label",
+        "category",
+        "idPrefix",
+        "symbol",
+        "size",
+        "pins",
+        "properties",
+        "simulationModel"
+      ],
+      "properties": {
+        "type": {
+          "description": "Tipo usado em `Component.type` no documento de circuito.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "label": {
+          "description": "Nome apresentado na paleta.",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": { "type": "string" },
+        "category": { "$ref": "#/$defs/ComponentCategory" },
+        "idPrefix": {
+          "description": "Prefixo dos IDs gerados para novas instâncias (ex.: `R` → `R1`, `R2`).",
+          "type": "string",
+          "pattern": "^[A-Z][A-Z]{0,7}$"
+        },
+        "symbol": {
+          "description": "Identificador do símbolo SVG (simbologia IEC).",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "size": { "$ref": "#/$defs/Size" },
+        "pins": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/PinDefinition" }
+        },
+        "properties": {
+          "description": "Propriedades por nome (camelCase com sufixo da unidade SI).",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][A-Za-z0-9]{0,63}$" },
+          "additionalProperties": { "$ref": "#/$defs/PropertyDefinition" }
+        },
+        "simulationModel": { "$ref": "#/$defs/SimulationModel" }
+      }
+    }
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "catalogVersion": "1.0",
+  "gridSize": 20,
+  "components": [
+    {
+      "type": "dc_voltage_source",
+      "label": "Fonte de tensão DC",
+      "description": "Fonte de tensão contínua ideal. O terminal `positive` está a `voltageV` acima do terminal `negative`.",
+      "category": "source",
+      "idPrefix": "V",
+      "symbol": "dc_voltage_source_iec",
+      "size": { "width": 40, "height": 80 },
+      "pins": [
+        { "id": "positive", "kind": "positive", "position": { "x": 0, "y": -40 } },
+        { "id": "negative", "kind": "negative", "position": { "x": 0, "y": 40 } }
+      ],
+      "properties": {
+        "voltageV": {
+          "type": "number",
+          "title": "Tensão",
+          "unit": "V",
+          "default": 12,
+          "exclusiveMinimum": 0,
+          "maximum": 120
+        }
+      },
+      "simulationModel": "dc_voltage_source"
+    },
+    {
+      "type": "dc_current_source",
+      "label": "Fonte de corrente DC",
+      "description": "Fonte de corrente contínua ideal. A corrente `currentA` entra pelo terminal `negative` e sai pelo terminal `positive` para o circuito externo.",
+      "category": "source",
+      "idPrefix": "I",
+      "symbol": "dc_current_source_iec",
+      "size": { "width": 40, "height": 80 },
+      "pins": [
+        { "id": "positive", "kind": "positive", "position": { "x": 0, "y": -40 } },
+        { "id": "negative", "kind": "negative", "position": { "x": 0, "y": 40 } }
+      ],
+      "properties": {
+        "currentA": {
+          "type": "number",
+          "title": "Corrente",
+          "unit": "A",
+          "default": 0.1,
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        }
+      },
+      "simulationModel": "dc_current_source"
+    },
+    {
+      "type": "resistor",
+      "label": "Resistência",
+      "category": "passive",
+      "idPrefix": "R",
+      "symbol": "resistor_iec",
+      "size": { "width": 80, "height": 20 },
+      "pins": [
+        { "id": "a", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "b", "kind": "passive", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "resistanceOhm": {
+          "type": "number",
+          "title": "Resistência",
+          "unit": "Ω",
+          "default": 1000,
+          "exclusiveMinimum": 0
+        }
+      },
+      "simulationModel": "resistor"
+    },
+    {
+      "type": "switch",
+      "label": "Interruptor",
+      "description": "Interruptor ideal de dois terminais com estado explícito (aberto/fechado).",
+      "category": "switch",
+      "idPrefix": "S",
+      "symbol": "switch_spst_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "a", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "b", "kind": "passive", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "closed": {
+          "type": "boolean",
+          "title": "Fechado",
+          "default": false
+        }
+      },
+      "simulationModel": "ideal_switch"
+    },
+    {
+      "type": "lamp",
+      "label": "Lâmpada",
+      "description": "Lâmpada modelada como resistência equivalente R = ratedVoltageV² / ratedPowerW (sem aquecimento nem corrente de arranque).",
+      "category": "load",
+      "idPrefix": "H",
+      "symbol": "lamp_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "a", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "b", "kind": "passive", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "ratedVoltageV": {
+          "type": "number",
+          "title": "Tensão nominal",
+          "unit": "V",
+          "default": 12,
+          "exclusiveMinimum": 0,
+          "maximum": 120
+        },
+        "ratedPowerW": {
+          "type": "number",
+          "title": "Potência nominal",
+          "unit": "W",
+          "default": 5,
+          "exclusiveMinimum": 0
+        }
+      },
+      "simulationModel": "resistive_lamp"
+    },
+    {
+      "type": "ground",
+      "label": "Terra",
+      "description": "Referência de potencial (0 V) do circuito.",
+      "category": "reference",
+      "idPrefix": "GND",
+      "symbol": "ground_iec",
+      "size": { "width": 40, "height": 40 },
+      "pins": [{ "id": "gnd", "kind": "reference", "position": { "x": 0, "y": -20 } }],
+      "properties": {},
+      "simulationModel": "ground"
+    }
+  ]
+}

@@ -6,7 +6,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./circuit.schema.json": "./schema/circuit.schema.json"
+    "./circuit.schema.json": "./schema/circuit.schema.json",
+    "./catalog.schema.json": "./schema/catalog.schema.json",
+    "./catalog.json": "./catalog/components.json"
   },
   "scripts": {
     "generate": "node scripts/generate-types.mjs",

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { describe, test } from 'node:test';
 import Ajv2020 from 'ajv/dist/2020.js';
-import { generateTypes, typesUrl } from '../scripts/generate-types.mjs';
+import { generateTypes, targets } from '../scripts/generate-types.mjs';
 
 const readJson = async (url) => JSON.parse(await readFile(url, 'utf8'));
 
@@ -62,12 +62,16 @@ describe('documentos inválidos', () => {
   }
 });
 
-test('src/circuit.ts está sincronizado com o schema', async () => {
-  const expected = await generateTypes();
-  const actual = await readFile(typesUrl, 'utf8');
-  assert.equal(
-    actual.replace(/\r\n/g, '\n'),
-    expected.replace(/\r\n/g, '\n'),
-    'Executar: pnpm --filter @vcccircuitlab/circuit-schema generate',
-  );
+describe('tipos gerados sincronizados com os schemas', () => {
+  for (const target of targets) {
+    test(target.name, async () => {
+      const expected = await generateTypes(target);
+      const actual = await readFile(target.typesUrl, 'utf8');
+      assert.equal(
+        actual.replace(/\r\n/g, '\n'),
+        expected.replace(/\r\n/g, '\n'),
+        'Executar: pnpm --filter @vcccircuitlab/circuit-schema generate',
+      );
+    });
+  }
 });
