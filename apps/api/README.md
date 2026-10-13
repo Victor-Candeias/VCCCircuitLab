@@ -56,6 +56,28 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 - `FLOATING_NET`: grupo de redes sem caminho condutor até à terra, porque o potencial fica indefinido. Se o grupo toca numa fonte de corrente, o erro é `CURRENT_SOURCE_CUTSET` (fonte em aberto ou fontes em série). Sem terra, só se reporta `MISSING_GROUND`.
 - O catálogo é lido de `app/circuit/data/components.json` (`app/circuit/catalog.py`). É uma cópia de `packages/circuit-schema/catalog/components.json`, porque a imagem Docker só inclui `app/`. Um teste falha se as duas versões divergirem: depois de alterar o catálogo, copiar o ficheiro.
 
+## Solver MNA DC
+
+`app/solver/mna.py`: `simulate_dc(doc)` valida o circuito (lança `CircuitValidationError` se houver erros) e calcula o ponto de funcionamento DC por análise nodal modificada com NumPy. Devolve um `DcResult`; `to_json_dict()` produz o formato da arquitetura (§8):
+
+```json
+{
+  "analysis": "dc_operating_point",
+  "status": "success",
+  "nodeVoltagesV": { "N_PLUS": 12, "N_GND": 0 },
+  "components": {
+    "V1": { "voltageV": 12, "currentA": -0.12, "powerW": -1.44 },
+    "R1": { "voltageV": 12, "currentA": 0.12, "powerW": 1.44 }
+  },
+  "warnings": []
+}
+```
+
+- **Modelos:** a resistência e a lâmpada são condutâncias (lâmpada: R = `ratedVoltageV`² / `ratedPowerW`). Um interruptor fechado é uma fonte de 0 V; um interruptor aberto não entra na matriz (sem R = 0 nem R = ∞). A fonte de corrente injeta `currentA` na rede de `positive`. Todas as redes com terra ficam a 0 V.
+- **Sinais (convenção passiva, pinos pela ordem do catálogo):** `voltageV = V(pino1) − V(pino2)`. `currentA` entra pelo pino 1 e atravessa o componente. `powerW = voltageV × currentA` é a potência absorvida, negativa quando o componente fornece energia. A soma das potências é 0. A terra não tem resultado próprio.
+- **Erros numéricos:** `SINGULAR_MATRIX` e `ILL_CONDITIONED_MATRIX` (número de condição > 1e12) são erros, para nunca devolver resultados falsos. Com o validador, só ocorrem com valores extremos (por exemplo, resistências de 1e-13 Ω).
+- **Avisos:** os avisos do validador (por exemplo `UNCONNECTED_PIN`) passam para `warnings`.
+
 ## Imagem Docker
 
 O `Dockerfile` usa um build em duas fases sobre `python:3.12-slim`: o venv é criado em `/opt/venv` só com `requirements.txt`, e apenas `app/` é copiado (ver `.dockerignore`). O contexto de build é `apps/api`. A imagem corre `uvicorn` em `0.0.0.0:8000` como `app` (uid/gid 10001), sem cabeçalho `Server`, e o `HEALTHCHECK` consulta `GET /health`. O número de processos define-se com `UVICORN_WORKERS`. Para correr com as restrições de segurança, usar o `docker-compose.yml` da raiz (ver README principal).
