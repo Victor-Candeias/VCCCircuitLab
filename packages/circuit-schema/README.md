@@ -88,6 +88,7 @@ Convenções do catálogo:
 - **Propriedades**: `number` (com `unit`, `default` e limites `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`, com a semântica do JSON Schema) ou `boolean`. O `default` respeita os limites.
 - **Modelo elétrico**: `simulationModel` = `null` marca um componente que pode ser desenhado mas é **não suportado pelo solver**.
 - Os testes verificam que as fixtures de circuito só usam tipos, pinos e propriedades válidos do catálogo.
+- A API (`apps/api`) usa uma cópia em `apps/api/app/circuit/data/components.json`, que tem de ser atualizada sempre que o catálogo muda. Um teste da API compara as duas versões.
 
 ## Regras fora do JSON Schema
 
