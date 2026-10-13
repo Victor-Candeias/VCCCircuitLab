@@ -3,36 +3,58 @@ import { create } from 'zustand';
 import { GRID_SIZE } from '../editor/catalog';
 import { demoCircuit } from '../editor/demoCircuit';
 import { snapPoint } from '../editor/geometry';
+import {
+  anchorPosition,
+  commitWire,
+  orthogonalize,
+  type WireAnchor,
+  type WireDraft,
+} from '../editor/wiring';
 
 /**
  * Estado do editor. O `circuit` é o documento canónico (modelo elétrico + geometria persistida);
- * o estado de vista (seleção) vive à parte e nunca é gravado no documento.
+ * o estado de vista (seleção, fio em desenho) vive à parte e nunca é gravado no documento.
  */
 export interface EditorState {
   circuit: CircuitDocument;
   selectedIds: string[];
+  /** Fio a ser desenhado (ferramenta de fio); `null` fora do modo de desenho. */
+  wireDraft: WireDraft | null;
   loadCircuit: (circuit: CircuitDocument) => void;
   /** Move a âncora de um componente, com snap à grelha. */
   moveComponent: (id: string, anchor: Point) => void;
+  /** Move uma junção, com snap à grelha. */
+  moveJunction: (id: string, position: Point) => void;
   setSelection: (ids: readonly string[]) => void;
+  /** Começa um fio num terminal, numa junção ou num ponto de um fio existente. */
+  startWire: (anchor: WireAnchor) => void;
+  /** Fixa um ponto intermédio (encaixado na grelha), com canto ortogonal se necessário. */
+  addWireWaypoint: (point: Point) => void;
+  removeLastWireWaypoint: () => void;
+  /** Termina o fio; devolve `false` (e mantém o rascunho) se a ligação for inválida. */
+  finishWire: (anchor: WireAnchor) => boolean;
+  cancelWire: () => void;
+  /** Clique numa âncora com a ferramenta de fio: começa um fio ou termina o que está em desenho. */
+  clickWireAnchor: (anchor: WireAnchor) => void;
 }
 
 const sameIds = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((id, i) => id === b[i]);
 
-export const useEditorStore = create<EditorState>()((set) => ({
+const samePosition = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
+export const useEditorStore = create<EditorState>()((set, get) => ({
   circuit: demoCircuit,
   selectedIds: [],
+  wireDraft: null,
 
-  loadCircuit: (circuit) => set({ circuit, selectedIds: [] }),
+  loadCircuit: (circuit) => set({ circuit, selectedIds: [], wireDraft: null }),
 
   moveComponent: (id, anchor) =>
     set((state) => {
       const position = snapPoint(anchor, GRID_SIZE);
       const current = state.circuit.components.find((c) => c.id === id);
-      if (!current || (current.position.x === position.x && current.position.y === position.y)) {
-        return state;
-      }
+      if (!current || samePosition(current.position, position)) return state;
       return {
         circuit: {
           ...state.circuit,
@@ -41,10 +63,65 @@ export const useEditorStore = create<EditorState>()((set) => ({
       };
     }),
 
+  moveJunction: (id, point) =>
+    set((state) => {
+      const position = snapPoint(point, GRID_SIZE);
+      const junctions = state.circuit.junctions ?? [];
+      const current = junctions.find((j) => j.id === id);
+      if (!current || samePosition(current.position, position)) return state;
+      return {
+        circuit: {
+          ...state.circuit,
+          junctions: junctions.map((j) => (j.id === id ? { ...j, position } : j)),
+        },
+      };
+    }),
+
   setSelection: (ids) =>
     set((state) => {
-      const known = new Set(state.circuit.components.map((c) => c.id));
+      const known = new Set([
+        ...state.circuit.components.map((c) => c.id),
+        ...(state.circuit.junctions ?? []).map((j) => j.id),
+      ]);
       const next = [...new Set(ids)].filter((id) => known.has(id));
       return sameIds(next, state.selectedIds) ? state : { selectedIds: next };
     }),
+
+  startWire: (anchor) =>
+    set((state) =>
+      anchorPosition(state.circuit, anchor)
+        ? { wireDraft: { start: anchor, waypoints: [] } }
+        : state,
+    ),
+
+  addWireWaypoint: (point) =>
+    set((state) => {
+      const draft = state.wireDraft;
+      const start = draft && anchorPosition(state.circuit, draft.start);
+      if (!draft || !start) return state;
+      const path = orthogonalize([start, ...draft.waypoints, snapPoint(point, GRID_SIZE)]);
+      return { wireDraft: { ...draft, waypoints: path.slice(1) } };
+    }),
+
+  removeLastWireWaypoint: () =>
+    set((state) =>
+      state.wireDraft && state.wireDraft.waypoints.length > 0
+        ? { wireDraft: { ...state.wireDraft, waypoints: state.wireDraft.waypoints.slice(0, -1) } }
+        : state,
+    ),
+
+  finishWire: (anchor) => {
+    const { circuit, wireDraft } = get();
+    const next = wireDraft && commitWire(circuit, wireDraft, anchor);
+    if (!next) return false;
+    set({ circuit: next, wireDraft: null });
+    return true;
+  },
+
+  cancelWire: () => set((state) => (state.wireDraft ? { wireDraft: null } : state)),
+
+  clickWireAnchor: (anchor) => {
+    if (get().wireDraft) get().finishWire(anchor);
+    else get().startWire(anchor);
+  },
 }));

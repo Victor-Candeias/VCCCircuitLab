@@ -8,6 +8,7 @@
   --danger: #d92d20;
   --node-bg: #fff;
   --node-border: #4b4654;
+  --wire: #08060d;
   --grid-dot: #b8b5bf;
   --grid-line: #e5e4e7;
 
@@ -35,6 +36,7 @@
     --danger: #f97066;
     --node-bg: #1f2028;
     --node-border: #9ca3af;
+    --wire: #e5e7eb;
     --grid-dot: #4b4f5c;
     --grid-line: #2a2c36;
   }
