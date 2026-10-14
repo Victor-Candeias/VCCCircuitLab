@@ -84,8 +84,13 @@
   stroke-width: 2;
 }
 
-.react-flow__edge:hover .wire-edge {
+.react-flow__edge:hover .wire-edge,
+.react-flow__edge-path.wire-edge.is-selected {
   stroke: var(--accent);
+}
+
+.react-flow__edge-path.wire-edge.is-selected {
+  stroke-width: 3;
 }
 
 .react-flow__edge.react-flow__edge-wire {
@@ -285,4 +290,15 @@
 .editor-toolbar button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.editor-toolbar__icon {
+  display: block;
+  margin: auto;
+}
+
+.editor-toolbar__separator {
+  width: 1px;
+  margin: 4px 2px;
+  background: var(--border);
 }

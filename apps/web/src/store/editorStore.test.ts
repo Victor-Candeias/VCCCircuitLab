@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { demoCircuit } from '../editor/demoCircuit';
-import { useEditorStore } from './editorStore';
+import { HISTORY_LIMIT, useEditorStore } from './editorStore';
 
 const initialState = useEditorStore.getState();
 
@@ -179,5 +179,126 @@ describe('editorStore — paleta e rotação', () => {
   test('rotateSelection sem componentes selecionados não altera o documento', () => {
     store().rotateSelection();
     expect(store().circuit).toBe(demoCircuit);
+  });
+});
+
+describe('editorStore — histórico, apagar e copiar/colar', () => {
+  const store = () => useEditorStore.getState();
+  const ids = () => store().circuit.components.map((c) => c.id);
+  const wireIds = () => store().circuit.wires.map((w) => w.id);
+
+  test('undo/redo percorrem adicionar, mover, rodar, ligar e apagar', () => {
+    store().addComponent('resistor', { x: 400, y: 300 });
+    store().moveComponent('R2', { x: 500, y: 300 });
+    store().rotateSelection();
+    store().startWire({ kind: 'terminal', ref: 'R2.a' });
+    store().finishWire({ kind: 'terminal', ref: 'H1.b' });
+    store().setSelection(['R2']);
+    store().deleteSelection();
+    const final = store().circuit;
+    expect(store().past).toHaveLength(5);
+    expect(ids()).not.toContain('R2');
+
+    store().undo();
+    expect(ids()).toContain('R2');
+    expect(wireIds()).toContain('W5');
+    for (let i = 0; i < 4; i += 1) store().undo();
+    expect(store().circuit).toBe(demoCircuit);
+    expect(store().selectedIds).toEqual([]);
+    store().undo();
+    expect(store().circuit).toBe(demoCircuit);
+
+    for (let i = 0; i < 5; i += 1) store().redo();
+    expect(store().circuit).toBe(final);
+    expect(store().future).toEqual([]);
+  });
+
+  test('uma alteração nova descarta o que tinha sido desfeito', () => {
+    store().moveComponent('R1', { x: 300, y: 120 });
+    store().undo();
+    expect(store().future).toHaveLength(1);
+    store().moveComponent('H1', { x: 400, y: 200 });
+    expect(store().future).toEqual([]);
+    store().redo();
+    expect(store().circuit.components.find((c) => c.id === 'R1')?.position.x).toBe(240);
+  });
+
+  test(`o histórico guarda no máximo ${HISTORY_LIMIT} passos`, () => {
+    for (let i = 1; i <= HISTORY_LIMIT + 5; i += 1) {
+      store().moveComponent('R1', { x: 240 + i * 20, y: 120 });
+    }
+    expect(store().past).toHaveLength(HISTORY_LIMIT);
+  });
+
+  test('loadCircuit limpa o histórico', () => {
+    store().moveComponent('R1', { x: 300, y: 120 });
+    store().undo();
+    store().loadCircuit(demoCircuit);
+    expect(store().past).toEqual([]);
+    expect(store().future).toEqual([]);
+  });
+
+  test('um gesto (arrastar) fica num só passo; sem alterações não regista nada', () => {
+    store().beginHistoryGroup();
+    store().moveComponent('R1', { x: 260, y: 120 });
+    store().moveComponent('R1', { x: 280, y: 120 });
+    store().moveComponent('R1', { x: 300, y: 140 });
+    expect(store().past).toEqual([]);
+    store().undo(); // ignorado durante o gesto
+    store().endHistoryGroup();
+    expect(store().past).toHaveLength(1);
+    store().undo();
+    expect(store().circuit).toBe(demoCircuit);
+
+    store().beginHistoryGroup();
+    store().endHistoryGroup();
+    expect(store().past).toEqual([]);
+    expect(store().historyGroup).toBeNull();
+  });
+
+  test('deleteSelection apaga componentes, fios selecionados e fios ligados', () => {
+    store().setSelection(['W4']);
+    expect(store().selectedIds).toEqual(['W4']);
+    store().deleteSelection();
+    expect(wireIds()).toEqual(['W1', 'W2', 'W3']);
+    store().setSelection(['R1']);
+    store().deleteSelection();
+    expect(wireIds()).toEqual(['W3']);
+    expect(store().selectedIds).toEqual([]);
+    const before = store().circuit;
+    store().deleteSelection();
+    expect(store().circuit).toBe(before);
+    expect(store().past).toHaveLength(2);
+  });
+
+  test('copiar e colar desloca cada colagem e seleciona os elementos colados', () => {
+    store().setSelection(['R1']);
+    store().paste(); // sem nada copiado
+    expect(store().circuit).toBe(demoCircuit);
+    store().copySelection();
+    store().paste();
+    expect(store().selectedIds).toEqual(['R2']);
+    store().paste();
+    expect(store().selectedIds).toEqual(['R3']);
+    const position = (id: string) => store().circuit.components.find((c) => c.id === id)?.position;
+    expect(position('R2')).toEqual({ x: 280, y: 160 });
+    expect(position('R3')).toEqual({ x: 320, y: 200 });
+    store().undo();
+    expect(ids()).not.toContain('R3');
+    expect(store().selectedIds).toEqual([]);
+  });
+
+  test('cortar apaga e a primeira colagem repõe no mesmo sítio (IDs livres reaproveitados)', () => {
+    store().setSelection(['V1', 'GND1']);
+    store().cutSelection();
+    expect(ids()).toEqual(['R1', 'H1']);
+    expect(wireIds()).toEqual(['W2']);
+    store().paste();
+    expect(store().circuit.components.slice(-2)).toMatchObject([
+      { id: 'V1', position: { x: 100, y: 200 } },
+      { id: 'GND1', position: { x: 100, y: 320 } },
+    ]);
+    expect(store().circuit.wires.at(-1)).toMatchObject({ from: 'GND1.gnd', to: 'V1.negative' });
+    expect(store().past).toHaveLength(2);
   });
 });

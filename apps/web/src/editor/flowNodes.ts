@@ -94,9 +94,13 @@ const endpointHandle = (endpoint: WireEndpoint): { node: string; handle: string 
 
 /**
  * Arestas do React Flow, uma por fio. O traçado ortogonal é calculado a partir do documento
- * (`data.points`); fios com extremidades por resolver não são desenhados.
+ * (`data.points`); fios com extremidades por resolver não são desenhados. A seleção de fios
+ * é gerida pelo editor (Alt + clique), não pelo React Flow.
  */
-export function toFlowEdges(circuit: CircuitDocument): WireEdge[] {
+export function toFlowEdges(
+  circuit: CircuitDocument,
+  selectedIds: ReadonlySet<string> = new Set(),
+): WireEdge[] {
   return circuit.wires.flatMap((wire) => {
     const points = wirePath(circuit, wire);
     if (!points) return [];
@@ -111,6 +115,7 @@ export function toFlowEdges(circuit: CircuitDocument): WireEdge[] {
         target: target.node,
         targetHandle: target.handle,
         selectable: false,
+        selected: selectedIds.has(wire.id),
         focusable: false,
         data: { points },
       },

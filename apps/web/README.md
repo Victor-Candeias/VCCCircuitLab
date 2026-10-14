@@ -21,6 +21,7 @@ src/
 │   ├── flowNodes.ts       # documento canónico → nós e arestas do React Flow
 │   ├── wiring.ts          # posições de pinos, traçado ortogonal, fios e junções
 │   ├── connectivity.ts    # redes derivadas de fios + junções (union-find, como a API)
+│   ├── editing.ts         # apagar, copiar e colar (fragmentos com novos IDs)
 │   ├── geometry.ts        # snap, rotação, âncora ↔ canto superior esquerdo
 │   ├── catalog.ts         # catálogo de @vcccircuitlab/circuit-schema
 │   └── demoCircuit.ts
@@ -28,7 +29,7 @@ src/
 │   ├── circuitJson.ts     # JSON canónico: serializar, validar (schema + integridade), ler ficheiro
 │   ├── examples.ts        # circuitos de exemplo (fixtures de @vcccircuitlab/circuit-schema)
 │   └── ProjectMenu.tsx    # botões Novo / Abrir… / Exemplos / Guardar JSON e mensagens de erro
-├── store/editorStore.ts   # Zustand: documento canónico + estado de vista
+├── store/editorStore.ts   # Zustand: documento canónico, histórico (undo/redo) e estado de vista
 └── test/                  # setup do Vitest e mocks do React Flow para jsdom
 ```
 
@@ -60,6 +61,14 @@ src/
 - Ligações inválidas (um terminal a si próprio, um fio a si próprio) são ignoradas. Os novos IDs (`W<n>`, `J<n>`) são únicos em todo o documento.
 - `deriveConnectivity` (`connectivity.ts`) agrupa os terminais em redes a partir dos fios e junções, pela mesma ordem do normalizador da API, e indica a rede de cada fio e junção.
 - O exemplo **Ramificado** é o protótipo de validação do React Flow (§5.2): três ramos em paralelo, uma ponte, um cruzamento sem junção e uma junção de quatro fios. Ver as conclusões em `.maestru/specs/etapa-1/e1-08-spec.md`.
+
+### Editar (desfazer, copiar/colar, apagar)
+
+- **Desfazer / refazer**: `Ctrl+Z` desfaz; `Ctrl+Y` ou `Ctrl+Shift+Z` refaz (`⌘` no macOS), ou os botões ↶ ↷ da barra. Cada ação que altera o documento (adicionar, mover, rodar, ligar, apagar, colar) é um passo; um arrasto inteiro (um ou vários elementos) conta como um só. O histórico guarda até 100 passos e é limpo ao abrir ou criar um projeto. Uma ação nova descarta o que tinha sido desfeito.
+- **Apagar**: `Delete` (ou `Backspace` fora do desenho de fios) ou o botão **Apagar** da barra apagam a seleção. Apagar um componente ou junção apaga também os fios ligados — não ficam fios soltos — e as junções que fiquem sem fios.
+- **Selecionar fios**: `Alt` + clique num fio seleciona-o (`Ctrl+Alt` + clique acrescenta à seleção); o clique simples num fio continua a servir para desenhar ligações.
+- **Copiar / cortar / colar**: `Ctrl+C`, `Ctrl+X`, `Ctrl+V` ou os botões da barra. Copia os componentes e junções selecionados e os fios entre eles; cada colagem recebe novos IDs estáveis (`R<n>`, `J<n>`, `W<n>` seguintes aos existentes), fica deslocada duas células na diagonal (após cortar, a primeira fica no mesmo sítio) e é selecionada.
+- Os atalhos são ignorados enquanto se escreve num campo de texto.
 
 ### Projeto (abrir e guardar JSON)
 

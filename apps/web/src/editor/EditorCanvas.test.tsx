@@ -302,3 +302,89 @@ describe('EditorCanvas — paleta e rotação', () => {
     expect(component('H1')?.rotation).toBe(0);
   });
 });
+
+describe('EditorCanvas — editar (desfazer, copiar/colar, apagar)', () => {
+  const store = () => useEditorStore.getState();
+  const has = (id: string) => store().circuit.components.some((c) => c.id === id);
+  const button = (name: string) => screen.getByRole('button', { name });
+
+  test('Delete apaga a seleção e os fios ligados; Ctrl+Z desfaz e Ctrl+Y refaz', () => {
+    renderCanvas();
+    clickNode('R1');
+    fireEvent.keyDown(window, { key: 'Delete' });
+    expect(has('R1')).toBe(false);
+    expect(store().circuit.wires.map((w) => w.id)).toEqual(['W3', 'W4']);
+
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(has('R1')).toBe(true);
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
+    expect(has('R1')).toBe(false);
+    fireEvent.keyDown(window, { key: 'Z', ctrlKey: true, shiftKey: true });
+    expect(has('R1')).toBe(false);
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+    expect(has('R1')).toBe(true);
+  });
+
+  test('Backspace durante o desenho de um fio ou a escrever não apaga', () => {
+    renderCanvas();
+    clickNode('R1');
+    fireEvent.keyDown(screen.getByRole('searchbox', { name: 'Pesquisar componentes' }), {
+      key: 'Backspace',
+    });
+    expect(has('R1')).toBe(true);
+    click(pin('GND1.gnd'));
+    fireEvent.keyDown(window, { key: 'Backspace' });
+    expect(has('R1')).toBe(true);
+  });
+
+  test('Ctrl+C / Ctrl+V duplica a seleção com novos IDs e seleciona a cópia', async () => {
+    renderCanvas();
+    clickNode('R1');
+    fireEvent.keyDown(window, { key: 'c', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'v', ctrlKey: true });
+    expect(store().selectedIds).toEqual(['R2']);
+    expect(await screen.findByText('R2')).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'x', ctrlKey: true });
+    expect(has('R2')).toBe(false);
+  });
+
+  test('Alt + clique num fio seleciona-o e Delete apaga-o', async () => {
+    const { container } = renderCanvas();
+    await waitFor(() => expect(container.querySelectorAll('path.wire-edge')).toHaveLength(4));
+    const wire = container.querySelectorAll('path.wire-edge')[1];
+    fireEvent.click(wire, { altKey: true });
+    expect(store().selectedIds).toEqual(['W2']);
+    await waitFor(() =>
+      expect(container.querySelectorAll('path.wire-edge')[1]).toHaveClass('is-selected'),
+    );
+
+    fireEvent.click(container.querySelector('.react-flow__pane')!);
+    expect(store().selectedIds).toEqual([]);
+    fireEvent.click(container.querySelectorAll('path.wire-edge')[1], { altKey: true });
+    fireEvent.keyDown(window, { key: 'Delete' });
+    expect(store().circuit.wires.map((w) => w.id)).toEqual(['W1', 'W3', 'W4']);
+    expect(has('R1')).toBe(true);
+  });
+
+  test('os botões da barra refletem o que é possível fazer', () => {
+    renderCanvas();
+    for (const name of ['Desfazer', 'Refazer', 'Copiar', 'Colar', 'Apagar seleção']) {
+      expect(button(name)).toBeDisabled();
+    }
+    clickNode('H1');
+    expect(button('Copiar')).toBeEnabled();
+    expect(button('Apagar seleção')).toBeEnabled();
+    fireEvent.click(button('Copiar'));
+    fireEvent.click(button('Colar'));
+    expect(has('H2')).toBe(true);
+    fireEvent.click(button('Desfazer'));
+    expect(has('H2')).toBe(false);
+    expect(button('Refazer')).toBeEnabled();
+    fireEvent.click(button('Refazer'));
+    expect(button('Apagar seleção')).toBeDisabled();
+    clickNode('H2');
+    fireEvent.click(button('Apagar seleção'));
+    expect(has('H2')).toBe(false);
+    expect(has('H1')).toBe(true);
+  });
+});
