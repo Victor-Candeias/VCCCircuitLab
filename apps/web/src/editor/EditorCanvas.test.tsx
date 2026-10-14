@@ -1,7 +1,8 @@
 import { createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { useEditorStore } from '../store/editorStore';
 import { EditorCanvas } from './EditorCanvas';
+import { PALETTE_DRAG_TYPE } from './palette';
 
 const initialState = useEditorStore.getState();
 
@@ -154,5 +155,124 @@ describe('EditorCanvas — ligações', () => {
       from: 'R1.a',
       to: 'J1',
     });
+  });
+});
+
+describe('EditorCanvas — paleta e rotação', () => {
+  const component = (id: string) =>
+    useEditorStore.getState().circuit.components.find((c) => c.id === id);
+  const paletteItem = (label: string) => screen.getByRole('button', { name: `Adicionar ${label}` });
+
+  test('a paleta agrupa o catálogo por categoria, com o símbolo de cada componente', () => {
+    renderCanvas();
+    const palette = screen.getByRole('complementary', { name: 'Componentes' });
+    for (const group of ['Fontes', 'Passivos', 'Interruptores', 'Cargas', 'Referência']) {
+      expect(screen.getByRole('region', { name: group })).toBeInTheDocument();
+    }
+    expect(palette.querySelectorAll('.palette-item')).toHaveLength(6);
+    expect(paletteItem('Resistência').querySelector('svg')).toHaveAttribute(
+      'data-symbol',
+      'resistor_iec',
+    );
+  });
+
+  test('a pesquisa filtra a paleta', () => {
+    renderCanvas();
+    const search = screen.getByRole('searchbox', { name: 'Pesquisar componentes' });
+    fireEvent.change(search, { target: { value: 'lampada' } });
+    expect(paletteItem('Lâmpada')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar Resistência' })).toBeNull();
+    fireEvent.change(search, { target: { value: 'xyz' } });
+    expect(screen.getByText('Nenhum componente encontrado.')).toBeInTheDocument();
+  });
+
+  test('arrastar da paleta define o tipo no dataTransfer', () => {
+    renderCanvas();
+    const setData = vi.fn();
+    fireEvent.dragStart(paletteItem('Interruptor'), {
+      dataTransfer: { setData, effectAllowed: 'all' },
+    });
+    expect(setData).toHaveBeenCalledWith(PALETTE_DRAG_TYPE, 'switch');
+  });
+
+  test('largar no canvas cria o componente com snap à grelha e seleciona-o', async () => {
+    const { container } = renderCanvas();
+    const flow = container.querySelector('.react-flow')!;
+    const dataTransfer = {
+      types: [PALETTE_DRAG_TYPE],
+      getData: (type: string) => (type === PALETTE_DRAG_TYPE ? 'lamp' : ''),
+      dropEffect: 'none',
+    };
+
+    const dragOver = createEvent.dragOver(flow, { dataTransfer });
+    fireEvent(flow, dragOver);
+    expect(dragOver.defaultPrevented).toBe(true);
+
+    // O jsdom não tem DragEvent: as coordenadas são definidas à mão.
+    const drop = createEvent.drop(flow, { dataTransfer });
+    Object.defineProperties(drop, { clientX: { value: 333 }, clientY: { value: 227 } });
+    fireEvent(flow, drop);
+    const lamp = component('H2');
+    expect(lamp).toMatchObject({ type: 'lamp', rotation: 0 });
+    expect(Math.abs(lamp!.position.x % 20)).toBe(0);
+    expect(Math.abs(lamp!.position.y % 20)).toBe(0);
+    expect(useEditorStore.getState().selectedIds).toEqual(['H2']);
+    expect(await screen.findByText('H2')).toBeInTheDocument();
+  });
+
+  test('largar algo que não vem da paleta é ignorado', () => {
+    const { container } = renderCanvas();
+    const flow = container.querySelector('.react-flow')!;
+    const dataTransfer = { types: ['text/plain'], getData: () => 'motor', dropEffect: 'none' };
+    const dragOver = createEvent.dragOver(flow, { dataTransfer });
+    fireEvent(flow, dragOver);
+    expect(dragOver.defaultPrevented).toBe(false);
+    fireEvent.drop(flow, { dataTransfer });
+    expect(useEditorStore.getState().circuit).toBe(initialState.circuit);
+  });
+
+  test('clique ou Enter num item da paleta adiciona o componente', () => {
+    renderCanvas();
+    click(paletteItem('Resistência'));
+    expect(component('R2')?.type).toBe('resistor');
+    fireEvent.keyDown(paletteItem('Terra'), { key: 'Enter' });
+    expect(component('GND2')?.type).toBe('ground');
+    expect(useEditorStore.getState().selectedIds).toEqual(['GND2']);
+  });
+
+  test('R roda a seleção 90° (horário) e Shift+R no sentido anti-horário', () => {
+    renderCanvas();
+    clickNode('R1');
+    fireEvent.keyDown(window, { key: 'r' });
+    expect(component('R1')?.rotation).toBe(90);
+    fireEvent.keyDown(window, { key: 'R', shiftKey: true });
+    fireEvent.keyDown(window, { key: 'R', shiftKey: true });
+    expect(component('R1')?.rotation).toBe(270);
+    fireEvent.keyDown(window, { key: 'r', ctrlKey: true });
+    expect(component('R1')?.rotation).toBe(270);
+  });
+
+  test('R ao escrever na pesquisa não roda a seleção', () => {
+    renderCanvas();
+    clickNode('R1');
+    fireEvent.keyDown(screen.getByRole('searchbox', { name: 'Pesquisar componentes' }), {
+      key: 'r',
+    });
+    expect(component('R1')?.rotation).toBe(0);
+  });
+
+  test('os botões de rotação só ficam ativos com componentes selecionados', () => {
+    renderCanvas();
+    const clockwise = screen.getByRole('button', { name: 'Rodar 90° no sentido horário' });
+    const counter = screen.getByRole('button', { name: 'Rodar 90° no sentido anti-horário' });
+    expect(clockwise).toBeDisabled();
+
+    clickNode('H1');
+    expect(clockwise).toBeEnabled();
+    fireEvent.click(clockwise);
+    expect(component('H1')?.rotation).toBe(180);
+    fireEvent.click(counter);
+    fireEvent.click(counter);
+    expect(component('H1')?.rotation).toBe(0);
   });
 });

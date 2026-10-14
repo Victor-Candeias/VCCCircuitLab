@@ -148,3 +148,36 @@ describe('editorStore — ferramenta de fio', () => {
     expect(store().selectedIds).toEqual(['J1', 'R1']);
   });
 });
+
+describe('editorStore — paleta e rotação', () => {
+  const store = () => useEditorStore.getState();
+  const component = (id: string) => store().circuit.components.find((c) => c.id === id);
+
+  test('addComponent coloca o componente com snap e seleciona-o', () => {
+    store().setSelection(['V1']);
+    expect(store().addComponent('resistor', { x: 411, y: 289 })).toBe('R2');
+    expect(component('R2')).toMatchObject({ position: { x: 420, y: 280 }, rotation: 0 });
+    expect(store().selectedIds).toEqual(['R2']);
+  });
+
+  test('addComponent ignora tipos fora do catálogo', () => {
+    expect(store().addComponent('motor', { x: 0, y: 0 })).toBeUndefined();
+    expect(store().circuit).toBe(demoCircuit);
+  });
+
+  test('rotateSelection roda os componentes selecionados (horário e anti-horário)', () => {
+    store().setSelection(['R1', 'H1']);
+    store().rotateSelection();
+    expect(component('R1')?.rotation).toBe(90);
+    expect(component('H1')?.rotation).toBe(180);
+    store().rotateSelection(-90);
+    store().rotateSelection(-90);
+    expect(component('R1')?.rotation).toBe(270);
+    expect(component('V1')?.rotation).toBe(0);
+  });
+
+  test('rotateSelection sem componentes selecionados não altera o documento', () => {
+    store().rotateSelection();
+    expect(store().circuit).toBe(demoCircuit);
+  });
+});

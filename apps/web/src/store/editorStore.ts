@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { GRID_SIZE } from '../editor/catalog';
 import { demoCircuit } from '../editor/demoCircuit';
 import { snapPoint } from '../editor/geometry';
+import { placeComponent, rotateComponents, type RotationStep } from '../editor/placement';
 import {
   anchorPosition,
   commitWire,
@@ -21,10 +22,18 @@ export interface EditorState {
   /** Fio a ser desenhado (ferramenta de fio); `null` fora do modo de desenho. */
   wireDraft: WireDraft | null;
   loadCircuit: (circuit: CircuitDocument) => void;
+  /**
+   * Acrescenta um componente do catálogo com a âncora em `anchor` (snap à grelha; se a posição
+   * estiver ocupada, desloca-o na diagonal) e seleciona-o. Devolve o novo ID, ou `undefined`
+   * para tipos fora do catálogo.
+   */
+  addComponent: (type: string, anchor: Point) => string | undefined;
   /** Move a âncora de um componente, com snap à grelha. */
   moveComponent: (id: string, anchor: Point) => void;
   /** Move uma junção, com snap à grelha. */
   moveJunction: (id: string, position: Point) => void;
+  /** Roda 90° os componentes selecionados, cada um em torno da própria âncora. */
+  rotateSelection: (step?: RotationStep) => void;
   setSelection: (ids: readonly string[]) => void;
   /** Começa um fio num terminal, numa junção ou num ponto de um fio existente. */
   startWire: (anchor: WireAnchor) => void;
@@ -49,6 +58,13 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   wireDraft: null,
 
   loadCircuit: (circuit) => set({ circuit, selectedIds: [], wireDraft: null }),
+
+  addComponent: (type, anchor) => {
+    const placed = placeComponent(get().circuit, type, anchor);
+    if (!placed) return undefined;
+    set({ circuit: placed.circuit, selectedIds: [placed.component.id] });
+    return placed.component.id;
+  },
 
   moveComponent: (id, anchor) =>
     set((state) => {
@@ -75,6 +91,12 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
           junctions: junctions.map((j) => (j.id === id ? { ...j, position } : j)),
         },
       };
+    }),
+
+  rotateSelection: (step = 90) =>
+    set((state) => {
+      const circuit = rotateComponents(state.circuit, state.selectedIds, step);
+      return circuit === state.circuit ? state : { circuit };
     }),
 
   setSelection: (ids) =>

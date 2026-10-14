@@ -11,7 +11,10 @@ src/
 │   ├── iecSymbols.tsx     # desenho de cada símbolo (coordenadas locais)
 │   └── symbolIds.ts       # IDs desenhados (`ComponentDefinition.symbol`)
 ├── editor/                # Canvas e lógica do editor
-│   ├── EditorCanvas.tsx   # React Flow: grelha, pan, zoom, seleção, ferramenta de fio
+│   ├── EditorCanvas.tsx   # React Flow: grelha, pan, zoom, seleção, fio, largar e rodar
+│   ├── ComponentPalette.tsx   # paleta pesquisável por categoria (arrastar ou clicar)
+│   ├── palette.ts         # agrupamento e pesquisa do catálogo
+│   ├── placement.ts       # novas instâncias (ID, propriedades, snap) e rotação
 │   ├── ComponentNodeView.tsx  # símbolo IEC do componente com pinos clicáveis (handles)
 │   ├── JunctionNodeView.tsx   # junção explícita (ponto cheio)
 │   ├── WireEdgeView.tsx   # fio ortogonal
@@ -28,7 +31,13 @@ src/
 
 - O store guarda o **documento canónico** (`CircuitDocument`) separado do **estado de vista** (seleção, fio em desenho). Os nós e fios do React Flow são derivados do documento; as alterações do canvas voltam ao store.
 - `Component.position` é o **centro** do símbolo (âncora); o tamanho vem do catálogo e roda com o componente. O snap à grelha (20) é aplicado à âncora, para que os pinos fiquem na grelha.
-- Interação: arrastar o fundo faz pan; roda do rato/controlos fazem zoom; clique seleciona; Ctrl/⌘ + clique acrescenta à seleção; Shift + arrastar seleciona por caixa.
+- Interação: arrastar o fundo faz pan; roda do rato/controlos fazem zoom; clique seleciona; Ctrl/⌘ + clique acrescenta à seleção; Shift + arrastar seleciona por caixa; arrastar um componente move-o (com snap).
+
+### Paleta e rotação
+
+- A paleta (à esquerda) mostra o catálogo agrupado por categoria (Fontes, Passivos, Interruptores, Cargas, Referência), com o símbolo IEC de cada componente. A pesquisa ignora maiúsculas e acentos e exige todas as palavras (nome, tipo, prefixo do ID, descrição ou categoria).
+- **Adicionar**: arrastar um item para o canvas (a âncora fica no ponto largado, encaixada na grelha) ou clicar/Enter no item (centro da vista). Se a âncora já estiver ocupada por outro componente, desloca-se uma célula na diagonal. O novo componente fica selecionado, com rotação 0, as propriedades por omissão do catálogo e o próximo ID livre com o prefixo do catálogo (`R2`, `GND2`…).
+- **Rodar**: `R` roda os componentes selecionados 90° no sentido horário e `Shift+R` no sentido anti-horário (também pelos botões no canto superior direito). Cada componente roda em torno da própria âncora e os pinos continuam na grelha; os fios ligados são redesenhados ortogonalmente. As teclas não atuam enquanto se escreve num campo.
 
 ### Símbolos IEC
 

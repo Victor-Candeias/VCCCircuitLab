@@ -3,6 +3,7 @@ import {
   BackgroundVariant,
   ConnectionMode,
   Controls,
+  Panel,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
@@ -15,10 +16,11 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { Point } from '@vcccircuitlab/circuit-schema';
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react';
 import { useEditorStore } from '../store/editorStore';
-import { GRID_SIZE } from './catalog';
+import { getComponentDefinition, GRID_SIZE } from './catalog';
 import { ComponentNodeView } from './ComponentNodeView';
+import { ComponentPalette } from './ComponentPalette';
 import {
   toFlowEdges,
   toFlowNodes,
@@ -28,6 +30,7 @@ import {
 } from './flowNodes';
 import { snapPoint, topLeftToAnchor } from './geometry';
 import { JunctionNodeView } from './JunctionNodeView';
+import { PALETTE_DRAG_TYPE } from './palette';
 import { WireEdgeView } from './WireEdgeView';
 import {
   anchorPosition,
@@ -69,12 +72,50 @@ function WireDraftPreview({ cursor }: { cursor: DraftCursor | null }) {
   );
 }
 
+/** Teclas de atalho não se aplicam enquanto se escreve num campo. */
+const isEditableTarget = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
+/** Barra de rotação: ativa quando há componentes selecionados. */
+function RotateToolbar() {
+  const canRotate = useEditorStore((s) => {
+    const selected = new Set(s.selectedIds);
+    return s.circuit.components.some((c) => selected.has(c.id));
+  });
+  const { rotateSelection } = useEditorStore.getState();
+  return (
+    <Panel position="top-right" className="editor-toolbar">
+      <button
+        type="button"
+        disabled={!canRotate}
+        title="Rodar 90° no sentido anti-horário (Shift+R)"
+        aria-label="Rodar 90° no sentido anti-horário"
+        onClick={() => rotateSelection(-90)}
+      >
+        ⟲
+      </button>
+      <button
+        type="button"
+        disabled={!canRotate}
+        title="Rodar 90° no sentido horário (R)"
+        aria-label="Rodar 90° no sentido horário"
+        onClick={() => rotateSelection(90)}
+      >
+        ⟳
+      </button>
+    </Panel>
+  );
+}
+
 /**
  * Canvas do editor: grelha, pan (arrastar o fundo), zoom (roda/controlos) e seleção
  * simples (clique), múltipla (Ctrl/⌘ + clique) ou por caixa (Shift + arrastar).
  * Ferramenta de fio: clique num terminal, junção ou fio para começar; cliques no fundo fixam
  * pontos intermédios ortogonais; clique noutro terminal, junção ou fio para terminar (num fio
  * cria uma junção explícita). Esc cancela; Backspace remove o último ponto.
+ * Componentes largados a partir da paleta ficam com a âncora encaixada na grelha; `R` roda a
+ * seleção 90° no sentido horário e `Shift+R` no sentido anti-horário.
  * Os nós e fios são derivados do documento canónico; as alterações voltam ao store.
  */
 function EditorFlow() {
@@ -111,6 +152,33 @@ function EditorFlow() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isWiring]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'r' || event.repeat || event.defaultPrevented) return;
+      if (event.ctrlKey || event.metaKey || event.altKey || isEditableTarget(event.target)) return;
+      event.preventDefault();
+      useEditorStore.getState().rotateSelection(event.shiftKey ? -90 : 90);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const onDragOver = useCallback((event: DragEvent) => {
+    if (!event.dataTransfer.types.includes(PALETTE_DRAG_TYPE)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const onDrop = useCallback(
+    (event: DragEvent) => {
+      const type = event.dataTransfer.getData(PALETTE_DRAG_TYPE);
+      if (!type || !getComponentDefinition(type)) return;
+      event.preventDefault();
+      useEditorStore.getState().addComponent(type, toFlowPoint(event));
+    },
+    [toFlowPoint],
+  );
 
   const onNodesChange = useCallback(
     (changes: NodeChange<CircuitNode>[]) => {
@@ -188,6 +256,8 @@ function EditorFlow() {
       onPaneClick={onPaneClick}
       onPaneContextMenu={onPaneContextMenu}
       onMouseMove={onMouseMove}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       connectionMode={ConnectionMode.Loose}
       nodesConnectable={false}
       connectOnClick={false}
@@ -216,6 +286,7 @@ function EditorFlow() {
         bgColor="transparent"
       />
       <WireDraftPreview cursor={cursor} />
+      <RotateToolbar />
       <Controls showInteractive={false} />
     </ReactFlow>
   );
@@ -224,7 +295,12 @@ function EditorFlow() {
 export function EditorCanvas() {
   return (
     <ReactFlowProvider>
-      <EditorFlow />
+      <div className="editor">
+        <ComponentPalette />
+        <div className="editor__canvas">
+          <EditorFlow />
+        </div>
+      </div>
     </ReactFlowProvider>
   );
 }
