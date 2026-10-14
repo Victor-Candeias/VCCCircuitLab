@@ -6,6 +6,9 @@
   --accent: #aa3bff;
   --accent-bg: rgba(170, 59, 255, 0.2);
   --danger: #d92d20;
+  --warning: #b54708;
+  --net: #0284c7;
+  --net-bg: rgba(2, 132, 199, 0.15);
   --node-bg: #fff;
   --node-border: #4b4654;
   --wire: #08060d;
@@ -34,6 +37,9 @@
     --accent: #c084fc;
     --accent-bg: rgba(192, 132, 252, 0.3);
     --danger: #f97066;
+    --warning: #fdb022;
+    --net: #38bdf8;
+    --net-bg: rgba(56, 189, 248, 0.2);
     --node-bg: #1f2028;
     --node-border: #9ca3af;
     --wire: #e5e7eb;

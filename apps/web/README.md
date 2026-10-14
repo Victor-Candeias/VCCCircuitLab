@@ -6,6 +6,7 @@ Frontend do VCCCircuitLab: React + TypeScript + Vite, editor com React Flow (`@x
 
 ```text
 src/
+├── api/                   # Cliente da API: simulate/validate, erros problem+json, timeout
 ├── components/symbols/    # Símbolos SVG IEC 60617
 │   ├── ComponentSymbol.tsx    # caixa SVG centrada na âncora, com rotação
 │   ├── iecSymbols.tsx     # desenho de cada símbolo (coordenadas locais)
@@ -29,6 +30,11 @@ src/
 │   ├── circuitJson.ts     # JSON canónico: serializar, validar (schema + integridade), ler ficheiro
 │   ├── examples.ts        # circuitos de exemplo (fixtures de @vcccircuitlab/circuit-schema)
 │   └── ProjectMenu.tsx    # botões Novo / Abrir… / Exemplos / Guardar JSON e mensagens de erro
+├── simulation/            # Simulação: painel de resultados, redes N1…, formatação SI
+│   ├── SimulationPanel.tsx    # botão Simular, tabelas por componente e por rede, avisos e erros
+│   ├── simulationStore.ts # Zustand: estado da última simulação e rede destacada
+│   ├── nets.ts            # redes com os IDs da API e elementos a destacar no canvas
+│   └── format.ts          # 40,9 mA, 1,5 kΩ… (prefixo SI, 3 algarismos significativos)
 ├── store/editorStore.ts   # Zustand: documento canónico, histórico (undo/redo) e estado de vista
 └── test/                  # setup do Vitest e mocks do React Flow para jsdom
 ```
@@ -77,11 +83,19 @@ src/
 - **Novo** começa um circuito vazio; **Exemplos…** abre um circuito de exemplo (série, paralelo com junções, ramificado). Ambos pedem confirmação se o circuito atual não estiver vazio.
 - Round-trip: exportar e voltar a importar dá o mesmo documento (topologia, parâmetros e geometria) e o mesmo ficheiro.
 
+### Simulação (API)
+
+- **Simular** envia o circuito (documento canónico, sem `nets`) para `POST /api/v1/circuits/simulate` e mostra, para cada componente, a tensão, a corrente e a potência (convenção passiva: do 1.º para o 2.º pino; potência negativa = fornece energia) e a tensão de cada rede em relação à terra. Os valores usam prefixos SI e 3 algarismos significativos (`40,9 mA`).
+- As redes têm os IDs da API (`N1`, `N2`… pela ordem do normalizador). Clicar numa rede destaca no canvas os seus fios, junções e terminais; clicar num componente da tabela seleciona-o.
+- Avisos da API aparecem acima dos resultados; erros (`application/problem+json`) aparecem com a mensagem e o código de cada erro, e **Mostrar** seleciona os elementos citados (e destaca a rede citada). Falhas de rede, timeout (15 s) e respostas inesperadas também são mostradas.
+- Os resultados correspondem ao circuito simulado: se o circuito mudar, o painel pede uma nova simulação (desfazer até ao mesmo circuito volta a mostrá-los). Uma nova simulação cancela a anterior.
+- **URL da API**: `VITE_API_BASE_URL` (ver `.env.example`), usada no build — p. ex. `VITE_API_BASE_URL=https://api.exemplo.pt`. Vazia (omissão), os pedidos vão para a mesma origem e o `vite dev`/`vite preview` encaminham `/api` para `API_PROXY_TARGET` (por omissão `http://127.0.0.1:8000`) — assim o editor funciona também quando aberto noutra máquina da rede, sem CORS. Não colocar segredos em variáveis `VITE_*`.
+
 ## Comandos (a partir da raiz do repositório)
 
 ```bash
 pnpm install
-pnpm --filter @vcccircuitlab/web dev       # servidor de desenvolvimento
+pnpm --filter @vcccircuitlab/web dev       # servidor de desenvolvimento (/api → 127.0.0.1:8000)
 pnpm --filter @vcccircuitlab/web build     # tsc -b + vite build → apps/web/dist
 pnpm --filter @vcccircuitlab/web lint
 pnpm --filter @vcccircuitlab/web test      # Vitest + Testing Library (jsdom)

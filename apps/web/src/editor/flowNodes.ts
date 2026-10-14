@@ -11,6 +11,13 @@ import { getComponentDefinition, UNKNOWN_COMPONENT_SIZE } from './catalog';
 import { anchorToTopLeft, rotatedSize } from './geometry';
 import { parseTerminal, pinOffset, wirePath } from './wiring';
 
+/** Elementos de uma rede destacada (resultados da simulação). */
+export interface Highlight {
+  wires: ReadonlySet<string>;
+  junctions: ReadonlySet<string>;
+  terminals: ReadonlySet<string>;
+}
+
 /** Pino com posição relativa ao canto superior esquerdo do nó (já rodado). */
 export interface PinHandle {
   id: string;
@@ -22,6 +29,8 @@ export type ComponentNodeData = {
   component: Component;
   definition?: ComponentDefinition;
   pins: PinHandle[];
+  /** Pinos que pertencem à rede destacada. */
+  highlightedPins?: string[];
 };
 
 export type ComponentNode = Node<ComponentNodeData, 'component'>;
@@ -46,6 +55,7 @@ export const JUNCTION_HANDLE_ID = 'junction';
 export function toFlowNodes(
   circuit: CircuitDocument,
   selectedIds: ReadonlySet<string>,
+  highlight?: Highlight | null,
 ): ComponentNode[] {
   return circuit.components.map((component) => {
     const definition = getComponentDefinition(component.type);
@@ -63,7 +73,16 @@ export function toFlowNodes(
       width: size.width,
       height: size.height,
       selected: selectedIds.has(component.id),
-      data: { component, definition, pins },
+      data: highlight
+        ? {
+            component,
+            definition,
+            pins,
+            highlightedPins: component.pins.filter((p) =>
+              highlight.terminals.has(`${component.id}.${p}`),
+            ),
+          }
+        : { component, definition, pins },
     };
   });
 }
@@ -72,6 +91,7 @@ export function toFlowNodes(
 export function toJunctionNodes(
   circuit: CircuitDocument,
   selectedIds: ReadonlySet<string>,
+  highlight?: Highlight | null,
 ): JunctionNode[] {
   const size = { width: JUNCTION_NODE_SIZE, height: JUNCTION_NODE_SIZE };
   return (circuit.junctions ?? []).map((junction) => ({
@@ -80,6 +100,7 @@ export function toJunctionNodes(
     position: anchorToTopLeft(junction.position, size),
     ...size,
     selected: selectedIds.has(junction.id),
+    className: highlight?.junctions.has(junction.id) ? 'is-net-highlighted' : undefined,
     zIndex: 1,
     data: { junction },
   }));
@@ -100,6 +121,7 @@ const endpointHandle = (endpoint: WireEndpoint): { node: string; handle: string 
 export function toFlowEdges(
   circuit: CircuitDocument,
   selectedIds: ReadonlySet<string> = new Set(),
+  highlight?: Highlight | null,
 ): WireEdge[] {
   return circuit.wires.flatMap((wire) => {
     const points = wirePath(circuit, wire);
@@ -116,6 +138,7 @@ export function toFlowEdges(
         targetHandle: target.handle,
         selectable: false,
         selected: selectedIds.has(wire.id),
+        className: highlight?.wires.has(wire.id) ? 'is-net-highlighted' : undefined,
         focusable: false,
         data: { points },
       },

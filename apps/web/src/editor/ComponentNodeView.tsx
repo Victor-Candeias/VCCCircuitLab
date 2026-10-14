@@ -9,7 +9,7 @@ import type { ComponentNode } from './flowNodes';
  * catálogo aparecem como um marcador de erro.
  */
 export function ComponentNodeView({ data, selected, width, height }: NodeProps<ComponentNode>) {
-  const { component, definition, pins } = data;
+  const { component, definition, pins, highlightedPins } = data;
   const label = definition?.label ?? `Tipo desconhecido: ${component.type}`;
   // O ID fica acima de símbolos horizontais e à direita dos verticais, longe dos pinos.
   const horizontal = (width ?? 0) > (height ?? 0);
@@ -53,7 +53,9 @@ export function ComponentNodeView({ data, selected, width, height }: NodeProps<C
           isConnectable={false}
           isConnectableStart={false}
           isConnectableEnd={false}
-          className="pin-handle"
+          className={
+            highlightedPins?.includes(pin.id) ? 'pin-handle is-net-highlighted' : 'pin-handle'
+          }
           style={{ left: pin.x, top: pin.y }}
           title={`${component.id}.${pin.id}`}
           aria-label={`Terminal ${component.id}.${pin.id}`}

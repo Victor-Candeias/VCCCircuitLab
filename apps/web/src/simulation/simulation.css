@@ -1,0 +1,156 @@
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 300px;
+  flex-shrink: 0;
+  padding: 12px;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.results__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.results__header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.results__run {
+  padding: 4px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.results__run:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.results__hint,
+.results__note {
+  margin: 0;
+}
+
+.results__note {
+  font-size: 11px;
+}
+
+.results__error,
+.results__warning {
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+}
+
+.results__error strong {
+  color: var(--danger);
+}
+
+.results__warning {
+  border-color: var(--warning);
+}
+
+.results__warning strong {
+  color: var(--warning);
+}
+
+.results__error p {
+  margin: 4px 0 0;
+}
+
+.results__issues {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.results__issues li + li {
+  margin-top: 4px;
+}
+
+.results__code {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.results__link {
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.results__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.results__table th,
+.results__table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.results__table th:first-child,
+.results__table .results__terminals {
+  text-align: left;
+}
+
+.results__table thead th {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.results__table tr.is-selected,
+.results__table tr.is-highlighted {
+  background: var(--accent-bg);
+}
+
+.results__table tr.is-highlighted {
+  background: var(--net-bg);
+}
+
+.results__terminals {
+  max-width: 120px;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.results__ref {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.results__ref:hover,
+.results__ref[aria-pressed='true'] {
+  color: var(--accent);
+  text-decoration: underline;
+}

@@ -93,6 +93,21 @@
   stroke-width: 3;
 }
 
+.react-flow__edge.is-net-highlighted .react-flow__edge-path.wire-edge {
+  stroke: var(--net);
+  stroke-width: 4;
+}
+
+.react-flow__node.is-net-highlighted .junction-node {
+  background: var(--net);
+  box-shadow: 0 0 0 3px var(--net-bg);
+}
+
+.component-node .pin-handle.is-net-highlighted {
+  border-color: var(--net);
+  background: var(--net);
+}
+
 .react-flow__edge.react-flow__edge-wire {
   cursor: crosshair;
 }

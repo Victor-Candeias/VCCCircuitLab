@@ -68,3 +68,20 @@ export function deriveConnectivity(circuit: CircuitDocument): Connectivity {
   }
   return { nets, netOfTerminal, netOfJunction, netOfWire };
 }
+
+/**
+ * IDs das redes (`N1`…), como os gera o normalizador da API quando o documento não traz `nets`:
+ * sequenciais, saltando IDs já usados por componentes, junções ou fios.
+ */
+export function netIds(circuit: CircuitDocument, count: number): string[] {
+  const taken = new Set([
+    ...circuit.components.map((c) => c.id),
+    ...(circuit.junctions ?? []).map((j) => j.id),
+    ...circuit.wires.map((w) => w.id),
+  ]);
+  const ids: string[] = [];
+  for (let n = 1; ids.length < count; n += 1) {
+    if (!taken.has(`N${n}`)) ids.push(`N${n}`);
+  }
+  return ids;
+}

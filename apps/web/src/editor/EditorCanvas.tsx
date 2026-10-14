@@ -18,6 +18,9 @@ import '@xyflow/react/dist/style.css';
 import type { Point } from '@vcccircuitlab/circuit-schema';
 import { useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react';
 import { useEditorStore } from '../store/editorStore';
+import { netHighlight } from '../simulation/nets';
+import { SimulationPanel } from '../simulation/SimulationPanel';
+import { isCurrent, useSimulationStore } from '../simulation/simulationStore';
 import { getComponentDefinition, GRID_SIZE } from './catalog';
 import { ComponentNodeView } from './ComponentNodeView';
 import { ComponentPalette } from './ComponentPalette';
@@ -241,11 +244,21 @@ function EditorFlow() {
   const { screenToFlowPosition, fitView } = useReactFlow();
   const [cursor, setCursor] = useState<DraftCursor | null>(null);
 
+  const highlightedNet = useSimulationStore((s) =>
+    isCurrent(s.simulation, circuit) ? s.highlightedNet : null,
+  );
+  const highlight = useMemo(() => netHighlight(circuit, highlightedNet), [circuit, highlightedNet]);
   const nodes = useMemo<CircuitNode[]>(() => {
     const selected = new Set(selectedIds);
-    return [...toFlowNodes(circuit, selected), ...toJunctionNodes(circuit, selected)];
-  }, [circuit, selectedIds]);
-  const edges = useMemo(() => toFlowEdges(circuit, new Set(selectedIds)), [circuit, selectedIds]);
+    return [
+      ...toFlowNodes(circuit, selected, highlight),
+      ...toJunctionNodes(circuit, selected, highlight),
+    ];
+  }, [circuit, selectedIds, highlight]);
+  const edges = useMemo(
+    () => toFlowEdges(circuit, new Set(selectedIds), highlight),
+    [circuit, selectedIds, highlight],
+  );
 
   const toFlowPoint = useCallback(
     (event: MouseEvent) => screenToFlowPosition({ x: event.clientX, y: event.clientY }),
@@ -453,6 +466,7 @@ export function EditorCanvas() {
         <div className="editor__canvas">
           <EditorFlow />
         </div>
+        <SimulationPanel />
       </div>
     </ReactFlowProvider>
   );
