@@ -20,7 +20,7 @@ status: active
 | E2-02 | Validador topológico e de valores | done | 2026-10-12 | developer | high | 2026-10-13 |  | E2-01 | [E2-02](../specs/etapa-2/e2-02-spec.md) |
 | E2-03 | Solver MNA DC | done | 2026-10-12 | developer | critical | 2026-10-13 |  | E2-02 | [E2-03](../specs/etapa-2/e2-03-spec.md) |
 | E2-04 | Testes do solver com resultados analíticos | done | 2026-10-12 | developer | high | 2026-10-14 |  | E2-03 | [E2-04](../specs/etapa-2/e2-04-spec.md) |
-| E2-05 | Endpoints /validate e /simulate com erros problem+json | backlog | 2026-10-12 | developer | high |  |  | E2-03 |  |
+| E2-05 | Endpoints /validate e /simulate com erros problem+json | done | 2026-10-12 | developer | high | 2026-10-14 |  | E2-03 | [E2-05](../specs/etapa-2/e2-05-spec.md) |
 | E2-06 | Endpoint GET /components (catálogo) | backlog | 2026-10-12 | developer | medium |  |  | etapa-0/E0-08 |  |
 | E2-07 | Cliente API e apresentação de resultados no editor | backlog | 2026-10-12 | developer | high |  |  | E2-05, etapa-1/E1-07 |  |
 <!-- /maestru:work-items-list -->

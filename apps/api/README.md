@@ -8,7 +8,8 @@ Backend Python (FastAPI) do VCCCircuitLab. Não pertence ao workspace pnpm; as d
 apps/api/
 ├── app/
 │   ├── main.py        # app = FastAPI()
-│   ├── routes/        # Rotas HTTP (GET /health)
+│   ├── problems.py    # Erros application/problem+json
+│   ├── routes/        # Rotas HTTP (GET /health, POST /api/v1/circuits/…)
 │   ├── models/        # Modelos Pydantic
 │   ├── generation/    # Templates e layout
 │   ├── circuit/       # Redes, normalização, validação
@@ -87,6 +88,55 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 - **Verificações extra nos casos de sucesso:** KVL (`voltageV` = V(pino1) − V(pino2)), KCL por nó (as redes com terra formam um só nó), soma das potências igual a 0, valores finitos e sem `-0.0`.
 
 Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_cases()` (`tests/factories.py`) disponibiliza as mesmas fixtures a outros testes.
+
+## Endpoints `/api/v1/circuits`
+
+O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `application/json`. A documentação interativa está em `/docs` e o esquema em `/openapi.json`.
+
+| Método | Endpoint | Resposta `200` |
+|---|---|---|
+| `POST` | `/api/v1/circuits/validate` | `{ valid, errors[], warnings[], nets[] \| null }`. Os erros de circuito fazem parte do relatório e não são erros HTTP. `nets` traz a partição em redes quando a normalização foi possível. |
+| `POST` | `/api/v1/circuits/simulate` | Resultado DC (ver [Solver MNA DC](#solver-mna-dc)). |
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/circuits/simulate \
+  -H 'content-type: application/json' \
+  --data @packages/circuit-schema/test/fixtures/valid/fonte-resistencia.json
+```
+
+A simulação tem um limite de tempo, `SIMULATION_TIMEOUT_S` (variável de ambiente, 5 s por omissão). O solver corre numa thread que não é interrompida: esgotado o tempo, a API só deixa de esperar por ela. O isolamento em processo, o limite de payload, o rate limiting e o CORS ficam para o E5-04.
+
+### Erros (`application/problem+json`, RFC 9457)
+
+Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
+
+```json
+{
+  "type": "urn:vcccircuitlab:problem:invalid-circuit",
+  "title": "Circuito inválido",
+  "status": 422,
+  "detail": "O circuito não tem terra (referência de 0 V): adicione um componente de terra.",
+  "instance": "/api/v1/circuits/simulate",
+  "code": "MISSING_GROUND",
+  "errors": [{ "code": "MISSING_GROUND", "message": "…", "refs": [] }]
+}
+```
+
+- `code` é o código do primeiro erro, e `errors` lista todos os erros.
+- `refs` são os IDs ou terminais envolvidos, para o editor os poder destacar.
+- Nos erros de esquema, `pointer` é o JSON Pointer (RFC 6901) do campo inválido.
+- Os erros 500 nunca incluem detalhes internos.
+
+| `type` | HTTP | `code` |
+|---|---|---|
+| `…:malformed-json` | 400 | `MALFORMED_JSON` |
+| `about:blank` | 415 | `UNSUPPORTED_MEDIA_TYPE` (corpo que não é JSON) |
+| `…:invalid-document` | 422 | `INVALID_COMPONENT` (erro de esquema em `components[i]`, com `refs: [id]`), `INVALID_DOCUMENT` (restantes, incluindo `NaN` e `Infinity`) |
+| `…:invalid-circuit` | 422 | Códigos do validador: `UNKNOWN_TERMINAL`, `FLOATING_NET`, `MISSING_GROUND`, `UNSUPPORTED_MODEL`, `INVALID_VALUE`, … |
+| `…:simulation-failed` | 422 | `SINGULAR_MATRIX`, `ILL_CONDITIONED_MATRIX` |
+| `…:simulation-timeout` | 503 | `SIMULATION_TIMEOUT` |
+| `about:blank` | 404, 405, … | Nome do estado HTTP (`NOT_FOUND`, `METHOD_NOT_ALLOWED`, …) |
+| `…:internal-error` | 500 | `INTERNAL_ERROR` |
 
 ## Imagem Docker
 
