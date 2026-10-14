@@ -39,6 +39,37 @@ describe('EditorCanvas', () => {
     expect(screen.getByRole('button', { name: /zoom in/i })).toBeInTheDocument();
   });
 
+  test('desenha o símbolo IEC de cada componente, com a rotação do documento', () => {
+    renderCanvas();
+    const symbolOf = (id: string) =>
+      screen.getByText(id).closest('.component-node')?.querySelector('svg.component-symbol');
+
+    expect(symbolOf('V1')).toHaveAttribute('data-symbol', 'dc_voltage_source_iec');
+    expect(symbolOf('R1')).toHaveAttribute('data-symbol', 'resistor_iec');
+    expect(symbolOf('GND1')).toHaveAttribute('data-symbol', 'ground_iec');
+
+    const lamp = symbolOf('H1');
+    expect(lamp).toHaveAttribute('data-symbol', 'lamp_iec');
+    expect(lamp).toHaveAttribute('width', '40');
+    expect(lamp).toHaveAttribute('height', '80');
+    expect(lamp?.querySelector('g')).toHaveAttribute('transform', 'rotate(90)');
+  });
+
+  test('tipos fora do catálogo aparecem como marcador de erro, sem símbolo', () => {
+    const [source] = initialState.circuit.components;
+    useEditorStore.setState({
+      circuit: {
+        ...initialState.circuit,
+        components: [{ ...source, id: 'X1', type: 'motor' }],
+        wires: [],
+      },
+    });
+    renderCanvas();
+    const node = screen.getByText('X1').closest('.component-node');
+    expect(node).toHaveClass('is-unknown');
+    expect(node?.querySelector('svg.component-symbol')).toBeNull();
+  });
+
   test('clique seleciona um componente; clique noutro substitui a seleção', () => {
     renderCanvas();
 

@@ -1,0 +1,27 @@
+.component-symbol {
+  display: block;
+  color: var(--wire);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.component-symbol .symbol__fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.component-symbol .symbol__contact {
+  fill: var(--bg, #fff);
+  stroke-width: 1.5;
+}
+
+.component-symbol .symbol__mark {
+  stroke-width: 1.5;
+}
+
+.component-symbol__missing {
+  stroke: var(--danger);
+  stroke-dasharray: 4 3;
+}

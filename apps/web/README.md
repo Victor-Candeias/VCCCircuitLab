@@ -6,9 +6,13 @@ Frontend do VCCCircuitLab: React + TypeScript + Vite, editor com React Flow (`@x
 
 ```text
 src/
+├── components/symbols/    # Símbolos SVG IEC 60617
+│   ├── ComponentSymbol.tsx    # caixa SVG centrada na âncora, com rotação
+│   ├── iecSymbols.tsx     # desenho de cada símbolo (coordenadas locais)
+│   └── symbolIds.ts       # IDs desenhados (`ComponentDefinition.symbol`)
 ├── editor/                # Canvas e lógica do editor
 │   ├── EditorCanvas.tsx   # React Flow: grelha, pan, zoom, seleção, ferramenta de fio
-│   ├── ComponentNodeView.tsx  # componente com pinos clicáveis (handles)
+│   ├── ComponentNodeView.tsx  # símbolo IEC do componente com pinos clicáveis (handles)
 │   ├── JunctionNodeView.tsx   # junção explícita (ponto cheio)
 │   ├── WireEdgeView.tsx   # fio ortogonal
 │   ├── flowNodes.ts       # documento canónico → nós e arestas do React Flow
@@ -25,6 +29,13 @@ src/
 - O store guarda o **documento canónico** (`CircuitDocument`) separado do **estado de vista** (seleção, fio em desenho). Os nós e fios do React Flow são derivados do documento; as alterações do canvas voltam ao store.
 - `Component.position` é o **centro** do símbolo (âncora); o tamanho vem do catálogo e roda com o componente. O snap à grelha (20) é aplicado à âncora, para que os pinos fiquem na grelha.
 - Interação: arrastar o fundo faz pan; roda do rato/controlos fazem zoom; clique seleciona; Ctrl/⌘ + clique acrescenta à seleção; Shift + arrastar seleciona por caixa.
+
+### Símbolos IEC
+
+- Cada componente é desenhado com o símbolo IEC 60617 indicado em `ComponentDefinition.symbol`: fonte de tensão (círculo atravessado pelo condutor, com `+`/`−`), fonte de corrente (círculo com traço perpendicular e seta no sentido da corrente), resistência (retângulo), interruptor (contacto de fecho, aberto ou fechado conforme `closed`), lâmpada (círculo com cruz) e terra.
+- Os símbolos são desenhados em coordenadas locais (origem na âncora, rotação 0, unidades do catálogo) e os condutores terminam exatamente nas posições dos pinos do catálogo. A rotação SVG é a mesma de `rotateOffset`, por isso pinos e desenho rodam juntos; os sinais de polaridade ficam sempre na vertical.
+- Para acrescentar um símbolo: desenhá-lo em `iecSymbols.tsx`, juntar o ID a `SYMBOL_IDS` e ao `switch` de `IecSymbol`. Os testes verificam que cada símbolo do catálogo existe e que cada pino é a extremidade de um condutor.
+- Tipos fora do catálogo aparecem como marcador de erro (caixa tracejada); símbolos do catálogo ainda sem desenho aparecem como caixa tracejada vermelha.
 
 ### Ligações (fios e junções)
 
