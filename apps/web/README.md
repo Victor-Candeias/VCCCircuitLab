@@ -109,6 +109,13 @@ src/
 - Os resultados correspondem ao circuito simulado: se o circuito mudar, o painel pede uma nova simulação (desfazer até ao mesmo circuito volta a mostrá-los). Uma nova simulação cancela a anterior.
 - **URL da API**: `VITE_API_BASE_URL` (ver `.env.example`), usada no build — p. ex. `VITE_API_BASE_URL=https://api.exemplo.pt`. Vazia (omissão), os pedidos vão para a mesma origem e o `vite dev`/`vite preview` encaminham `/api` para `API_PROXY_TARGET` (por omissão `http://127.0.0.1:8000`) — assim o editor funciona também quando aberto noutra máquina da rede, sem CORS. Não colocar segredos em variáveis `VITE_*`.
 
+### Conta e sessão (login)
+
+- Sem sessão iniciada, a aplicação mostra **apenas o ecrã de login** (email e password) — o editor e os pedidos à API ficam inacessíveis. **Criar conta** abre o diálogo de registo (nome, email, password com barra de qualidade e repetição) e, criada a conta, pré-preenche o email no login.
+- O login (`POST /api/v1/auth/login`) devolve um token de sessão, guardado no `sessionStorage` (`vcccircuitlab.session`: sobrevive a um refresh, termina ao fechar o separador) e enviado em `Authorization: Bearer` em todos os pedidos (`setAuthToken` em `api/client.ts`). Ao arrancar, um token guardado é validado com `GET /api/v1/auth/me` antes de mostrar o editor.
+- Se a API responder `401` a um pedido com sessão (expirada ou terminada), a aplicação volta ao login com o aviso "A sessão expirou". **Terminar sessão** (no cabeçalho, ao lado do nome) chama `POST /api/v1/auth/logout` e limpa o token.
+- O estado da sessão está em `auth/authStore.ts` (zustand). O autosave (IndexedDB) ainda não é separado por utilizador.
+
 ## Comandos (a partir da raiz do repositório)
 
 ```bash
@@ -136,8 +143,14 @@ pnpm --filter @vcccircuitlab/web test:e2e
 
 O `playwright.config.ts` arranca automaticamente o frontend (`vite dev`) e o backend (`uvicorn`,
 a partir de um venv em `apps/api/.venv` — ver `apps/api/README.md` para o preparar). Sem backend
-disponível, usar `PLAYWRIGHT_SKIP_BACKEND=1` para saltar o teste "gerar → editar → simular" (os
-restantes não chamam a API).
+disponível, usar `PLAYWRIGHT_SKIP_BACKEND=1` para saltar os testes que precisam da API ("gerar →
+editar → simular" e o login pela interface).
+
+Como a aplicação exige login, os cenários importam `test` de `e2e/auth.ts`: antes de cada teste
+regista (se ainda não existir) e autentica o utilizador `e2e@vcccircuitlab.test` na API — o
+backend precisa do MongoDB configurado no `.env` — e injeta o token no `sessionStorage`. Com
+`PLAYWRIGHT_SKIP_BACKEND=1` simula `GET /api/v1/auth/me`. `e2e/login.spec.ts` testa o próprio
+ecrã de login.
 
 ## GitHub Pages
 

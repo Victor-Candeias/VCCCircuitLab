@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './auth';
 
 /**
  * E4-05: recuperação do projeto após um refresh da página (E4-02: autosave em IndexedDB).

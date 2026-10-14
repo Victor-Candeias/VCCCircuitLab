@@ -5,7 +5,12 @@ import {
   ApiError,
   createUser,
   generateCircuit,
+  getCurrentUser,
+  login,
+  logoutSession,
   normalizeBaseUrl,
+  setAuthToken,
+  setUnauthorizedHandler,
   simulateCircuit,
   toApiError,
   validateCircuit,
@@ -30,6 +35,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setAuthToken(null);
+  setUnauthorizedHandler(null);
   fetchMock.mockReset();
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -170,6 +177,7 @@ describe('cliente da API', () => {
       id: '1',
       name: 'Ana',
       email: 'ana@exemplo.pt',
+      role: 'USER',
       createdAt: '2026-10-14T21:00:00Z',
     };
     fetchMock.mockResolvedValue(json(account, 201));
@@ -214,5 +222,88 @@ describe('cliente da API', () => {
     expect(wrapped.kind).toBe('network');
     expect(wrapped.message).not.toContain('boom');
     expect(wrapped.message.length).toBeGreaterThan(0);
+  });
+
+  test('login envia as credenciais e devolve o token; sem token não há Authorization', async () => {
+    const session = {
+      accessToken: 'tok',
+      tokenType: 'bearer',
+      expiresAt: '2030-01-01T00:00:00Z',
+      user: {
+        id: '1',
+        name: 'Ana',
+        email: 'ana@exemplo.pt',
+        role: 'USER',
+        createdAt: '2026-10-14T21:00:00Z',
+      },
+    };
+    fetchMock.mockResolvedValue(json(session));
+
+    await expect(login({ email: 'ana@exemplo.pt', password: 'x' })).resolves.toEqual(session);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/v1/auth/login');
+    expect(init?.method).toBe('POST');
+    expect(new Headers(init?.headers).has('Authorization')).toBe(false);
+  });
+
+  test('com token, os pedidos levam Authorization: Bearer (GET sem corpo)', async () => {
+    const account = {
+      id: '1',
+      name: 'Ana',
+      email: 'ana@exemplo.pt',
+      role: 'USER',
+      createdAt: '2026-10-14',
+    };
+    fetchMock.mockResolvedValue(json(account));
+    setAuthToken('tok');
+
+    await expect(getCurrentUser()).resolves.toEqual(account);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/v1/auth/me');
+    expect(init?.method).toBe('GET');
+    expect(init?.body).toBeUndefined();
+    const headers = new Headers(init?.headers);
+    expect(headers.get('Authorization')).toBe('Bearer tok');
+    expect(headers.has('Content-Type')).toBe(false);
+  });
+
+  test('logoutSession aceita a resposta 204 sem corpo', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    setAuthToken('tok');
+
+    await expect(logoutSession()).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('POST');
+  });
+
+  test('401 com token chama o handler de sessão expirada', async () => {
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+    setAuthToken('tok');
+    fetchMock.mockResolvedValue(
+      json(
+        { title: 'Autenticação necessária', code: 'NOT_AUTHENTICATED', errors: [] },
+        401,
+        'application/problem+json',
+      ),
+    );
+
+    const error = await failure(simulateCircuit(demoCircuit));
+
+    expect(error.status).toBe(401);
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  test('401 sem token (login falhado) não chama o handler', async () => {
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+    fetchMock.mockResolvedValue(
+      json({ title: 'Login inválido', code: 'INVALID_CREDENTIALS', errors: [] }, 401),
+    );
+
+    await failure(login({ email: 'a@b.pt', password: 'x' }));
+
+    expect(onUnauthorized).not.toHaveBeenCalled();
   });
 });

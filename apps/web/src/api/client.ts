@@ -82,7 +82,27 @@ export interface RequestOptions {
   timeoutMs?: number;
 }
 
-async function postJson<T>(
+let authToken: string | null = null;
+let onUnauthorized: (() => void) | null = null;
+
+/** Token de sessão enviado em `Authorization: Bearer` em todos os pedidos (`null` = nenhum). */
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+}
+
+/** Chamado quando um pedido com token recebe 401 (sessão expirada ou terminada noutro lado). */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
+/** Aceita qualquer corpo (ex.: 204 sem conteúdo). */
+function isAnything(value: unknown): value is unknown {
+  void value;
+  return true;
+}
+
+async function requestJson<T>(
+  method: 'GET' | 'POST',
   path: string,
   body: unknown,
   isExpected: (value: unknown) => value is T,
@@ -103,15 +123,19 @@ async function postJson<T>(
     let response: Response;
     let text: string;
     try {
+      const sentToken = authToken;
+      const headers: Record<string, string> = {
+        Accept: 'application/json, application/problem+json',
+      };
+      if (body !== undefined) headers['Content-Type'] = 'application/json';
+      if (sentToken) headers.Authorization = `Bearer ${sentToken}`;
       response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json, application/problem+json',
-        },
-        body: JSON.stringify(body),
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
+      if (response.status === 401 && sentToken && sentToken === authToken) onUnauthorized?.();
       text = await response.text();
     } catch {
       if (timedOut) {
@@ -162,7 +186,13 @@ export function simulateCircuit(
   circuit: CircuitDocument,
   options: RequestOptions = {},
 ): Promise<SimulationResult> {
-  return postJson('/api/v1/circuits/simulate', toCanonical(circuit), isSimulationResult, options);
+  return requestJson(
+    'POST',
+    '/api/v1/circuits/simulate',
+    toCanonical(circuit),
+    isSimulationResult,
+    options,
+  );
 }
 
 /** `POST /api/v1/circuits/validate` com o documento canónico (sem `nets`). */
@@ -170,7 +200,13 @@ export function validateCircuit(
   circuit: CircuitDocument,
   options: RequestOptions = {},
 ): Promise<ValidationResult> {
-  return postJson('/api/v1/circuits/validate', toCanonical(circuit), isValidationResult, options);
+  return requestJson(
+    'POST',
+    '/api/v1/circuits/validate',
+    toCanonical(circuit),
+    isValidationResult,
+    options,
+  );
 }
 
 /** Parâmetros de um template de geração (ver `GENERATE_TEMPLATES`); a API valida os valores. */
@@ -186,7 +222,8 @@ export function generateCircuit(
   parameters: GenerateParameters,
   options: RequestOptions = {},
 ): Promise<CircuitDocument> {
-  return postJson(
+  return requestJson(
+    'POST',
     '/api/v1/circuits/generate',
     { template, parameters },
     isCircuitDocument,
@@ -200,6 +237,7 @@ function isUserAccount(value: unknown): value is UserAccount {
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
     typeof value.email === 'string' &&
+    (value.role === 'USER' || value.role === 'ADMIN') &&
     typeof value.createdAt === 'string'
   );
 }
@@ -213,7 +251,42 @@ export interface NewUser {
 
 /** `POST /api/v1/users`: cria a conta (a API guarda os dados encriptados e só o hash da password). */
 export function createUser(user: NewUser, options: RequestOptions = {}): Promise<UserAccount> {
-  return postJson('/api/v1/users', user, isUserAccount, options);
+  return requestJson('POST', '/api/v1/users', user, isUserAccount, options);
+}
+
+export interface LoginResult {
+  accessToken: string;
+  tokenType: 'bearer';
+  expiresAt: string;
+  user: UserAccount;
+}
+
+function isLoginResult(value: unknown): value is LoginResult {
+  return (
+    isRecord(value) &&
+    typeof value.accessToken === 'string' &&
+    value.tokenType === 'bearer' &&
+    typeof value.expiresAt === 'string' &&
+    isUserAccount(value.user)
+  );
+}
+
+/** `POST /api/v1/auth/login`: devolve o token de sessão e o utilizador. */
+export function login(
+  credentials: { email: string; password: string },
+  options: RequestOptions = {},
+): Promise<LoginResult> {
+  return requestJson('POST', '/api/v1/auth/login', credentials, isLoginResult, options);
+}
+
+/** `GET /api/v1/auth/me`: utilizador da sessão atual (exige `setAuthToken`). */
+export function getCurrentUser(options: RequestOptions = {}): Promise<UserAccount> {
+  return requestJson('GET', '/api/v1/auth/me', undefined, isUserAccount, options);
+}
+
+/** `POST /api/v1/auth/logout`: termina a sessão atual no servidor. */
+export async function logoutSession(options: RequestOptions = {}): Promise<void> {
+  await requestJson('POST', '/api/v1/auth/logout', undefined, isAnything, options);
 }
 
 /** Converte qualquer falha numa `ApiError` (erros inesperados ficam como falha de rede). */

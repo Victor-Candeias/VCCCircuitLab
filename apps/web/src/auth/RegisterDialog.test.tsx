@@ -93,6 +93,7 @@ describe('RegisterDialog', () => {
       id: '1',
       name: 'Ana Silva',
       email: 'ana@exemplo.pt',
+      role: 'USER',
       createdAt: '2026-10-14T21:00:00Z',
     });
     const onClose = vi.fn();

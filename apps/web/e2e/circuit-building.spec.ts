@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './auth';
 
 /**
  * E4-05, cenários 1-2 (`Docs/arquitetura_simulador_circuitos.md` §12): criar um circuito do

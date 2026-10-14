@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     BaseModel,
@@ -16,6 +16,10 @@ from pydantic import (
 from app.security.passwords import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LEVEL, password_level
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$")
+
+Role = Literal["USER", "ADMIN"]
+USER_ROLE: Role = "USER"
+ADMIN_ROLE: Role = "ADMIN"
 
 
 class UserCreate(BaseModel):
@@ -61,4 +65,5 @@ class UserOut(BaseModel):
     id: str
     name: str
     email: str
+    role: Role = "USER"
     created_at: datetime = Field(alias="createdAt")

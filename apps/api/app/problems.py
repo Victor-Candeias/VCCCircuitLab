@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.auth.errors import InvalidCredentialsError, NotAuthenticatedError, NotAuthorizedError
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
 from app.db.errors import DatabaseUnavailableError
 from app.generation.errors import InvalidParametersError, UnknownTemplateError
@@ -39,6 +40,9 @@ class ApiErrorCode(StrEnum):
     SIMULATION_TIMEOUT = "SIMULATION_TIMEOUT"
     EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
     SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
+    INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
+    NOT_AUTHENTICATED = "NOT_AUTHENTICATED"
+    FORBIDDEN = "FORBIDDEN"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -244,7 +248,7 @@ async def _request_validation_handler(request: Request, exc: Exception) -> Probl
         return problem_response(
             request, status=415, kind="about:blank", title="Unsupported Media Type", errors=[issue]
         )
-    is_user_request = request.url.path.startswith("/api/v1/users")
+    is_user_request = request.url.path.startswith(("/api/v1/users", "/api/v1/auth"))
     return problem_response(
         request,
         status=422,
@@ -319,6 +323,38 @@ async def _email_registered_handler(request: Request, exc: Exception) -> Problem
     )
 
 
+async def _invalid_credentials_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, InvalidCredentialsError)
+    issue = Issue(code=ApiErrorCode.INVALID_CREDENTIALS, message="Email ou password incorretos.")
+    return problem_response(
+        request, status=401, kind="invalid-credentials", title="Login inválido", errors=[issue]
+    )
+
+
+async def _not_authenticated_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, NotAuthenticatedError)
+    issue = Issue(
+        code=ApiErrorCode.NOT_AUTHENTICATED,
+        message="Sessão inexistente ou expirada. Inicie sessão.",
+    )
+    return problem_response(
+        request,
+        status=401,
+        kind="not-authenticated",
+        title="Autenticação necessária",
+        errors=[issue],
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def _not_authorized_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, NotAuthorizedError)
+    issue = Issue(code=ApiErrorCode.FORBIDDEN, message="Sem permissões para aceder a este recurso.")
+    return problem_response(
+        request, status=403, kind="forbidden", title="Acesso negado", errors=[issue]
+    )
+
+
 async def _database_unavailable_handler(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, DatabaseUnavailableError)
     # A causa (configuração em falta, credenciais, ligação) fica só no log do servidor.
@@ -374,6 +410,9 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(SimulationTimeoutError, _timeout_handler)
     app.add_exception_handler(EmailAlreadyRegisteredError, _email_registered_handler)
     app.add_exception_handler(DatabaseUnavailableError, _database_unavailable_handler)
+    app.add_exception_handler(InvalidCredentialsError, _invalid_credentials_handler)
+    app.add_exception_handler(NotAuthenticatedError, _not_authenticated_handler)
+    app.add_exception_handler(NotAuthorizedError, _not_authorized_handler)
     app.add_exception_handler(StarletteHTTPException, _http_error_handler)
     app.add_exception_handler(Exception, _internal_error_handler)
 

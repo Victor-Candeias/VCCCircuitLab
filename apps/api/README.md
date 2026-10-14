@@ -9,11 +9,12 @@ apps/api/
 ├── app/
 │   ├── main.py        # app = FastAPI()
 │   ├── problems.py    # Erros application/problem+json
-│   ├── routes/        # Rotas HTTP (GET /health, POST /api/v1/circuits/…, POST /api/v1/users)
+│   ├── routes/        # Rotas HTTP (GET /health, /api/v1/circuits/…, /api/v1/users, /api/v1/auth/…)
 │   ├── models/        # Modelos Pydantic
 │   ├── db/            # Ligação ao MongoDB e CRUD de collections
 │   ├── security/      # Encriptação de campos, hash e qualidade de passwords
 │   ├── users/         # Criação de utilizadores
+│   ├── auth/          # Login, sessões e dependência require_user
 │   ├── generation/    # Templates e layout
 │   ├── circuit/       # Redes, normalização, validação
 │   ├── solver/        # MNA DC
@@ -94,6 +95,8 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 
 ## Endpoints `/api/v1/circuits`
 
+Exigem sessão iniciada (`Authorization: Bearer <token>`, ver [Sessão e autenticação](#sessão-e-autenticação)); sem ela a resposta é `401 not-authenticated`.
+
 O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `application/json`. A documentação interativa está em `/docs` e o esquema em `/openapi.json`.
 
 | Método | Endpoint | Resposta `200` |
@@ -158,6 +161,9 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `…:invalid-parameters` | 422 | `INVALID_PARAMETERS` (campo em falta, extra ou fora dos limites, com `pointer` em `/parameters/…`) |
 | `…:invalid-circuit` | 422 | Códigos do validador: `UNKNOWN_TERMINAL`, `FLOATING_NET`, `MISSING_GROUND`, `UNSUPPORTED_MODEL`, `INVALID_VALUE`, … |
 | `…:simulation-failed` | 422 | `SINGULAR_MATRIX`, `ILL_CONDITIONED_MATRIX` |
+| `…:invalid-credentials` | 401 | `INVALID_CREDENTIALS` (login com email ou password errados) |
+| `…:not-authenticated` | 401 | `NOT_AUTHENTICATED` (sem token, ou token inválido, expirado ou terminado; com `WWW-Authenticate: Bearer`) |
+| `…:forbidden` | 403 | `FORBIDDEN` (sessão válida sem o role necessário, ex.: não `ADMIN`) |
 | `…:simulation-timeout` | 503 | `SIMULATION_TIMEOUT` |
 | `about:blank` | 404, 405, … | Nome do estado HTTP (`NOT_FOUND`, `METHOD_NOT_ALLOWED`, …) |
 | `…:internal-error` | 500 | `INTERNAL_ERROR` |
@@ -168,7 +174,24 @@ Configuração em `.env` na raiz (ignorado pelo git; modelo em `.env.example`): 
 
 - `app/db/mongo.py`: cliente único (`get_database()`), com timeout de 3 s. Sem configuração ou sem BD, a API responde `503 service-unavailable` sem expor a causa (fica no log).
 - `app/db/collections.py`: CRUD genérico (`create_collection`, `drop_collection`, `list_collections`, `insert_one/many`, `find`, `find_one`, `update_many`, `delete_many`). Valida o nome da collection e não está exposto por HTTP.
-- `POST /api/v1/users` (`{ name, email, password, passwordConfirm }` → `201 { id, name, email, createdAt }`): grava na collection `users` o nome e o email **encriptados** (Fernet), `emailIndex` (HMAC do email, índice único) e `passwordHash` (scrypt com sal). A password tem de ter qualidade ≥ 2 (≥ 8 caracteres com 3 classes de caracteres, ou ≥ 12 caracteres) e coincidir com `passwordConfirm`. Erros: `409 email-already-registered`, `422 invalid-document` (com `pointer`), `503 service-unavailable`.
+- `POST /api/v1/users` (`{ name, email, password, passwordConfirm }` → `201 { id, name, email, role, createdAt }`): grava na collection `users` o nome e o email **encriptados** (Fernet), `emailIndex` (HMAC do email, índice único), `passwordHash` (scrypt com sal) e `role: "USER"` (o registo não aceita `role`). A password tem de ter qualidade ≥ 2 (≥ 8 caracteres com 3 classes de caracteres, ou ≥ 12 caracteres) e coincidir com `passwordConfirm`. Erros: `409 email-already-registered`, `422 invalid-document` (com `pointer`), `503 service-unavailable`.
+
+## Sessão e autenticação
+
+Públicos: `GET /health`, `POST /api/v1/users` e `POST /api/v1/auth/login`. Tudo o resto (`/api/v1/circuits/…`, `/api/v1/components`) exige `Authorization: Bearer <token>` — dependência `require_user` (`app/auth/dependencies.py`), aplicada aos routers em `app/main.py`.
+
+| Método | Endpoint | Resposta |
+|---|---|---|
+| `POST` | `/api/v1/auth/login` | `{ email, password }` → `200 { accessToken, tokenType: "bearer", expiresAt, user }`. Credenciais erradas → `401 invalid-credentials`, com a mesma mensagem e o mesmo custo (hash scrypt) quer o email exista ou não. |
+| `GET` | `/api/v1/auth/me` | Utilizador da sessão (`{ id, name, email, role, createdAt }`, desencriptado). |
+| `POST` | `/api/v1/auth/logout` | `204`; o token deixa de ser válido. |
+
+- O token é aleatório (256 bits, `secrets.token_urlsafe`); na collection `sessions` fica apenas o seu SHA-256 (`tokenHash`, índice único), com `userId`, `createdAt` e `expiresAt`.
+- Duração: `SESSION_TTL_HOURS` (por omissão 8 h). O índice TTL em `expiresAt` faz o MongoDB apagar as sessões expiradas; até lá, a API recusa-as.
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` (e `ADMIN_NAME`, opcional) no `.env` definem o administrador. Criar ou repor (idempotente; repõe `role: "ADMIN"` e a password) com `python -m app.users.seed_admin`, a partir de `apps/api`. A password do admin não passa pela política de qualidade do registo e nunca é guardada em claro.
+- Roles: `USER` (registo) e `ADMIN` (só pelo seed). Contas sem `role` contam como `USER`. A dependência `CurrentAdmin` (`app/auth/dependencies.py`) responde `403 forbidden` (`FORBIDDEN`) a sessões sem role `ADMIN`.
+- Nos testes, `tests/conftest.py` substitui `require_user` por um utilizador falso; os testes marcados com `@pytest.mark.real_auth` (ex.: `test_api_auth.py`) usam a autenticação real.
+- Limitar tentativas de login repetidas fica para o E5-04. `/docs` e `/openapi.json` continuam públicos.
 
 ## Imagem Docker
 

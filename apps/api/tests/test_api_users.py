@@ -52,8 +52,10 @@ def test_create_user_stores_encrypted_data(db) -> None:
     assert "password" not in body
     assert "passwordHash" not in body
     assert body["createdAt"]
+    assert body["role"] == "USER"
 
     stored = db["users"].find_one()
+    assert stored["role"] == "USER"
     assert str(stored["_id"]) == body["id"]
     raw = repr(stored)
     for secret in ("Ana Silva", "exemplo.pt", PASSWORD):

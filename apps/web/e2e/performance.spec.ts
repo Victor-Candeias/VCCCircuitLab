@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './auth';
 
 /**
  * E4-05: desempenho com ~100 componentes (`Docs/arquitetura_simulador_circuitos.md` §12.11).

@@ -44,10 +44,13 @@ export interface ValidationResult {
   nets: { id: string; terminals: string[] }[] | null;
 }
 
-/** Conta criada por `POST /api/v1/users` (a API nunca devolve a password). */
+export type UserRole = 'USER' | 'ADMIN';
+
+/** Conta devolvida pela API (a API nunca devolve a password). */
 export interface UserAccount {
   id: string;
   name: string;
   email: string;
+  role: UserRole;
   createdAt: string;
 }

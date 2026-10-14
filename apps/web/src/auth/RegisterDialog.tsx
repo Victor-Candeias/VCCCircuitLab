@@ -55,7 +55,14 @@ export function PasswordStrengthMeter({ password }: { password: string }) {
  * password numa barra do vermelho ao verde. Os dados são validados aqui e de novo pela API
  * (`POST /api/v1/users`), que os guarda encriptados na base de dados.
  */
-export function RegisterDialog({ onClose }: { onClose: () => void }) {
+export function RegisterDialog({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  /** Chamado com o email da conta criada (o ecrã de login pré-preenche-o). */
+  onCreated?: (email: string) => void;
+}) {
   const titleId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const [name, setName] = useState('');
@@ -125,6 +132,7 @@ export function RegisterDialog({ onClose }: { onClose: () => void }) {
       setPassword('');
       setConfirm('');
       setCreatedName(account.name);
+      onCreated?.(account.email);
     } catch (cause) {
       const apiError = toApiError(cause);
       setError({
@@ -154,7 +162,7 @@ export function RegisterDialog({ onClose }: { onClose: () => void }) {
         {createdName !== null ? (
           <>
             <p role="status" className="register__success">
-              Conta criada com sucesso. Bem-vindo(a), {createdName}!
+              Conta criada com sucesso. Bem-vindo(a), {createdName}! Já pode iniciar sessão.
             </p>
             <div className="generate-dialog__actions">
               <button type="button" onClick={onClose}>
