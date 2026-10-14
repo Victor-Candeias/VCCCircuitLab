@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { useEditorStore } from '../store/editorStore';
 import { EditorCanvas } from './EditorCanvas';
 import { PALETTE_DRAG_TYPE } from './palette';
+import { CIRCUIT_EXAMPLES } from '../project/examples';
 
 const initialState = useEditorStore.getState();
 
@@ -155,6 +156,31 @@ describe('EditorCanvas — ligações', () => {
       from: 'R1.a',
       to: 'J1',
     });
+  });
+});
+
+describe('EditorCanvas — circuito ramificado (§5.2)', () => {
+  test('desenha todos os ramos, junções e fios e permite editá-los', async () => {
+    useEditorStore
+      .getState()
+      .loadCircuit(CIRCUIT_EXAMPLES.find((e) => e.id === 'ramificado')!.circuit);
+    const { container } = renderCanvas();
+
+    for (const id of ['V1', 'S1', 'R1', 'R2', 'H1', 'R3', 'R4', 'GND1']) {
+      expect(screen.getByText(id)).toBeInTheDocument();
+    }
+    expect(container.querySelectorAll('.junction-node')).toHaveLength(5);
+    await waitFor(() => expect(container.querySelectorAll('path.wire-edge')).toHaveLength(16));
+
+    // Ligar R4.b à junção J1 (fio novo num nó com quatro fios).
+    click(pin('R4.b'));
+    click(screen.getByLabelText('Junção J1'));
+    expect(useEditorStore.getState().circuit.wires.at(-1)).toMatchObject({
+      id: 'W17',
+      from: 'R4.b',
+      to: 'J1',
+    });
+    await waitFor(() => expect(container.querySelectorAll('path.wire-edge')).toHaveLength(17));
   });
 });
 

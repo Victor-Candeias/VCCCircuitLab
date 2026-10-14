@@ -23,5 +23,5 @@ status: active
 | E1-05 | Painel de propriedades com validação imediata | backlog | 2026-10-12 | developer | medium |  |  | E1-02 |  |
 | E1-06 | Undo/redo, copiar/colar e apagar | backlog | 2026-10-12 | developer | medium |  |  | E1-04 |  |
 | E1-07 | Importar/exportar projeto em JSON canónico | done | 2026-10-12 | developer | high | 2026-10-14 |  | etapa-0/E0-07, E1-04 | [E1-07](../specs/etapa-1/e1-07-spec.md) |
-| E1-08 | Prototipar circuitos ramificados para validar React Flow | backlog | 2026-10-12 | developer | high |  |  | E1-01 |  |
+| E1-08 | Prototipar circuitos ramificados para validar React Flow | done | 2026-10-12 | developer | high | 2026-10-14 |  | E1-01 | [E1-08](../specs/etapa-1/e1-08-spec.md) |
 <!-- /maestru:work-items-list -->

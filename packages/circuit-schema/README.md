@@ -6,6 +6,7 @@ JSON Schema **1.0** do documento canónico de circuito do VCCCircuitLab (`schema
 import type { CircuitDocument, ComponentCatalog } from '@vcccircuitlab/circuit-schema';
 import schema from '@vcccircuitlab/circuit-schema/circuit.schema.json';
 import catalog from '@vcccircuitlab/circuit-schema/catalog.json';
+import ramificado from '@vcccircuitlab/circuit-schema/examples/ramificado.json'; // fixtures válidas
 ```
 
 ## Comandos
@@ -14,6 +15,8 @@ import catalog from '@vcccircuitlab/circuit-schema/catalog.json';
 pnpm --filter @vcccircuitlab/circuit-schema generate   # regenerar src/circuit.ts e src/catalog.ts a partir dos schemas
 pnpm --filter @vcccircuitlab/circuit-schema test       # validar fixtures + catálogo + tipos sincronizados + tsc
 ```
+
+As fixtures válidas (`test/fixtures/valid/*.json`) são também exportadas como exemplos (`./examples/*.json`): o editor web abre-as no menu Exemplos e os testes da API usam-nas. `ramificado.json` é o protótipo de circuito ramificado do editor (três ramos, ponte, cruzamento sem junção, junção de quatro fios).
 
 `src/circuit.ts` e `src/catalog.ts` são gerados — não editar à mão. O teste falha se não estiverem sincronizados com os schemas.
 

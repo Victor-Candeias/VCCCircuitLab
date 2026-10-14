@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "1.0",
+  "id": "ramificado",
+  "name": "Circuito ramificado (protótipo do editor)",
+  "description": "Três ramos em paralelo depois do interruptor (R1; R2 + H1 em série; R3), uma ponte R4 do nó intermédio de R2/H1 para a terra e um cruzamento sem junção em (540, 240). Junções J1–J5, incluindo uma de quatro fios (J3).",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": { "x": 80, "y": 240 },
+      "rotation": 0,
+      "properties": { "voltageV": 9 },
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "S1",
+      "type": "switch",
+      "position": { "x": 180, "y": 120 },
+      "rotation": 0,
+      "properties": { "closed": true },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "position": { "x": 300, "y": 240 },
+      "rotation": 90,
+      "properties": { "resistanceOhm": 150 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "position": { "x": 420, "y": 200 },
+      "rotation": 90,
+      "properties": { "resistanceOhm": 47 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "H1",
+      "type": "lamp",
+      "position": { "x": 420, "y": 300 },
+      "rotation": 90,
+      "properties": { "ratedVoltageV": 12, "ratedPowerW": 5 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "R3",
+      "type": "resistor",
+      "position": { "x": 540, "y": 180 },
+      "rotation": 90,
+      "properties": { "resistanceOhm": 330 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "R4",
+      "type": "resistor",
+      "position": { "x": 660, "y": 280 },
+      "rotation": 90,
+      "properties": { "resistanceOhm": 220 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": { "x": 300, "y": 420 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["gnd"]
+    }
+  ],
+  "junctions": [
+    { "id": "J1", "position": { "x": 300, "y": 120 } },
+    { "id": "J2", "position": { "x": 420, "y": 120 } },
+    { "id": "J3", "position": { "x": 300, "y": 360 } },
+    { "id": "J4", "position": { "x": 420, "y": 360 } },
+    { "id": "J5", "position": { "x": 540, "y": 360 } }
+  ],
+  "wires": [
+    { "id": "W1", "from": "V1.positive", "to": "S1.a", "waypoints": [{ "x": 80, "y": 120 }] },
+    { "id": "W2", "from": "S1.b", "to": "J1", "waypoints": [] },
+    { "id": "W3", "from": "J1", "to": "R1.a", "waypoints": [] },
+    { "id": "W4", "from": "J1", "to": "J2", "waypoints": [] },
+    { "id": "W5", "from": "J2", "to": "R2.a", "waypoints": [] },
+    { "id": "W6", "from": "J2", "to": "R3.a", "waypoints": [{ "x": 540, "y": 120 }] },
+    { "id": "W7", "from": "R2.b", "to": "H1.a", "waypoints": [] },
+    { "id": "W8", "from": "R2.b", "to": "R4.a", "waypoints": [{ "x": 660, "y": 240 }] },
+    { "id": "W9", "from": "R1.b", "to": "J3", "waypoints": [] },
+    { "id": "W10", "from": "H1.b", "to": "J4", "waypoints": [] },
+    { "id": "W11", "from": "R3.b", "to": "J5", "waypoints": [] },
+    { "id": "W12", "from": "R4.b", "to": "J5", "waypoints": [{ "x": 660, "y": 360 }] },
+    { "id": "W13", "from": "J5", "to": "J4", "waypoints": [] },
+    { "id": "W14", "from": "J4", "to": "J3", "waypoints": [] },
+    { "id": "W15", "from": "J3", "to": "V1.negative", "waypoints": [{ "x": 80, "y": 360 }] },
+    { "id": "W16", "from": "GND1.gnd", "to": "J3", "waypoints": [] }
+  ]
+}

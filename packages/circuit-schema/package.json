@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./circuit.schema.json": "./schema/circuit.schema.json",
     "./catalog.schema.json": "./schema/catalog.schema.json",
-    "./catalog.json": "./catalog/components.json"
+    "./catalog.json": "./catalog/components.json",
+    "./examples/*.json": "./test/fixtures/valid/*.json"
   },
   "scripts": {
     "generate": "node scripts/generate-types.mjs",

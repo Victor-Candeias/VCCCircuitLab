@@ -64,6 +64,19 @@ describe('ProjectMenu', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  test('Exemplos abre um circuito de exemplo (com confirmação) e repõe o seletor', () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<ProjectMenu />);
+    const select = screen.getByRole('combobox', { name: 'Abrir exemplo' });
+
+    fireEvent.change(select, { target: { value: 'ramificado' } });
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Ramificado'));
+    expect(useEditorStore.getState().circuit.id).toBe('ramificado');
+    expect(useEditorStore.getState().circuit.junctions).toHaveLength(5);
+    expect(select).toHaveValue('');
+  });
+
   test('Novo pede confirmação e começa um circuito vazio', () => {
     const confirm = vi
       .spyOn(window, 'confirm')

@@ -15,7 +15,8 @@
   white-space: nowrap;
 }
 
-.project-menu > button {
+.project-menu > button,
+.project-menu > select {
   padding: 4px 10px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -25,7 +26,12 @@
   cursor: pointer;
 }
 
-.project-menu > button:hover {
+.project-menu > select {
+  max-width: 160px;
+}
+
+.project-menu > button:hover,
+.project-menu > select:hover {
   border-color: var(--accent);
   color: var(--accent);
 }

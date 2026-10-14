@@ -39,7 +39,7 @@ class TestCatalog:
 
 
 class TestValidCircuits:
-    @pytest.mark.parametrize("name", ["fonte-resistencia", "paralelo-juncao"])
+    @pytest.mark.parametrize("name", ["fonte-resistencia", "paralelo-juncao", "ramificado"])
     def test_fixtures_are_valid(self, name: str) -> None:
         report = validate(
             CircuitDocument.model_validate_json((FIXTURES / f"{name}.json").read_text("utf-8"))

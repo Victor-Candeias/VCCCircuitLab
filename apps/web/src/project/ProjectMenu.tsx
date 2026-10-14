@@ -1,6 +1,8 @@
+import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { circuitFileName, emptyCircuit, readCircuitFile, serializeCircuit } from './circuitJson';
+import { CIRCUIT_EXAMPLES } from './examples';
 import './project.css';
 
 type Notice = { kind: 'error' | 'info'; title: string; details: string[] };
@@ -24,12 +26,24 @@ export function ProjectMenu() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
 
-  const onNew = () => {
+  /** Substitui o circuito atual, pedindo confirmação se este não estiver vazio. */
+  const replaceCircuit = (next: CircuitDocument, question: string) => {
     const { circuit, loadCircuit } = useEditorStore.getState();
     const hasContent = circuit.components.length > 0 || circuit.wires.length > 0;
-    if (hasContent && !window.confirm('Descartar o circuito atual e começar um novo?')) return;
-    loadCircuit(emptyCircuit());
+    if (hasContent && !window.confirm(question)) return;
+    loadCircuit(next);
     setNotice(null);
+  };
+
+  const onNew = () =>
+    replaceCircuit(emptyCircuit(), 'Descartar o circuito atual e começar um novo?');
+
+  const onExample = (event: ChangeEvent<HTMLSelectElement>) => {
+    const example = CIRCUIT_EXAMPLES.find((e) => e.id === event.target.value);
+    event.target.value = '';
+    if (example) {
+      replaceCircuit(example.circuit, `Descartar o circuito atual e abrir "${example.label}"?`);
+    }
   };
 
   const onSave = () => {
@@ -69,6 +83,16 @@ export function ProjectMenu() {
       <button type="button" onClick={() => inputRef.current?.click()}>
         Abrir…
       </button>
+      <select aria-label="Abrir exemplo" defaultValue="" onChange={onExample}>
+        <option value="" disabled>
+          Exemplos…
+        </option>
+        {CIRCUIT_EXAMPLES.map((example) => (
+          <option key={example.id} value={example.id}>
+            {example.label}
+          </option>
+        ))}
+      </select>
       <button type="button" onClick={onSave}>
         Guardar JSON
       </button>

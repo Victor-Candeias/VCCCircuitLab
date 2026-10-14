@@ -116,6 +116,31 @@ class TestSimulate:
             {"voltageV": 12, "currentA": 0.12, "powerW": 1.44}
         )
 
+    def test_branched_prototype(self) -> None:
+        """E1-08: três ramos, ponte R4 e cruzamento sem junção (W8 × W11 em (540, 240))."""
+        circuit = load_fixture("ramificado")
+        nets = client.post(VALIDATE, json=circuit).json()["nets"]
+        body = client.post(SIMULATE, json=circuit).json()
+
+        assert sorted(sorted(n["terminals"]) for n in nets) == [
+            ["GND1.gnd", "H1.b", "R1.b", "R3.b", "R4.b", "V1.negative"],
+            ["H1.a", "R2.b", "R4.a"],
+            ["R1.a", "R2.a", "R3.a", "S1.b"],
+            ["S1.a", "V1.positive"],
+        ]
+        # H1 ‖ R4 (lâmpada: R = 12² / 5 = 28,8 Ω) em série com R2; R1 e R3 diretamente nos 9 V.
+        lamp_r4 = 1 / (1 / 28.8 + 1 / 220)
+        i_r2 = 9 / (47 + lamp_r4)
+        components = body["components"]
+        assert components["R2"]["currentA"] == pytest.approx(i_r2)
+        assert components["H1"]["voltageV"] == pytest.approx(i_r2 * lamp_r4)
+        assert components["R1"]["currentA"] == pytest.approx(9 / 150)
+        assert components["R3"]["currentA"] == pytest.approx(9 / 330)
+        assert components["R2"]["currentA"] == pytest.approx(
+            components["H1"]["currentA"] + components["R4"]["currentA"]
+        )
+        assert components["S1"]["currentA"] == pytest.approx(9 / 150 + i_r2 + 9 / 330)
+
     @pytest.mark.parametrize("case", **by_name(ERRORS))
     def test_invalid_circuits_are_problems(self, case: AnalyticCase) -> None:
         codes = case.expected["errors"]
