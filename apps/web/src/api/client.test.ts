@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { demoCircuit } from '../editor/demoCircuit';
 import {
   ApiError,
+  createUser,
   generateCircuit,
   normalizeBaseUrl,
   simulateCircuit,
@@ -162,6 +163,48 @@ describe('cliente da API', () => {
     const pending = failure(simulateCircuit(demoCircuit, { signal: controller.signal }));
     controller.abort();
     expect((await pending).kind).toBe('aborted');
+  });
+
+  test('createUser envia os dados por POST e devolve a conta criada', async () => {
+    const account = {
+      id: '1',
+      name: 'Ana',
+      email: 'ana@exemplo.pt',
+      createdAt: '2026-10-14T21:00:00Z',
+    };
+    fetchMock.mockResolvedValue(json(account, 201));
+    const user = {
+      name: 'Ana',
+      email: 'ana@exemplo.pt',
+      password: 'Abcdefg1!',
+      passwordConfirm: 'Abcdefg1!',
+    };
+
+    await expect(createUser(user, { baseUrl: 'https://api.exemplo.pt' })).resolves.toEqual(account);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.exemplo.pt/api/v1/users');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual(user);
+  });
+
+  test('createUser expõe o problema 409 (email já registado)', async () => {
+    const problem = {
+      type: 'urn:vcccircuitlab:problem:email-already-registered',
+      title: 'Email já registado',
+      status: 409,
+      code: 'EMAIL_ALREADY_REGISTERED',
+      errors: [],
+    };
+    fetchMock.mockResolvedValue(json(problem, 409, 'application/problem+json'));
+
+    const error = await failure(
+      createUser({ name: 'A', email: 'a@b.pt', password: 'x', passwordConfirm: 'x' }),
+    );
+
+    expect(error.kind).toBe('problem');
+    expect(error.status).toBe(409);
+    expect(error.problem?.code).toBe('EMAIL_ALREADY_REGISTERED');
   });
 
   test('toApiError mantém ApiError e embrulha outros erros', () => {

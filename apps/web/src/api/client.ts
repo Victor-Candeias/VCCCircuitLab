@@ -1,6 +1,6 @@
 import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
 import { toCanonical } from '../project/circuitJson';
-import type { Problem, SimulationResult, ValidationResult } from './types';
+import type { Problem, SimulationResult, UserAccount, ValidationResult } from './types';
 
 /** Tempo máximo de espera por uma resposta da API, em milissegundos. */
 export const REQUEST_TIMEOUT_MS = 15_000;
@@ -192,6 +192,28 @@ export function generateCircuit(
     isCircuitDocument,
     options,
   );
+}
+
+function isUserAccount(value: unknown): value is UserAccount {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.email === 'string' &&
+    typeof value.createdAt === 'string'
+  );
+}
+
+export interface NewUser {
+  name: string;
+  email: string;
+  password: string;
+  passwordConfirm: string;
+}
+
+/** `POST /api/v1/users`: cria a conta (a API guarda os dados encriptados e só o hash da password). */
+export function createUser(user: NewUser, options: RequestOptions = {}): Promise<UserAccount> {
+  return postJson('/api/v1/users', user, isUserAccount, options);
 }
 
 /** Converte qualquer falha numa `ApiError` (erros inesperados ficam como falha de rede). */

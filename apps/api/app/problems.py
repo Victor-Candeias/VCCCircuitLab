@@ -5,6 +5,7 @@ código do primeiro erro, e `errors`, a lista de todos os erros (`code`, `messag
 nos erros de esquema, `pointer`, um JSON Pointer RFC 6901).
 """
 
+import logging
 from collections.abc import Sequence
 from enum import StrEnum
 from http import HTTPStatus
@@ -18,7 +19,11 @@ from pydantic import ValidationError as PydanticValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
+from app.db.errors import DatabaseUnavailableError
 from app.generation.errors import InvalidParametersError, UnknownTemplateError
+from app.users.errors import EmailAlreadyRegisteredError
+
+logger = logging.getLogger(__name__)
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 TYPE_PREFIX = "urn:vcccircuitlab:problem:"
@@ -32,6 +37,8 @@ class ApiErrorCode(StrEnum):
     UNKNOWN_TEMPLATE = "UNKNOWN_TEMPLATE"
     INVALID_PARAMETERS = "INVALID_PARAMETERS"
     SIMULATION_TIMEOUT = "SIMULATION_TIMEOUT"
+    EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
+    SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -237,11 +244,12 @@ async def _request_validation_handler(request: Request, exc: Exception) -> Probl
         return problem_response(
             request, status=415, kind="about:blank", title="Unsupported Media Type", errors=[issue]
         )
+    is_user_request = request.url.path.startswith("/api/v1/users")
     return problem_response(
         request,
         status=422,
         kind="invalid-document",
-        title="Documento de circuito inválido",
+        title="Dados inválidos" if is_user_request else "Documento de circuito inválido",
         errors=schema_issues(exc),
     )
 
@@ -297,6 +305,36 @@ async def _timeout_handler(request: Request, exc: Exception) -> ProblemResponse:
     )
 
 
+async def _email_registered_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, EmailAlreadyRegisteredError)
+    issue = Issue(
+        code=ApiErrorCode.EMAIL_ALREADY_REGISTERED, message="Já existe uma conta com este email."
+    )
+    return problem_response(
+        request,
+        status=409,
+        kind="email-already-registered",
+        title="Email já registado",
+        errors=[issue],
+    )
+
+
+async def _database_unavailable_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, DatabaseUnavailableError)
+    # A causa (configuração em falta, credenciais, ligação) fica só no log do servidor.
+    logger.warning("Base de dados indisponível: %s (%s)", exc, exc.__cause__)
+    issue = Issue(
+        code=ApiErrorCode.SERVICE_UNAVAILABLE, message="Serviço temporariamente indisponível."
+    )
+    return problem_response(
+        request,
+        status=503,
+        kind="service-unavailable",
+        title="Serviço indisponível",
+        errors=[issue],
+    )
+
+
 async def _http_error_handler(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, StarletteHTTPException)
     status = HTTPStatus(exc.status_code)
@@ -334,6 +372,8 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(UnknownTemplateError, _unknown_template_handler)
     app.add_exception_handler(InvalidParametersError, _invalid_parameters_handler)
     app.add_exception_handler(SimulationTimeoutError, _timeout_handler)
+    app.add_exception_handler(EmailAlreadyRegisteredError, _email_registered_handler)
+    app.add_exception_handler(DatabaseUnavailableError, _database_unavailable_handler)
     app.add_exception_handler(StarletteHTTPException, _http_error_handler)
     app.add_exception_handler(Exception, _internal_error_handler)
 

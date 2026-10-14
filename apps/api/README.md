@@ -9,8 +9,11 @@ apps/api/
 ├── app/
 │   ├── main.py        # app = FastAPI()
 │   ├── problems.py    # Erros application/problem+json
-│   ├── routes/        # Rotas HTTP (GET /health, POST /api/v1/circuits/…)
+│   ├── routes/        # Rotas HTTP (GET /health, POST /api/v1/circuits/…, POST /api/v1/users)
 │   ├── models/        # Modelos Pydantic
+│   ├── db/            # Ligação ao MongoDB e CRUD de collections
+│   ├── security/      # Encriptação de campos, hash e qualidade de passwords
+│   ├── users/         # Criação de utilizadores
 │   ├── generation/    # Templates e layout
 │   ├── circuit/       # Redes, normalização, validação
 │   ├── solver/        # MNA DC
@@ -158,6 +161,14 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `…:simulation-timeout` | 503 | `SIMULATION_TIMEOUT` |
 | `about:blank` | 404, 405, … | Nome do estado HTTP (`NOT_FOUND`, `METHOD_NOT_ALLOWED`, …) |
 | `…:internal-error` | 500 | `INTERNAL_ERROR` |
+
+## Base de dados e utilizadores
+
+Configuração em `.env` na raiz (ignorado pelo git; modelo em `.env.example`): `MONGODB_HOST`, `MONGODB_PORT`, `MONGODB_DATABASE`, `MONGODB_USERNAME`, `MONGODB_PASSWORD`, `MONGODB_AUTH_SOURCE` e `DATA_ENCRYPTION_KEY` (chave Fernet; sem ela os dados encriptados não se recuperam). Dentro do contentor Docker o `127.0.0.1` é o próprio contentor, por isso é preciso passar estas variáveis e um `MONGODB_HOST` acessível.
+
+- `app/db/mongo.py`: cliente único (`get_database()`), com timeout de 3 s. Sem configuração ou sem BD, a API responde `503 service-unavailable` sem expor a causa (fica no log).
+- `app/db/collections.py`: CRUD genérico (`create_collection`, `drop_collection`, `list_collections`, `insert_one/many`, `find`, `find_one`, `update_many`, `delete_many`). Valida o nome da collection e não está exposto por HTTP.
+- `POST /api/v1/users` (`{ name, email, password, passwordConfirm }` → `201 { id, name, email, createdAt }`): grava na collection `users` o nome e o email **encriptados** (Fernet), `emailIndex` (HMAC do email, índice único) e `passwordHash` (scrypt com sal). A password tem de ter qualidade ≥ 2 (≥ 8 caracteres com 3 classes de caracteres, ou ≥ 12 caracteres) e coincidir com `passwordConfirm`. Erros: `409 email-already-registered`, `422 invalid-document` (com `pointer`), `503 service-unavailable`.
 
 ## Imagem Docker
 

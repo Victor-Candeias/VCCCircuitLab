@@ -1,0 +1,55 @@
+.strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: -4px;
+  font-size: 12px;
+}
+
+.strength__bar {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+.strength__fill {
+  height: 100%;
+  transition:
+    width 0.2s,
+    background 0.2s;
+}
+
+.strength__label {
+  min-width: 110px;
+  color: var(--text-h);
+  text-align: right;
+}
+
+.register__mismatch {
+  min-height: 1em;
+  margin-top: -6px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.register__success {
+  margin: 0;
+  color: var(--text-h);
+}
+
+.app__account {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--node-bg);
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+
+.app__account:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

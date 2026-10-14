@@ -22,5 +22,7 @@ status: active
 | E5-04 | Segurança operacional da API | backlog | 2026-10-12 | developer | high |  |  | E5-03 |  |
 | E5-05 | Monitorização, logs e health check | backlog | 2026-10-12 | developer | medium |  |  | E5-03 |  |
 | E5-06 | Testes em desktop, tablet e browsers principais | backlog | 2026-10-12 | developer | medium |  |  | E5-01, E5-03 |  |
-| E5-07 | Ligação à BD MongoDB com CRUD genérico de collections | backlog | 2026-10-14 | developer | medium |  |  |  |  |
+| E5-07 | Ligação à BD MongoDB com CRUD genérico de collections | done | 2026-10-14 | developer | medium | 2026-10-14 |  |  |  |
+| E5-08 | Criar utilizador (registo) com dados encriptados na BD e barra de qualidade da password | done | 2026-10-14 | developer | high | 2026-10-14 |  | E5-07 | [E5-08](../specs/etapa-5/e5-08-spec.md) |
+| E5-09 | Janela de login | backlog | 2026-10-14 | developer | high |  |  | E5-08 |  |
 <!-- /maestru:work-items-list -->

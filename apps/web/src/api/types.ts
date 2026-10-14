@@ -43,3 +43,11 @@ export interface ValidationResult {
   warnings: CircuitIssue[];
   nets: { id: string; terminals: string[] }[] | null;
 }
+
+/** Conta criada por `POST /api/v1/users` (a API nunca devolve a password). */
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+}
