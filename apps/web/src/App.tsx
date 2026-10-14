@@ -1,4 +1,5 @@
 import { EditorCanvas } from './editor/EditorCanvas';
+import { ProjectMenu } from './project/ProjectMenu';
 
 function App() {
   return (
@@ -6,6 +7,7 @@ function App() {
       <header className="app__header">
         <h1>VCCCircuitLab</h1>
         <span className="app__subtitle">Editor de circuitos</span>
+        <ProjectMenu />
       </header>
       <main className="app__editor">
         <EditorCanvas />

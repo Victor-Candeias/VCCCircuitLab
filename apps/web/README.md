@@ -23,6 +23,9 @@ src/
 │   ├── geometry.ts        # snap, rotação, âncora ↔ canto superior esquerdo
 │   ├── catalog.ts         # catálogo de @vcccircuitlab/circuit-schema
 │   └── demoCircuit.ts
+├── project/               # Projeto: novo, abrir e guardar
+│   ├── circuitJson.ts     # JSON canónico: serializar, validar (schema + integridade), ler ficheiro
+│   └── ProjectMenu.tsx    # botões Novo / Abrir… / Guardar JSON e mensagens de erro
 ├── store/editorStore.ts   # Zustand: documento canónico + estado de vista
 └── test/                  # setup do Vitest e mocks do React Flow para jsdom
 ```
@@ -53,6 +56,13 @@ src/
 - **Cruzamentos não ligam**: um fio que passa por cima de outro sem junção nem terminal comum não fica ligado; a conectividade vem apenas das extremidades (`from`/`to`) dos fios.
 - Os fios são sempre desenhados ortogonais: se um componente for movido e um troço ficar diagonal, é desenhado com um canto (horizontal primeiro), sem alterar o documento.
 - Ligações inválidas (um terminal a si próprio, um fio a si próprio) são ignoradas. Os novos IDs (`W<n>`, `J<n>`) são únicos em todo o documento.
+
+### Projeto (abrir e guardar JSON)
+
+- **Guardar JSON** descarrega o circuito como documento canónico (JSON Schema 1.0): chaves pela ordem do schema, indentação de 2 espaços, sem `nets` (é derivado e recalculado pela API) e sem estado de vista. O nome do ficheiro vem do nome do circuito (`circuito-serie.json`).
+- **Abrir…** lê um ficheiro `.json` local (máx. 5 MB) e valida-o antes de substituir o circuito atual: JSON Schema 1.0 (Ajv, draft 2020-12) e regras de integridade de que o editor depende — IDs únicos em todo o documento, tipos e pinos do catálogo, extremidades de fios existentes e fios não ligados a si próprios. Se houver erros, aparecem numa mensagem (com o caminho JSON) e o circuito atual não é alterado. Um `nets` no ficheiro é ignorado (com aviso). Depois de abrir, a vista enquadra o circuito.
+- **Novo** começa um circuito vazio (pede confirmação se o atual não estiver vazio).
+- Round-trip: exportar e voltar a importar dá o mesmo documento (topologia, parâmetros e geometria) e o mesmo ficheiro.
 
 ## Comandos (a partir da raiz do repositório)
 

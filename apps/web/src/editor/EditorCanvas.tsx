@@ -125,7 +125,8 @@ function EditorFlow() {
   const isWiring = draftStart !== undefined;
   const { moveComponent, moveJunction, setSelection, addWireWaypoint, clickWireAnchor } =
     useEditorStore.getState();
-  const { screenToFlowPosition } = useReactFlow();
+  const loadId = useEditorStore((s) => s.loadId);
+  const { screenToFlowPosition, fitView } = useReactFlow();
   const [cursor, setCursor] = useState<DraftCursor | null>(null);
 
   const nodes = useMemo<CircuitNode[]>(() => {
@@ -138,6 +139,11 @@ function EditorFlow() {
     (event: MouseEvent) => screenToFlowPosition({ x: event.clientX, y: event.clientY }),
     [screenToFlowPosition],
   );
+
+  useEffect(() => {
+    // Ao abrir outro circuito, enquadra-o (o `fitView` inicial só corre na montagem).
+    if (loadId > 0) requestAnimationFrame(() => void fitView({ padding: 0.2 }));
+  }, [loadId, fitView]);
 
   useEffect(() => {
     if (!isWiring) return;

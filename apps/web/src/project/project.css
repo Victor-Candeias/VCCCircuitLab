@@ -1,0 +1,75 @@
+.project-menu {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.project-menu__name {
+  max-width: 280px;
+  margin-right: 8px;
+  overflow: hidden;
+  color: var(--text-h);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-menu > button {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--node-bg);
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+
+.project-menu > button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.project-notice {
+  position: absolute;
+  top: 48px;
+  right: 16px;
+  z-index: 10;
+  max-width: 520px;
+  max-height: 50vh;
+  padding: 10px 32px 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+}
+
+.project-notice.is-error {
+  border-color: var(--danger);
+}
+
+.project-notice__title {
+  margin: 0 0 4px;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.project-notice ul {
+  margin: 0;
+  padding-left: 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.project-notice__close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+}

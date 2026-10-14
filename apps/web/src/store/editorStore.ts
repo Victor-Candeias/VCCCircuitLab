@@ -21,6 +21,8 @@ export interface EditorState {
   selectedIds: string[];
   /** Fio a ser desenhado (ferramenta de fio); `null` fora do modo de desenho. */
   wireDraft: WireDraft | null;
+  /** Incrementado sempre que um circuito é carregado (a vista reenquadra-se). */
+  loadId: number;
   loadCircuit: (circuit: CircuitDocument) => void;
   /**
    * Acrescenta um componente do catálogo com a âncora em `anchor` (snap à grelha; se a posição
@@ -56,8 +58,10 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   circuit: demoCircuit,
   selectedIds: [],
   wireDraft: null,
+  loadId: 0,
 
-  loadCircuit: (circuit) => set({ circuit, selectedIds: [], wireDraft: null }),
+  loadCircuit: (circuit) =>
+    set((s) => ({ circuit, selectedIds: [], wireDraft: null, loadId: s.loadId + 1 })),
 
   addComponent: (type, anchor) => {
     const placed = placeComponent(get().circuit, type, anchor);
