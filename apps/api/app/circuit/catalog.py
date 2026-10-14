@@ -1,8 +1,9 @@
-"""Catálogo de componentes usado pelo validador.
+"""Catálogo de componentes usado pelo validador e pelo layout de geração (E3-03).
 
 `data/components.json` é uma cópia de `packages/circuit-schema/catalog/components.json` (a
-imagem Docker só inclui `app/`); um teste garante que se mantém sincronizada. Só se carregam os
-campos de que o backend precisa: pinos, propriedades (tipo e limites) e modelo elétrico.
+imagem Docker só inclui `app/`); um teste garante que se mantém sincronizada. Carregam-se os
+campos de que o backend precisa: pinos (posição incluída), tamanho do símbolo, propriedades
+(tipo e limites), modelo elétrico e o passo da grelha (`gridSize`).
 """
 
 import json
@@ -56,12 +57,18 @@ class ComponentSpec:
     pins: tuple[str, ...]
     properties: dict[str, PropertySpec]
     simulation_model: str | None
+    size: tuple[float, float]
+    """Largura/altura do símbolo à rotação 0 (usadas pelo layout, E3-03)."""
+    pin_positions: dict[str, tuple[float, float]]
+    """Deslocamento `(x, y)` de cada pino face ao centro, à rotação 0 (idem)."""
 
 
 @dataclass(frozen=True)
 class ComponentCatalog:
     version: str
     components: dict[str, ComponentSpec]
+    grid_size: float = 20.0
+    """Passo da grelha do editor (`gridSize`), usado para alinhar o layout gerado (E3-03)."""
 
     def get(self, component_type: str) -> ComponentSpec | None:
         return self.components.get(component_type)
@@ -82,14 +89,23 @@ class ComponentCatalog:
                 )
                 for name, prop in item["properties"].items()
             }
+            size = item["size"]
             components[item["type"]] = ComponentSpec(
                 type=item["type"],
                 label=item["label"],
                 pins=tuple(pin["id"] for pin in item["pins"]),
                 properties=properties,
                 simulation_model=item["simulationModel"],
+                size=(size["width"], size["height"]),
+                pin_positions={
+                    pin["id"]: (pin["position"]["x"], pin["position"]["y"]) for pin in item["pins"]
+                },
             )
-        return cls(version=data["catalogVersion"], components=components)
+        return cls(
+            version=data["catalogVersion"],
+            components=components,
+            grid_size=data.get("gridSize", 20.0),
+        )
 
 
 @cache

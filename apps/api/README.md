@@ -101,7 +101,7 @@ O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `appli
 
 ### Geração por templates
 
-`POST /api/v1/circuits/generate` recebe `{ "template": "<nome>", "parameters": { … } }` e devolve o documento canónico correspondente, já normalizado (com `nets`). Os templates disponíveis (`app/generation/registry.py`, parâmetros em `app/generation/params.py`) são:
+`POST /api/v1/circuits/generate` recebe `{ "template": "<nome>", "parameters": { … } }` e devolve o documento canónico correspondente, já normalizado (com `nets`). As posições e os fios (incluindo waypoints ortogonais, quando necessários para fechar a malha sem cruzar componentes) são calculados pelo algoritmo de layout (`app/generation/layout.py`), alinhado à grelha do editor (`gridSize` do catálogo). Os templates disponíveis (`app/generation/registry.py`, parâmetros em `app/generation/params.py`) são:
 
 | `template` | Parâmetros (camelCase) |
 |---|---|

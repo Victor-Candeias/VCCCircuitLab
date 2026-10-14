@@ -65,6 +65,17 @@ function isValidationResult(value: unknown): value is ValidationResult {
   );
 }
 
+function isCircuitDocument(value: unknown): value is CircuitDocument {
+  return (
+    isRecord(value) &&
+    value.schemaVersion === '1.0' &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    Array.isArray(value.components) &&
+    Array.isArray(value.wires)
+  );
+}
+
 export interface RequestOptions {
   signal?: AbortSignal;
   baseUrl?: string;
@@ -158,6 +169,27 @@ export function validateCircuit(
   options: RequestOptions = {},
 ): Promise<ValidationResult> {
   return postJson('/api/v1/circuits/validate', toCanonical(circuit), isValidationResult, options);
+}
+
+/** Parâmetros de um template de geração (ver `GENERATE_TEMPLATES`); a API valida os valores. */
+export type GenerateParameters = Record<string, number | boolean | number[]>;
+
+/**
+ * `POST /api/v1/circuits/generate`: devolve o documento canónico do template, já normalizado
+ * (com `nets`); o chamador deve descartá-los com `toCanonical` antes de carregar no editor
+ * (tal como os outros documentos importados — `nets` é sempre derivado, nunca fonte de verdade).
+ */
+export function generateCircuit(
+  template: string,
+  parameters: GenerateParameters,
+  options: RequestOptions = {},
+): Promise<CircuitDocument> {
+  return postJson(
+    '/api/v1/circuits/generate',
+    { template, parameters },
+    isCircuitDocument,
+    options,
+  );
 }
 
 /** Converte qualquer falha numa `ApiError` (erros inesperados ficam como falha de rede). */

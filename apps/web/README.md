@@ -26,10 +26,12 @@ src/
 │   ├── geometry.ts        # snap, rotação, âncora ↔ canto superior esquerdo
 │   ├── catalog.ts         # catálogo de @vcccircuitlab/circuit-schema
 │   └── demoCircuit.ts
-├── project/               # Projeto: novo, abrir e guardar
+├── project/               # Projeto: novo, abrir, guardar e gerar
 │   ├── circuitJson.ts     # JSON canónico: serializar, validar (schema + integridade), ler ficheiro
 │   ├── examples.ts        # circuitos de exemplo (fixtures de @vcccircuitlab/circuit-schema)
-│   └── ProjectMenu.tsx    # botões Novo / Abrir… / Exemplos / Guardar JSON e mensagens de erro
+│   ├── generateTemplates.ts   # templates de geração (campos, valores por omissão, parsing)
+│   ├── GenerateDialog.tsx # diálogo "Gerar…": template, parâmetros e chamada à API
+│   └── ProjectMenu.tsx    # botões Novo / Abrir… / Exemplos / Guardar JSON / Gerar… e mensagens de erro
 ├── simulation/            # Simulação: painel de resultados, redes N1…, formatação SI
 │   ├── SimulationPanel.tsx    # botão Simular, tabelas por componente e por rede, avisos e erros
 │   ├── simulationStore.ts # Zustand: estado da última simulação e rede destacada
@@ -81,6 +83,7 @@ src/
 - **Guardar JSON** descarrega o circuito como documento canónico (JSON Schema 1.0): chaves pela ordem do schema, indentação de 2 espaços, sem `nets` (é derivado e recalculado pela API) e sem estado de vista. O nome do ficheiro vem do nome do circuito (`circuito-serie.json`).
 - **Abrir…** lê um ficheiro `.json` local (máx. 5 MB) e valida-o antes de substituir o circuito atual: JSON Schema 1.0 (Ajv, draft 2020-12) e regras de integridade de que o editor depende — IDs únicos em todo o documento, tipos e pinos do catálogo, extremidades de fios existentes e fios não ligados a si próprios. Se houver erros, aparecem numa mensagem (com o caminho JSON) e o circuito atual não é alterado. Um `nets` no ficheiro é ignorado (com aviso). Depois de abrir, a vista enquadra o circuito.
 - **Novo** começa um circuito vazio; **Exemplos…** abre um circuito de exemplo (série, paralelo com junções, ramificado). Ambos pedem confirmação se o circuito atual não estiver vazio.
+- **Gerar…** abre um diálogo com os templates da API (série, paralelo, divisor de tensão, interruptor e carga — ver `apps/api/README.md`), pede os parâmetros (tensão, lista de resistências, carga, estado do interruptor) e envia-os a `POST /api/v1/circuits/generate`. O circuito devolvido (sem `nets`, recalculados no editor) substitui o atual, com confirmação se este não estiver vazio. Parâmetros inválidos (localmente, ou devolvidos pela API) aparecem no diálogo sem fechar.
 - Round-trip: exportar e voltar a importar dá o mesmo documento (topologia, parâmetros e geometria) e o mesmo ficheiro.
 
 ### Simulação (API)

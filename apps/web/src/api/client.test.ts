@@ -1,7 +1,14 @@
 import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { demoCircuit } from '../editor/demoCircuit';
-import { ApiError, normalizeBaseUrl, simulateCircuit, toApiError, validateCircuit } from './client';
+import {
+  ApiError,
+  generateCircuit,
+  normalizeBaseUrl,
+  simulateCircuit,
+  toApiError,
+  validateCircuit,
+} from './client';
 import type { SimulationResult } from './types';
 
 const result: SimulationResult = {
@@ -67,6 +74,33 @@ describe('cliente da API', () => {
       valid: true,
     });
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/circuits/validate');
+  });
+
+  test('generateCircuit envia o template e os parâmetros por POST e devolve o documento', async () => {
+    fetchMock.mockResolvedValue(json(demoCircuit));
+
+    await expect(
+      generateCircuit(
+        'series_dc',
+        { voltageV: 12, resistorsOhm: [100, 220] },
+        { baseUrl: 'https://api.exemplo.pt' },
+      ),
+    ).resolves.toEqual(demoCircuit);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.exemplo.pt/api/v1/circuits/generate');
+    expect(init?.method).toBe('POST');
+    const body = JSON.parse(String(init?.body));
+    expect(body).toEqual({
+      template: 'series_dc',
+      parameters: { voltageV: 12, resistorsOhm: [100, 220] },
+    });
+  });
+
+  test('generateCircuit rejeita uma resposta que não pareça um circuito', async () => {
+    fetchMock.mockResolvedValue(json({ ok: true }));
+    const error = await failure(generateCircuit('series_dc', { voltageV: 12 }));
+    expect(error).toMatchObject({ kind: 'invalid-response' });
   });
 
   test('erros problem+json ficam disponíveis com código, estado e lista de erros', async () => {

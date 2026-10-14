@@ -3,6 +3,7 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { circuitFileName, emptyCircuit, readCircuitFile, serializeCircuit } from './circuitJson';
 import { CIRCUIT_EXAMPLES } from './examples';
+import { GenerateDialog } from './GenerateDialog';
 import './project.css';
 
 type Notice = { kind: 'error' | 'info'; title: string; details: string[] };
@@ -25,6 +26,7 @@ export function ProjectMenu() {
   const name = useEditorStore((s) => s.circuit.name);
   const inputRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [showGenerate, setShowGenerate] = useState(false);
 
   /** Substitui o circuito atual, pedindo confirmação se este não estiver vazio. */
   const replaceCircuit = (next: CircuitDocument, question: string) => {
@@ -96,6 +98,9 @@ export function ProjectMenu() {
       <button type="button" onClick={onSave}>
         Guardar JSON
       </button>
+      <button type="button" onClick={() => setShowGenerate(true)}>
+        Gerar…
+      </button>
       <input
         ref={inputRef}
         type="file"
@@ -125,6 +130,7 @@ export function ProjectMenu() {
           </button>
         </div>
       )}
+      {showGenerate && <GenerateDialog onClose={() => setShowGenerate(false)} />}
     </div>
   );
 }
