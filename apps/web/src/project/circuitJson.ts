@@ -74,8 +74,8 @@ export const emptyCircuit = (): CircuitDocument => ({
 export const serializeCircuit = (circuit: CircuitDocument): string =>
   `${JSON.stringify(toCanonical(circuit), null, 2)}\n`;
 
-/** Nome de ficheiro a partir do nome do circuito (`Circuito série` → `circuito-serie.json`). */
-export function circuitFileName(circuit: CircuitDocument): string {
+/** Nome de ficheiro, sem extensão, a partir do nome do circuito (`Circuito série` → `circuito-serie`). */
+export function circuitSlug(circuit: CircuitDocument): string {
   const slug = circuit.name
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -83,7 +83,12 @@ export function circuitFileName(circuit: CircuitDocument): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
-  return `${slug || circuit.id}.json`;
+  return slug || circuit.id;
+}
+
+/** Nome de ficheiro a partir do nome do circuito (`Circuito série` → `circuito-serie.json`). */
+export function circuitFileName(circuit: CircuitDocument): string {
+  return `${circuitSlug(circuit)}.json`;
 }
 
 function formatSchemaError(error: ErrorObject): string {

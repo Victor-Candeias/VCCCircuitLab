@@ -16,10 +16,10 @@ status: active
 <!-- maestru:work-items-list -->
 | ID | Title | Status | Created | Owner | Priority | Completed | Template | Blocked By | Spec |
 |---|---|---|---|---|---|---|---|---|---|
-| E4-01 | Exportação SVG/PNG e impressão/PDF | backlog | 2026-10-12 | developer | medium |  |  | etapa-1/E1-07 |  |
-| E4-02 | Persistência local IndexedDB com autosave e recuperação | backlog | 2026-10-12 | developer | high |  |  | etapa-1/E1-07 |  |
-| E4-03 | Biblioteca de exemplos de referência | backlog | 2026-10-12 | developer | medium |  |  | etapa-1/E1-07 |  |
-| E4-04 | Mensagens de erro claras e acessibilidade | backlog | 2026-10-12 | developer | medium |  |  |  |  |
-| E4-05 | Testes E2E com Playwright | backlog | 2026-10-12 | developer | high |  |  | etapa-3/E3-04 |  |
-| E4-06 | Documentação de utilização | backlog | 2026-10-12 | developer | medium |  |  |  |  |
+| E4-01 | Exportação SVG/PNG e impressão/PDF | done | 2026-10-12 | developer | medium | 2026-10-14 |  | etapa-1/E1-07 |  |
+| E4-02 | Persistência local IndexedDB com autosave e recuperação | done | 2026-10-12 | developer | high | 2026-10-14 |  | etapa-1/E1-07 |  |
+| E4-03 | Biblioteca de exemplos de referência | done | 2026-10-12 | developer | medium | 2026-10-14 |  | etapa-1/E1-07 |  |
+| E4-04 | Mensagens de erro claras e acessibilidade | done | 2026-10-12 | developer | medium | 2026-10-14 |  |  |  |
+| E4-05 | Testes E2E com Playwright | done | 2026-10-12 | developer | high | 2026-10-14 |  | etapa-3/E3-04 |  |
+| E4-06 | Documentação de utilização | done | 2026-10-12 | developer | medium | 2026-10-14 |  |  |  |
 <!-- /maestru:work-items-list -->

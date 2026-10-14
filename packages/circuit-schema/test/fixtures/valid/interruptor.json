@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0",
+  "id": "interruptor",
+  "name": "Interruptor e carga",
+  "description": "V1 alimenta uma carga R1 através do interruptor S1; com S1 aberto a corrente no circuito é nula.",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": { "x": 100, "y": 180 },
+      "rotation": 0,
+      "properties": { "voltageV": 12 },
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "S1",
+      "type": "switch",
+      "position": { "x": 300, "y": 100 },
+      "rotation": 0,
+      "properties": { "closed": true },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "position": { "x": 460, "y": 100 },
+      "rotation": 0,
+      "properties": { "resistanceOhm": 100 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": { "x": 100, "y": 320 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["gnd"]
+    }
+  ],
+  "wires": [
+    { "id": "W1", "from": "V1.positive", "to": "S1.a", "waypoints": [] },
+    { "id": "W2", "from": "S1.b", "to": "R1.a", "waypoints": [] },
+    { "id": "W3", "from": "R1.b", "to": "V1.negative", "waypoints": [] },
+    { "id": "W4", "from": "GND1.gnd", "to": "V1.negative", "waypoints": [] }
+  ]
+}

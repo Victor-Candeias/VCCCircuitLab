@@ -2,17 +2,20 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { demoCircuit } from '../editor/demoCircuit';
 import { useEditorStore } from '../store/editorStore';
-import { serializeCircuit } from './circuitJson';
+import { emptyCircuit, serializeCircuit } from './circuitJson';
+import { clearAutosave, saveAutosave } from './persistence';
 import { ProjectMenu } from './ProjectMenu';
 
 const initialState = useEditorStore.getState();
 
-beforeEach(() => {
+beforeEach(async () => {
   useEditorStore.setState(initialState, true);
+  await clearAutosave();
 });
 
-afterEach(() => {
+afterEach(async () => {
   vi.restoreAllMocks();
+  await clearAutosave();
 });
 
 const chooseFile = (content: string, name = 'circuito.json') => {
@@ -93,5 +96,23 @@ describe('ProjectMenu', () => {
     expect(circuit.components).toEqual([]);
     expect(circuit.wires).toEqual([]);
     expect(screen.getByText('Novo circuito')).toBeInTheDocument();
+  });
+
+  test('ao arrancar, recupera automaticamente o último projeto gravado', async () => {
+    const saved = { ...emptyCircuit(), name: 'Projeto recuperado' };
+    await saveAutosave(saved);
+
+    render(<ProjectMenu />);
+
+    await waitFor(() => expect(useEditorStore.getState().circuit.name).toBe('Projeto recuperado'));
+    expect(screen.getByText(/recuperado automaticamente/i)).toBeInTheDocument();
+  });
+
+  test('fechar o diálogo Gerar devolve o foco ao botão que o abriu', () => {
+    render(<ProjectMenu />);
+    const generateButton = screen.getByRole('button', { name: 'Gerar…' });
+    fireEvent.click(generateButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(generateButton).toHaveFocus();
   });
 });

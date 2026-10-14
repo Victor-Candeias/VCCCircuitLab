@@ -62,6 +62,11 @@ export interface EditorState {
   moveComponent: (id: string, anchor: Point) => void;
   /** Move uma junção, com snap à grelha. */
   moveJunction: (id: string, position: Point) => void;
+  /**
+   * Substitui as propriedades de um componente (painel de propriedades, E1-05). Regista uma
+   * entrada própria no histórico (não faz parte de um gesto contínuo).
+   */
+  setComponentProperties: (id: string, properties: CircuitDocument['components'][number]['properties']) => void;
   /** Roda 90° os componentes selecionados, cada um em torno da própria âncora. */
   rotateSelection: (step?: RotationStep) => void;
   setSelection: (ids: readonly string[]) => void;
@@ -242,6 +247,16 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     set((state) => {
       const circuit = rotateComponents(state.circuit, state.selectedIds, step);
       return circuit === state.circuit ? state : record(state, circuit);
+    }),
+
+  setComponentProperties: (id, properties) =>
+    set((state) => {
+      const current = state.circuit.components.find((c) => c.id === id);
+      if (!current || current.properties === properties) return state;
+      return record(state, {
+        ...state.circuit,
+        components: state.circuit.components.map((c) => (c.id === id ? { ...c, properties } : c)),
+      });
     }),
 
   setSelection: (ids) =>

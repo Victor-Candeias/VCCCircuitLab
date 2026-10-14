@@ -20,7 +20,7 @@ status: active
 | E1-02 | Símbolos SVG IEC: fonte DC, resistência, interruptor, lâmpada e terra | done | 2026-10-12 | developer | high | 2026-10-14 |  | etapa-0/E0-08 | [E1-02](../specs/etapa-1/e1-02-spec.md) |
 | E1-03 | Paleta de componentes com drag-and-drop, snap-to-grid e rotação | done | 2026-10-12 | developer | high | 2026-10-14 |  | E1-02 | [E1-03](../specs/etapa-1/e1-03-spec.md) |
 | E1-04 | Ligações entre pinos, fios ortogonais e junções explícitas | done | 2026-10-12 | developer | critical | 2026-10-13 |  | E1-01 | [E1-04](../specs/etapa-1/e1-04-spec.md) |
-| E1-05 | Painel de propriedades com validação imediata | backlog | 2026-10-12 | developer | medium |  |  | E1-02 |  |
+| E1-05 | Painel de propriedades com validação imediata | done | 2026-10-12 | developer | medium | 2026-10-14 |  | E1-02 |  |
 | E1-06 | Undo/redo, copiar/colar e apagar | done | 2026-10-12 | developer | medium | 2026-10-14 |  | E1-04 | [E1-06](../specs/etapa-1/e1-06-spec.md) |
 | E1-07 | Importar/exportar projeto em JSON canónico | done | 2026-10-12 | developer | high | 2026-10-14 |  | etapa-0/E0-07, E1-04 | [E1-07](../specs/etapa-1/e1-07-spec.md) |
 | E1-08 | Prototipar circuitos ramificados para validar React Flow | done | 2026-10-12 | developer | high | 2026-10-14 |  | E1-01 | [E1-08](../specs/etapa-1/e1-08-spec.md) |

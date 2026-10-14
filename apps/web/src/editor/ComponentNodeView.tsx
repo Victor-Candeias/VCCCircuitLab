@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import type { MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 import { ComponentSymbol } from '../components/symbols/ComponentSymbol';
 import { useEditorStore } from '../store/editorStore';
 import type { ComponentNode } from './flowNodes';
@@ -23,6 +23,16 @@ export function ComponentNodeView({ data, selected, width, height }: NodeProps<C
     .join(' ');
 
   const onPinClick = (event: MouseEvent, pinId: string) => {
+    event.stopPropagation();
+    useEditorStore
+      .getState()
+      .clickWireAnchor({ kind: 'terminal', ref: `${component.id}.${pinId}` });
+  };
+
+  // Enter/Espaço ativam o terminal tal como um clique (navegação só por teclado).
+  const onPinKeyDown = (event: KeyboardEvent, pinId: string) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
     event.stopPropagation();
     useEditorStore
       .getState()
@@ -60,7 +70,9 @@ export function ComponentNodeView({ data, selected, width, height }: NodeProps<C
           title={`${component.id}.${pin.id}`}
           aria-label={`Terminal ${component.id}.${pin.id}`}
           role="button"
+          tabIndex={0}
           onClick={(event) => onPinClick(event, pin.id)}
+          onKeyDown={(event) => onPinKeyDown(event, pin.id)}
         />
       ))}
     </div>

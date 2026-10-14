@@ -1,0 +1,16 @@
+# Exemplo de Caddyfile para expor a API do VCCCircuitLab via reverse proxy HTTPS.
+#
+# SUBSTITUIR "api.example.pt" pelo domínio real antes de usar, e garantir que o
+# registo DNS (A/AAAA) já aponta para o IP deste servidor antes de arrancar o
+# Caddy — caso contrário a emissão automática do certificado Let's Encrypt falha.
+#
+# Uso (Debian): instalar o pacote `caddy` (repositório oficial da Caddy), copiar
+# este ficheiro para /etc/caddy/Caddyfile e reiniciar o serviço:
+#   sudo systemctl restart caddy
+#
+# O Caddy obtém e renova automaticamente o certificado HTTPS (Let's Encrypt)
+# para o domínio configurado; não é necessário configurar mais nada.
+
+api.example.pt {
+	reverse_proxy 127.0.0.1:8000
+}

@@ -21,9 +21,11 @@ import { useEditorStore } from '../store/editorStore';
 import { netHighlight } from '../simulation/nets';
 import { SimulationPanel } from '../simulation/SimulationPanel';
 import { isCurrent, useSimulationStore } from '../simulation/simulationStore';
+import { circuitSlug } from '../project/circuitJson';
 import { getComponentDefinition, GRID_SIZE } from './catalog';
 import { ComponentNodeView } from './ComponentNodeView';
 import { ComponentPalette } from './ComponentPalette';
+import { exportCanvasImage, printCanvas } from './export';
 import {
   toFlowEdges,
   toFlowNodes,
@@ -34,6 +36,7 @@ import {
 import { snapPoint, topLeftToAnchor } from './geometry';
 import { JunctionNodeView } from './JunctionNodeView';
 import { PALETTE_DRAG_TYPE } from './palette';
+import { PropertiesPanel } from './PropertiesPanel';
 import { WireEdgeView } from './WireEdgeView';
 import {
   anchorPosition,
@@ -212,6 +215,61 @@ function EditToolbar() {
       >
         ⟳
       </button>
+    </Panel>
+  );
+}
+
+/** Barra de exportação: PNG, SVG e impressão/PDF (via diálogo do browser). */
+function ExportToolbar() {
+  const hasContent = useEditorStore((s) => s.circuit.components.length > 0);
+  const { getNodes } = useReactFlow();
+  const [error, setError] = useState<string | null>(null);
+
+  const run = (action: (nodes: ReturnType<typeof getNodes>, baseName: string) => Promise<void>) =>
+    async () => {
+      setError(null);
+      try {
+        const { circuit } = useEditorStore.getState();
+        await action(getNodes(), circuitSlug(circuit));
+      } catch (err) {
+        // Detalhe técnico só na consola; o utilizador vê sempre uma mensagem em PT-PT.
+        console.error('Falha ao exportar/imprimir o circuito:', err);
+        setError('Não foi possível exportar o circuito. Tente novamente.');
+      }
+    };
+
+  return (
+    <Panel position="top-left" className="editor-toolbar editor-toolbar--text">
+      <button
+        type="button"
+        disabled={!hasContent}
+        title="Exportar como PNG"
+        onClick={run((nodes, baseName) => exportCanvasImage('png', nodes, baseName))}
+      >
+        PNG
+      </button>
+      <button
+        type="button"
+        disabled={!hasContent}
+        title="Exportar como SVG"
+        onClick={run((nodes, baseName) => exportCanvasImage('svg', nodes, baseName))}
+      >
+        SVG
+      </button>
+      <span className="editor-toolbar__separator" />
+      <button
+        type="button"
+        disabled={!hasContent}
+        title="Imprimir ou guardar como PDF"
+        onClick={run((nodes, baseName) => printCanvas(nodes, baseName))}
+      >
+        Imprimir
+      </button>
+      {error && (
+        <p className="editor-toolbar__error" role="alert">
+          {error}
+        </p>
+      )}
     </Panel>
   );
 }
@@ -452,6 +510,7 @@ function EditorFlow() {
         bgColor="transparent"
       />
       <WireDraftPreview cursor={cursor} />
+      <ExportToolbar />
       <EditToolbar />
       <Controls showInteractive={false} />
     </ReactFlow>
@@ -466,6 +525,7 @@ export function EditorCanvas() {
         <div className="editor__canvas">
           <EditorFlow />
         </div>
+        <PropertiesPanel />
         <SimulationPanel />
       </div>
     </ReactFlowProvider>

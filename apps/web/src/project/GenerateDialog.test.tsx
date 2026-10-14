@@ -121,4 +121,16 @@ describe('GenerateDialog', () => {
     expect(onClose).toHaveBeenCalledOnce();
     expect(generateCircuitMock).not.toHaveBeenCalled();
   });
+
+  test('Esc fecha o diálogo (acessibilidade por teclado)', () => {
+    const onClose = vi.fn();
+    render(<GenerateDialog onClose={onClose} />);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  test('foca o primeiro campo ao abrir', () => {
+    render(<GenerateDialog onClose={vi.fn()} />);
+    expect(screen.getByLabelText('Template')).toHaveFocus();
+  });
 });

@@ -139,9 +139,11 @@ async function postJson<T>(
           problem,
         });
       }
-      throw new ApiError('http', `A API respondeu com o erro HTTP ${response.status}.`, {
-        status: response.status,
-      });
+      throw new ApiError(
+        'http',
+        `A API devolveu um erro (HTTP ${response.status}). Tente novamente mais tarde.`,
+        { status: response.status },
+      );
     }
     if (!isExpected(data)) {
       throw new ApiError('invalid-response', 'A API devolveu uma resposta inesperada.', {
@@ -195,5 +197,8 @@ export function generateCircuit(
 /** Converte qualquer falha numa `ApiError` (erros inesperados ficam como falha de rede). */
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
-  return new ApiError('network', error instanceof Error ? error.message : String(error));
+  // Erro verdadeiramente inesperado (bug, não uma falha de rede/HTTP já tratada acima): regista
+  // os detalhes técnicos na consola, mas mostra ao utilizador uma mensagem genérica em PT-PT.
+  console.error('Erro inesperado ao contactar a API:', error);
+  return new ApiError('network', 'Ocorreu um erro inesperado. Tente novamente.');
 }

@@ -1,6 +1,6 @@
-/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 
 // Em desenvolvimento, `/api` é encaminhado para o backend (mesma origem: sem CORS e acessível
 // fora da máquina). Com `VITE_API_BASE_URL` definido, o browser chama essa URL diretamente.
@@ -19,5 +19,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 });

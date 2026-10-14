@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { generateCircuit, toApiError } from '../api/client';
 import type { CircuitIssue } from '../api/types';
 import { useEditorStore } from '../store/editorStore';
@@ -23,13 +23,45 @@ interface GenerateError {
  * parâmetros da API (`invalid-parameters`) são mostrados com o apontador (`pointer`) de cada
  * campo inválido.
  */
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function GenerateDialog({ onClose }: { onClose: () => void }) {
   const titleId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
   const [templateId, setTemplateId] = useState(GENERATE_TEMPLATES[0].id);
   const template = GENERATE_TEMPLATES.find((t) => t.id === templateId) ?? GENERATE_TEMPLATES[0];
   const [values, setValues] = useState<GenerateFormValues>(() => defaultGenerateValues(template));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<GenerateError | null>(null);
+
+  // Foca o primeiro campo ao abrir, para quem navega só por teclado.
+  useEffect(() => {
+    formRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
+  }, []);
+
+  // Esc fecha o diálogo; Tab/Shift+Tab ficam contidos nos seus campos (foco preso).
+  const onDialogKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(
+      formRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [],
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   const onTemplateChange = (id: string) => {
     const next = GENERATE_TEMPLATES.find((t) => t.id === id) ?? GENERATE_TEMPLATES[0];
@@ -71,12 +103,14 @@ export function GenerateDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="generate-dialog__overlay" onClick={onClose}>
       <form
+        ref={formRef}
         className="generate-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
         onSubmit={(event) => void onSubmit(event)}
+        onKeyDown={onDialogKeyDown}
       >
         <h2 id={titleId}>Gerar circuito</h2>
 

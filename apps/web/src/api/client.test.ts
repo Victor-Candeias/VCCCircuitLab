@@ -167,6 +167,9 @@ describe('cliente da API', () => {
   test('toApiError mantém ApiError e embrulha outros erros', () => {
     const original = new ApiError('http', 'x');
     expect(toApiError(original)).toBe(original);
-    expect(toApiError(new Error('boom'))).toMatchObject({ kind: 'network', message: 'boom' });
+    const wrapped = toApiError(new Error('boom'));
+    expect(wrapped.kind).toBe('network');
+    expect(wrapped.message).not.toContain('boom');
+    expect(wrapped.message.length).toBeGreaterThan(0);
   });
 });

@@ -1,0 +1,32 @@
+# Exemplo de unit systemd para garantir que a API do VCCCircuitLab arranca
+# automaticamente no boot do servidor Debian e reinicia em caso de falha.
+#
+# Instalação:
+#   1. Ajustar o caminho em WorkingDirectory/ExecStart/ExecStop se o
+#      repositório não estiver clonado em /opt/vcccircuitlab.
+#   2. Copiar este ficheiro para /etc/systemd/system/vcccircuitlab-api.service
+#   3. sudo systemctl daemon-reload
+#   4. sudo systemctl enable --now vcccircuitlab-api.service
+#
+# Nota: o próprio container já tem `restart: unless-stopped` no
+# docker-compose.yml, pelo que esta unit serve sobretudo para garantir que
+# `docker compose up -d` é executado após um reboot da máquina (e que o
+# serviço Docker está ativo — ver `systemctl enable docker`).
+
+[Unit]
+Description=VCCCircuitLab API (docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/vcccircuitlab
+ExecStart=/usr/bin/docker compose -f /opt/vcccircuitlab/docker-compose.yml up -d
+ExecStop=/usr/bin/docker compose -f /opt/vcccircuitlab/docker-compose.yml down
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

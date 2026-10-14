@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0",
+  "id": "divisor-tensao",
+  "name": "Divisor de tensão",
+  "description": "R1 e R2 em série entre a fonte e a terra: a tensão no ponto de ligação entre R1 e R2 (em relação à terra) é a tensão de saída do divisor.",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": { "x": 100, "y": 180 },
+      "rotation": 0,
+      "properties": { "voltageV": 12 },
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "position": { "x": 300, "y": 100 },
+      "rotation": 0,
+      "properties": { "resistanceOhm": 1000 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "position": { "x": 460, "y": 100 },
+      "rotation": 0,
+      "properties": { "resistanceOhm": 1000 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": { "x": 100, "y": 320 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["gnd"]
+    }
+  ],
+  "wires": [
+    { "id": "W1", "from": "V1.positive", "to": "R1.a", "waypoints": [] },
+    { "id": "W2", "from": "R1.b", "to": "R2.a", "waypoints": [] },
+    { "id": "W3", "from": "R2.b", "to": "V1.negative", "waypoints": [] },
+    { "id": "W4", "from": "GND1.gnd", "to": "V1.negative", "waypoints": [] }
+  ]
+}

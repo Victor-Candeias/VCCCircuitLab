@@ -1,0 +1,2208 @@
+{
+  "schemaVersion": "1.0",
+  "id": "desempenho-100-componentes",
+  "name": "Desempenho: 100 componentes em série",
+  "description": "V1 e 98 resistores em série, usado para medir o desempenho do editor com ~100 componentes (E4-05).",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": {
+        "x": 80,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "voltageV": 12
+      },
+      "pins": [
+        "positive",
+        "negative"
+      ]
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 101
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 102
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R3",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 103
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R4",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 104
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R5",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 105
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R6",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 106
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R7",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 107
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R8",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 108
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R9",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 109
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R10",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 100
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 110
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R11",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 111
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R12",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 112
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R13",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 113
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R14",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 114
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R15",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 115
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R16",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 116
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R17",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 117
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R18",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 118
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R19",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 119
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R20",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 200
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 120
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R21",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 121
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R22",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 122
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R23",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 123
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R24",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 124
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R25",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 125
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R26",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 126
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R27",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 127
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R28",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 128
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R29",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 129
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R30",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 300
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 130
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R31",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 131
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R32",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 132
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R33",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 133
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R34",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 134
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R35",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 135
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R36",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 136
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R37",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 137
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R38",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 138
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R39",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 139
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R40",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 400
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 140
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R41",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 141
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R42",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 142
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R43",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 143
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R44",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 144
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R45",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 145
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R46",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 146
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R47",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 147
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R48",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 148
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R49",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 149
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R50",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 150
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R51",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 151
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R52",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 152
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R53",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 153
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R54",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 154
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R55",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 155
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R56",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 156
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R57",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 157
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R58",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 158
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R59",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 159
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R60",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 600
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 160
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R61",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 161
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R62",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 162
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R63",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 163
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R64",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 164
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R65",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 165
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R66",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 166
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R67",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 167
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R68",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 168
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R69",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 169
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R70",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 700
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 170
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R71",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 171
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R72",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 172
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R73",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 173
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R74",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 174
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R75",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 175
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R76",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 176
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R77",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 177
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R78",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 178
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R79",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 179
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R80",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 800
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 180
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R81",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 181
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R82",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 182
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R83",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 183
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R84",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 184
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R85",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 185
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R86",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 186
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R87",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 187
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R88",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 188
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R89",
+      "type": "resistor",
+      "position": {
+        "x": 1420,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 189
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R90",
+      "type": "resistor",
+      "position": {
+        "x": 1560,
+        "y": 900
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 190
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R91",
+      "type": "resistor",
+      "position": {
+        "x": 300,
+        "y": 1000
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 191
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R92",
+      "type": "resistor",
+      "position": {
+        "x": 440,
+        "y": 1000
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 192
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R93",
+      "type": "resistor",
+      "position": {
+        "x": 580,
+        "y": 1000
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 193
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R94",
+      "type": "resistor",
+      "position": {
+        "x": 720,
+        "y": 1000
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 194
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R95",
+      "type": "resistor",
+      "position": {
+        "x": 860,
+        "y": 1000
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 195
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R96",
+      "type": "resistor",
+      "position": {
+        "x": 1000,
+        "y": 1000
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 196
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R97",
+      "type": "resistor",
+      "position": {
+        "x": 1140,
+        "y": 1000
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 197
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "R98",
+      "type": "resistor",
+      "position": {
+        "x": 1280,
+        "y": 1000
+      },
+      "rotation": 0,
+      "properties": {
+        "resistanceOhm": 198
+      },
+      "pins": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": {
+        "x": 80,
+        "y": 500
+      },
+      "rotation": 0,
+      "properties": {},
+      "pins": [
+        "gnd"
+      ]
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "from": "V1.positive",
+      "to": "R1.a",
+      "waypoints": []
+    },
+    {
+      "id": "W2",
+      "from": "R1.b",
+      "to": "R2.a",
+      "waypoints": []
+    },
+    {
+      "id": "W3",
+      "from": "R2.b",
+      "to": "R3.a",
+      "waypoints": []
+    },
+    {
+      "id": "W4",
+      "from": "R3.b",
+      "to": "R4.a",
+      "waypoints": []
+    },
+    {
+      "id": "W5",
+      "from": "R4.b",
+      "to": "R5.a",
+      "waypoints": []
+    },
+    {
+      "id": "W6",
+      "from": "R5.b",
+      "to": "R6.a",
+      "waypoints": []
+    },
+    {
+      "id": "W7",
+      "from": "R6.b",
+      "to": "R7.a",
+      "waypoints": []
+    },
+    {
+      "id": "W8",
+      "from": "R7.b",
+      "to": "R8.a",
+      "waypoints": []
+    },
+    {
+      "id": "W9",
+      "from": "R8.b",
+      "to": "R9.a",
+      "waypoints": []
+    },
+    {
+      "id": "W10",
+      "from": "R9.b",
+      "to": "R10.a",
+      "waypoints": []
+    },
+    {
+      "id": "W11",
+      "from": "R10.b",
+      "to": "R11.a",
+      "waypoints": []
+    },
+    {
+      "id": "W12",
+      "from": "R11.b",
+      "to": "R12.a",
+      "waypoints": []
+    },
+    {
+      "id": "W13",
+      "from": "R12.b",
+      "to": "R13.a",
+      "waypoints": []
+    },
+    {
+      "id": "W14",
+      "from": "R13.b",
+      "to": "R14.a",
+      "waypoints": []
+    },
+    {
+      "id": "W15",
+      "from": "R14.b",
+      "to": "R15.a",
+      "waypoints": []
+    },
+    {
+      "id": "W16",
+      "from": "R15.b",
+      "to": "R16.a",
+      "waypoints": []
+    },
+    {
+      "id": "W17",
+      "from": "R16.b",
+      "to": "R17.a",
+      "waypoints": []
+    },
+    {
+      "id": "W18",
+      "from": "R17.b",
+      "to": "R18.a",
+      "waypoints": []
+    },
+    {
+      "id": "W19",
+      "from": "R18.b",
+      "to": "R19.a",
+      "waypoints": []
+    },
+    {
+      "id": "W20",
+      "from": "R19.b",
+      "to": "R20.a",
+      "waypoints": []
+    },
+    {
+      "id": "W21",
+      "from": "R20.b",
+      "to": "R21.a",
+      "waypoints": []
+    },
+    {
+      "id": "W22",
+      "from": "R21.b",
+      "to": "R22.a",
+      "waypoints": []
+    },
+    {
+      "id": "W23",
+      "from": "R22.b",
+      "to": "R23.a",
+      "waypoints": []
+    },
+    {
+      "id": "W24",
+      "from": "R23.b",
+      "to": "R24.a",
+      "waypoints": []
+    },
+    {
+      "id": "W25",
+      "from": "R24.b",
+      "to": "R25.a",
+      "waypoints": []
+    },
+    {
+      "id": "W26",
+      "from": "R25.b",
+      "to": "R26.a",
+      "waypoints": []
+    },
+    {
+      "id": "W27",
+      "from": "R26.b",
+      "to": "R27.a",
+      "waypoints": []
+    },
+    {
+      "id": "W28",
+      "from": "R27.b",
+      "to": "R28.a",
+      "waypoints": []
+    },
+    {
+      "id": "W29",
+      "from": "R28.b",
+      "to": "R29.a",
+      "waypoints": []
+    },
+    {
+      "id": "W30",
+      "from": "R29.b",
+      "to": "R30.a",
+      "waypoints": []
+    },
+    {
+      "id": "W31",
+      "from": "R30.b",
+      "to": "R31.a",
+      "waypoints": []
+    },
+    {
+      "id": "W32",
+      "from": "R31.b",
+      "to": "R32.a",
+      "waypoints": []
+    },
+    {
+      "id": "W33",
+      "from": "R32.b",
+      "to": "R33.a",
+      "waypoints": []
+    },
+    {
+      "id": "W34",
+      "from": "R33.b",
+      "to": "R34.a",
+      "waypoints": []
+    },
+    {
+      "id": "W35",
+      "from": "R34.b",
+      "to": "R35.a",
+      "waypoints": []
+    },
+    {
+      "id": "W36",
+      "from": "R35.b",
+      "to": "R36.a",
+      "waypoints": []
+    },
+    {
+      "id": "W37",
+      "from": "R36.b",
+      "to": "R37.a",
+      "waypoints": []
+    },
+    {
+      "id": "W38",
+      "from": "R37.b",
+      "to": "R38.a",
+      "waypoints": []
+    },
+    {
+      "id": "W39",
+      "from": "R38.b",
+      "to": "R39.a",
+      "waypoints": []
+    },
+    {
+      "id": "W40",
+      "from": "R39.b",
+      "to": "R40.a",
+      "waypoints": []
+    },
+    {
+      "id": "W41",
+      "from": "R40.b",
+      "to": "R41.a",
+      "waypoints": []
+    },
+    {
+      "id": "W42",
+      "from": "R41.b",
+      "to": "R42.a",
+      "waypoints": []
+    },
+    {
+      "id": "W43",
+      "from": "R42.b",
+      "to": "R43.a",
+      "waypoints": []
+    },
+    {
+      "id": "W44",
+      "from": "R43.b",
+      "to": "R44.a",
+      "waypoints": []
+    },
+    {
+      "id": "W45",
+      "from": "R44.b",
+      "to": "R45.a",
+      "waypoints": []
+    },
+    {
+      "id": "W46",
+      "from": "R45.b",
+      "to": "R46.a",
+      "waypoints": []
+    },
+    {
+      "id": "W47",
+      "from": "R46.b",
+      "to": "R47.a",
+      "waypoints": []
+    },
+    {
+      "id": "W48",
+      "from": "R47.b",
+      "to": "R48.a",
+      "waypoints": []
+    },
+    {
+      "id": "W49",
+      "from": "R48.b",
+      "to": "R49.a",
+      "waypoints": []
+    },
+    {
+      "id": "W50",
+      "from": "R49.b",
+      "to": "R50.a",
+      "waypoints": []
+    },
+    {
+      "id": "W51",
+      "from": "R50.b",
+      "to": "R51.a",
+      "waypoints": []
+    },
+    {
+      "id": "W52",
+      "from": "R51.b",
+      "to": "R52.a",
+      "waypoints": []
+    },
+    {
+      "id": "W53",
+      "from": "R52.b",
+      "to": "R53.a",
+      "waypoints": []
+    },
+    {
+      "id": "W54",
+      "from": "R53.b",
+      "to": "R54.a",
+      "waypoints": []
+    },
+    {
+      "id": "W55",
+      "from": "R54.b",
+      "to": "R55.a",
+      "waypoints": []
+    },
+    {
+      "id": "W56",
+      "from": "R55.b",
+      "to": "R56.a",
+      "waypoints": []
+    },
+    {
+      "id": "W57",
+      "from": "R56.b",
+      "to": "R57.a",
+      "waypoints": []
+    },
+    {
+      "id": "W58",
+      "from": "R57.b",
+      "to": "R58.a",
+      "waypoints": []
+    },
+    {
+      "id": "W59",
+      "from": "R58.b",
+      "to": "R59.a",
+      "waypoints": []
+    },
+    {
+      "id": "W60",
+      "from": "R59.b",
+      "to": "R60.a",
+      "waypoints": []
+    },
+    {
+      "id": "W61",
+      "from": "R60.b",
+      "to": "R61.a",
+      "waypoints": []
+    },
+    {
+      "id": "W62",
+      "from": "R61.b",
+      "to": "R62.a",
+      "waypoints": []
+    },
+    {
+      "id": "W63",
+      "from": "R62.b",
+      "to": "R63.a",
+      "waypoints": []
+    },
+    {
+      "id": "W64",
+      "from": "R63.b",
+      "to": "R64.a",
+      "waypoints": []
+    },
+    {
+      "id": "W65",
+      "from": "R64.b",
+      "to": "R65.a",
+      "waypoints": []
+    },
+    {
+      "id": "W66",
+      "from": "R65.b",
+      "to": "R66.a",
+      "waypoints": []
+    },
+    {
+      "id": "W67",
+      "from": "R66.b",
+      "to": "R67.a",
+      "waypoints": []
+    },
+    {
+      "id": "W68",
+      "from": "R67.b",
+      "to": "R68.a",
+      "waypoints": []
+    },
+    {
+      "id": "W69",
+      "from": "R68.b",
+      "to": "R69.a",
+      "waypoints": []
+    },
+    {
+      "id": "W70",
+      "from": "R69.b",
+      "to": "R70.a",
+      "waypoints": []
+    },
+    {
+      "id": "W71",
+      "from": "R70.b",
+      "to": "R71.a",
+      "waypoints": []
+    },
+    {
+      "id": "W72",
+      "from": "R71.b",
+      "to": "R72.a",
+      "waypoints": []
+    },
+    {
+      "id": "W73",
+      "from": "R72.b",
+      "to": "R73.a",
+      "waypoints": []
+    },
+    {
+      "id": "W74",
+      "from": "R73.b",
+      "to": "R74.a",
+      "waypoints": []
+    },
+    {
+      "id": "W75",
+      "from": "R74.b",
+      "to": "R75.a",
+      "waypoints": []
+    },
+    {
+      "id": "W76",
+      "from": "R75.b",
+      "to": "R76.a",
+      "waypoints": []
+    },
+    {
+      "id": "W77",
+      "from": "R76.b",
+      "to": "R77.a",
+      "waypoints": []
+    },
+    {
+      "id": "W78",
+      "from": "R77.b",
+      "to": "R78.a",
+      "waypoints": []
+    },
+    {
+      "id": "W79",
+      "from": "R78.b",
+      "to": "R79.a",
+      "waypoints": []
+    },
+    {
+      "id": "W80",
+      "from": "R79.b",
+      "to": "R80.a",
+      "waypoints": []
+    },
+    {
+      "id": "W81",
+      "from": "R80.b",
+      "to": "R81.a",
+      "waypoints": []
+    },
+    {
+      "id": "W82",
+      "from": "R81.b",
+      "to": "R82.a",
+      "waypoints": []
+    },
+    {
+      "id": "W83",
+      "from": "R82.b",
+      "to": "R83.a",
+      "waypoints": []
+    },
+    {
+      "id": "W84",
+      "from": "R83.b",
+      "to": "R84.a",
+      "waypoints": []
+    },
+    {
+      "id": "W85",
+      "from": "R84.b",
+      "to": "R85.a",
+      "waypoints": []
+    },
+    {
+      "id": "W86",
+      "from": "R85.b",
+      "to": "R86.a",
+      "waypoints": []
+    },
+    {
+      "id": "W87",
+      "from": "R86.b",
+      "to": "R87.a",
+      "waypoints": []
+    },
+    {
+      "id": "W88",
+      "from": "R87.b",
+      "to": "R88.a",
+      "waypoints": []
+    },
+    {
+      "id": "W89",
+      "from": "R88.b",
+      "to": "R89.a",
+      "waypoints": []
+    },
+    {
+      "id": "W90",
+      "from": "R89.b",
+      "to": "R90.a",
+      "waypoints": []
+    },
+    {
+      "id": "W91",
+      "from": "R90.b",
+      "to": "R91.a",
+      "waypoints": []
+    },
+    {
+      "id": "W92",
+      "from": "R91.b",
+      "to": "R92.a",
+      "waypoints": []
+    },
+    {
+      "id": "W93",
+      "from": "R92.b",
+      "to": "R93.a",
+      "waypoints": []
+    },
+    {
+      "id": "W94",
+      "from": "R93.b",
+      "to": "R94.a",
+      "waypoints": []
+    },
+    {
+      "id": "W95",
+      "from": "R94.b",
+      "to": "R95.a",
+      "waypoints": []
+    },
+    {
+      "id": "W96",
+      "from": "R95.b",
+      "to": "R96.a",
+      "waypoints": []
+    },
+    {
+      "id": "W97",
+      "from": "R96.b",
+      "to": "R97.a",
+      "waypoints": []
+    },
+    {
+      "id": "W98",
+      "from": "R97.b",
+      "to": "R98.a",
+      "waypoints": []
+    },
+    {
+      "id": "W99",
+      "from": "R98.b",
+      "to": "V1.negative",
+      "waypoints": []
+    },
+    {
+      "id": "W100",
+      "from": "GND1.gnd",
+      "to": "V1.negative",
+      "waypoints": []
+    }
+  ]
+}

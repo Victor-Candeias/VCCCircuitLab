@@ -56,7 +56,7 @@ function SimulationBody({
 
   if (simulation.status === 'idle') {
     return (
-      <p className="results__hint">
+      <p className="results__hint" role="status">
         Simule o circuito para ver a tensão, a corrente e a potência de cada componente e a tensão
         de cada rede.
       </p>

@@ -133,6 +133,24 @@ describe('EditorCanvas — ligações', () => {
     await waitFor(() => expect(container.querySelectorAll('path.wire-edge')).toHaveLength(5));
   });
 
+  test('Enter num terminal (navegação por teclado) inicia e termina um fio', async () => {
+    const { container } = renderCanvas();
+
+    fireEvent.keyDown(pin('GND1.gnd'), { key: 'Enter' });
+    expect(useEditorStore.getState().wireDraft?.start).toEqual({
+      kind: 'terminal',
+      ref: 'GND1.gnd',
+    });
+
+    fireEvent.keyDown(pin('R1.b'), { key: ' ' });
+    expect(useEditorStore.getState().wireDraft).toBeNull();
+    expect(useEditorStore.getState().circuit.wires.at(-1)).toMatchObject({
+      from: 'GND1.gnd',
+      to: 'R1.b',
+    });
+    await waitFor(() => expect(container.querySelectorAll('path.wire-edge')).toHaveLength(5));
+  });
+
   test('Esc cancela o fio em desenho', () => {
     renderCanvas();
     click(pin('GND1.gnd'));

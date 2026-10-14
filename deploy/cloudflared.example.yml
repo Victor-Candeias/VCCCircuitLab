@@ -1,0 +1,29 @@
+# Exemplo de configuração do Cloudflare Tunnel para expor a API do
+# VCCCircuitLab sem publicar qualquer porta pública no servidor.
+#
+# Este ficheiro corresponde a ~/.cloudflared/config.yml no servidor Debian.
+# SUBSTITUIR "api.example.pt" pelo domínio real e "<TUNNEL-ID>" pelo ID do
+# túnel antes de usar.
+#
+# Passos prévios (feitos uma única vez, fora deste ficheiro):
+#   1. cloudflared tunnel login
+#   2. cloudflared tunnel create vcccircuitlab-api
+#      → cria o túnel e grava as credenciais em ~/.cloudflared/<TUNNEL-ID>.json
+#   3. cloudflared tunnel route dns vcccircuitlab-api api.example.pt
+#      → cria o registo DNS (CNAME) gerido pela Cloudflare para o domínio
+#
+# Depois de criar este config.yml, correr o túnel como serviço:
+#   sudo cloudflared service install
+#   sudo systemctl enable --now cloudflared
+
+tunnel: <TUNNEL-ID>
+credentials-file: /root/.cloudflared/<TUNNEL-ID>.json
+
+ingress:
+  # Encaminha o domínio público para a API, que só escuta em 127.0.0.1:8000
+  # (ver docker-compose.yml). Não é necessário abrir nenhuma porta no firewall.
+  - hostname: api.example.pt
+    service: http://127.0.0.1:8000
+  # Regra obrigatória: qualquer pedido que não corresponda a uma hostname acima
+  # recebe 404 em vez de ser encaminhado.
+  - service: http_status:404

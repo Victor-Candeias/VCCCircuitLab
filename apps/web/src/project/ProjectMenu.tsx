@@ -4,6 +4,7 @@ import { useEditorStore } from '../store/editorStore';
 import { circuitFileName, emptyCircuit, readCircuitFile, serializeCircuit } from './circuitJson';
 import { CIRCUIT_EXAMPLES } from './examples';
 import { GenerateDialog } from './GenerateDialog';
+import { useAutosave } from './useAutosave';
 import './project.css';
 
 type Notice = { kind: 'error' | 'info'; title: string; details: string[] };
@@ -25,8 +26,17 @@ function downloadText(text: string, fileName: string) {
 export function ProjectMenu() {
   const name = useEditorStore((s) => s.circuit.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const generateButtonRef = useRef<HTMLButtonElement>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
+  useAutosave((savedAt) => {
+    const when = new Date(savedAt).toLocaleTimeString('pt-PT');
+    setNotice({
+      kind: 'info',
+      title: 'Projeto recuperado automaticamente.',
+      details: [`Última gravação automática: ${when}.`],
+    });
+  });
 
   /** Substitui o circuito atual, pedindo confirmação se este não estiver vazio. */
   const replaceCircuit = (next: CircuitDocument, question: string) => {
@@ -98,7 +108,7 @@ export function ProjectMenu() {
       <button type="button" onClick={onSave}>
         Guardar JSON
       </button>
-      <button type="button" onClick={() => setShowGenerate(true)}>
+      <button type="button" ref={generateButtonRef} onClick={() => setShowGenerate(true)}>
         Gerar…
       </button>
       <input
@@ -130,7 +140,14 @@ export function ProjectMenu() {
           </button>
         </div>
       )}
-      {showGenerate && <GenerateDialog onClose={() => setShowGenerate(false)} />}
+      {showGenerate && (
+        <GenerateDialog
+          onClose={() => {
+            setShowGenerate(false);
+            generateButtonRef.current?.focus();
+          }}
+        />
+      )}
     </div>
   );
 }

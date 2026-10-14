@@ -12,7 +12,7 @@ src/
 │   ├── iecSymbols.tsx     # desenho de cada símbolo (coordenadas locais)
 │   └── symbolIds.ts       # IDs desenhados (`ComponentDefinition.symbol`)
 ├── editor/                # Canvas e lógica do editor
-│   ├── EditorCanvas.tsx   # React Flow: grelha, pan, zoom, seleção, fio, largar e rodar
+│   ├── EditorCanvas.tsx   # React Flow: grelha, pan, zoom, seleção, fio, largar, rodar, exportar e imprimir
 │   ├── ComponentPalette.tsx   # paleta pesquisável por categoria (arrastar ou clicar)
 │   ├── palette.ts         # agrupamento e pesquisa do catálogo
 │   ├── placement.ts       # novas instâncias (ID, propriedades, snap) e rotação
@@ -25,12 +25,16 @@ src/
 │   ├── editing.ts         # apagar, copiar e colar (fragmentos com novos IDs)
 │   ├── geometry.ts        # snap, rotação, âncora ↔ canto superior esquerdo
 │   ├── catalog.ts         # catálogo de @vcccircuitlab/circuit-schema
+│   ├── export.ts          # exportação PNG/SVG do canvas e impressão/PDF via browser
+│   ├── PropertiesPanel.tsx    # formulário das propriedades do componente selecionado (React Hook Form + Zod)
 │   └── demoCircuit.ts
-├── project/               # Projeto: novo, abrir, guardar e gerar
+├── project/               # Projeto: novo, abrir, guardar, gerar e autosave
 │   ├── circuitJson.ts     # JSON canónico: serializar, validar (schema + integridade), ler ficheiro
 │   ├── examples.ts        # circuitos de exemplo (fixtures de @vcccircuitlab/circuit-schema)
 │   ├── generateTemplates.ts   # templates de geração (campos, valores por omissão, parsing)
 │   ├── GenerateDialog.tsx # diálogo "Gerar…": template, parâmetros e chamada à API
+│   ├── persistence.ts     # autosave em IndexedDB (Dexie): gravar/ler o último documento
+│   ├── useAutosave.ts     # recupera o autosave ao arrancar e grava-o com debounce
 │   └── ProjectMenu.tsx    # botões Novo / Abrir… / Exemplos / Guardar JSON / Gerar… e mensagens de erro
 ├── simulation/            # Simulação: painel de resultados, redes N1…, formatação SI
 │   ├── SimulationPanel.tsx    # botão Simular, tabelas por componente e por rede, avisos e erros
@@ -78,13 +82,24 @@ src/
 - **Copiar / cortar / colar**: `Ctrl+C`, `Ctrl+X`, `Ctrl+V` ou os botões da barra. Copia os componentes e junções selecionados e os fios entre eles; cada colagem recebe novos IDs estáveis (`R<n>`, `J<n>`, `W<n>` seguintes aos existentes), fica deslocada duas células na diagonal (após cortar, a primeira fica no mesmo sítio) e é selecionada.
 - Os atalhos são ignorados enquanto se escreve num campo de texto.
 
+### Exportar e imprimir
+
+- A barra no canto superior esquerdo do canvas tem os botões **PNG**, **SVG** e **Imprimir** (desativados com o circuito vazio). Exportam exatamente a área ocupada pelos componentes (com margem), independentemente do zoom/pan atual: usam `getNodesBounds`/`getViewportForBounds` do React Flow sobre `.react-flow__viewport` e a biblioteca `html-to-image` para gerar o ficheiro.
+- **PNG**/**SVG** descarregam o ficheiro com o nome do circuito (`circuito-serie.png`/`.svg`). **Imprimir** abre uma janela só com a imagem e invoca o diálogo de impressão do browser — não há geração de PDF no cliente; para PDF, usa-se "Guardar como PDF" desse diálogo.
+- Um circuito vazio, ou o browser a bloquear a janela de impressão, mostram uma mensagem de erro junto aos botões.
+
+### Propriedades do componente selecionado
+
+- Com exatamente um componente selecionado, o painel à direita do canvas (`PropertiesPanel`) mostra um campo por propriedade do catálogo (numérico ou checkbox, conforme o tipo), com o título e a unidade do catálogo. A validação (limites, tipo) é gerada a partir do catálogo com Zod e aplicada em tempo real (React Hook Form); um valor inválido mostra o erro junto ao campo e não altera o documento. Sem seleção, ou com mais do que um componente selecionado, mostra uma sugestão em vez do formulário.
+
 ### Projeto (abrir e guardar JSON)
 
 - **Guardar JSON** descarrega o circuito como documento canónico (JSON Schema 1.0): chaves pela ordem do schema, indentação de 2 espaços, sem `nets` (é derivado e recalculado pela API) e sem estado de vista. O nome do ficheiro vem do nome do circuito (`circuito-serie.json`).
 - **Abrir…** lê um ficheiro `.json` local (máx. 5 MB) e valida-o antes de substituir o circuito atual: JSON Schema 1.0 (Ajv, draft 2020-12) e regras de integridade de que o editor depende — IDs únicos em todo o documento, tipos e pinos do catálogo, extremidades de fios existentes e fios não ligados a si próprios. Se houver erros, aparecem numa mensagem (com o caminho JSON) e o circuito atual não é alterado. Um `nets` no ficheiro é ignorado (com aviso). Depois de abrir, a vista enquadra o circuito.
-- **Novo** começa um circuito vazio; **Exemplos…** abre um circuito de exemplo (série, paralelo com junções, ramificado). Ambos pedem confirmação se o circuito atual não estiver vazio.
+- **Novo** começa um circuito vazio; **Exemplos…** abre um circuito de exemplo (série, paralelo com junções, ramificado, divisor de tensão, interruptor e carga). Ambos pedem confirmação se o circuito atual não estiver vazio.
 - **Gerar…** abre um diálogo com os templates da API (série, paralelo, divisor de tensão, interruptor e carga — ver `apps/api/README.md`), pede os parâmetros (tensão, lista de resistências, carga, estado do interruptor) e envia-os a `POST /api/v1/circuits/generate`. O circuito devolvido (sem `nets`, recalculados no editor) substitui o atual, com confirmação se este não estiver vazio. Parâmetros inválidos (localmente, ou devolvidos pela API) aparecem no diálogo sem fechar.
 - Round-trip: exportar e voltar a importar dá o mesmo documento (topologia, parâmetros e geometria) e o mesmo ficheiro.
+- **Autosave**: o documento é gravado automaticamente em IndexedDB (Dexie, `useAutosave`) sempre que é alterado (com um pequeno atraso, para não gravar a cada pixel de um arrasto). Ao arrancar, se houver uma gravação válida, substitui o circuito de exemplo por omissão e aparece uma mensagem a confirmar a recuperação — assim um refresh da página não perde o projeto em curso.
 
 ### Simulação (API)
 
@@ -103,8 +118,26 @@ pnpm --filter @vcccircuitlab/web build     # tsc -b + vite build → apps/web/di
 pnpm --filter @vcccircuitlab/web lint
 pnpm --filter @vcccircuitlab/web test      # Vitest + Testing Library (jsdom)
 pnpm --filter @vcccircuitlab/web test:watch
+pnpm --filter @vcccircuitlab/web test:e2e  # Playwright (browser real) — ver abaixo
 pnpm --filter @vcccircuitlab/web preview
 ```
+
+## Testes E2E (Playwright)
+
+`e2e/` cobre os cenários de ponta a ponta de `Docs/arquitetura_simulador_circuitos.md` §12 que
+precisam de um browser real: construir um circuito do zero (série/paralelo), round-trip de JSON,
+"gerar → editar → simular", recuperação do autosave após um refresh e desempenho com ~100
+componentes.
+
+```bash
+pnpm --filter @vcccircuitlab/web exec playwright install chromium   # só na 1ª vez
+pnpm --filter @vcccircuitlab/web test:e2e
+```
+
+O `playwright.config.ts` arranca automaticamente o frontend (`vite dev`) e o backend (`uvicorn`,
+a partir de um venv em `apps/api/.venv` — ver `apps/api/README.md` para o preparar). Sem backend
+disponível, usar `PLAYWRIGHT_SKIP_BACKEND=1` para saltar o teste "gerar → editar → simular" (os
+restantes não chamam a API).
 
 ## GitHub Pages
 
