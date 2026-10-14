@@ -14,9 +14,11 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from pydantic import ValidationError as PydanticValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
+from app.generation.errors import InvalidParametersError, UnknownTemplateError
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 TYPE_PREFIX = "urn:vcccircuitlab:problem:"
@@ -27,6 +29,8 @@ class ApiErrorCode(StrEnum):
     UNSUPPORTED_MEDIA_TYPE = "UNSUPPORTED_MEDIA_TYPE"
     INVALID_DOCUMENT = "INVALID_DOCUMENT"
     INVALID_COMPONENT = "INVALID_COMPONENT"
+    UNKNOWN_TEMPLATE = "UNKNOWN_TEMPLATE"
+    INVALID_PARAMETERS = "INVALID_PARAMETERS"
     SIMULATION_TIMEOUT = "SIMULATION_TIMEOUT"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
@@ -117,6 +121,12 @@ _MESSAGES = {
     "too_short": "elementos a menos",
     "too_long": "elementos a mais",
 }
+_COMPARISONS = {
+    "greater_than": (">", "gt"),
+    "greater_than_equal": ("≥", "ge"),
+    "less_than": ("<", "lt"),
+    "less_than_equal": ("≤", "le"),
+}
 
 
 def _escape(segment: str | int) -> str:
@@ -149,6 +159,11 @@ def _message(group: list[dict[str, Any]]) -> str:
             return f"valor não permitido (esperado {error.get('ctx', {}).get('expected', '?')})"
         if error["type"] == "value_error":
             return str(error.get("ctx", {}).get("error", error["msg"])).rstrip(".")
+        if error["type"] in _COMPARISONS:
+            symbol, ctx_key = _COMPARISONS[error["type"]]
+            bound = error.get("ctx", {}).get(ctx_key, "?")
+            bound_text = f"{bound:g}" if isinstance(bound, int | float) else str(bound)
+            return f"tem de ser {symbol} {bound_text}"
         return _MESSAGES.get(error["type"], error["msg"])
     names = list(dict.fromkeys(_TYPE_NAMES[e["type"]] for e in group))
     return f"tipo inválido (esperado {' ou '.join(names)})"
@@ -180,6 +195,22 @@ def schema_issues(exc: RequestValidationError) -> list[Issue]:
         message = f"{where}: {_message(group)}."
         issues.append(Issue(code=code, message=message, refs=refs, pointer=pointer))
     return issues
+
+
+def parameter_issues(exc: PydanticValidationError) -> list[Issue]:
+    """Erros de parâmetros de um template de geração, com `pointer` sob `/parameters`."""
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for error in exc.errors():
+        pointer = "/parameters" + "".join(f"/{_escape(s)}" for s in error["loc"])
+        groups.setdefault(pointer, []).append(error)
+    return [
+        Issue(
+            code=ApiErrorCode.INVALID_PARAMETERS,
+            message=f"{pointer}: {_message(group)}.",
+            pointer=pointer,
+        )
+        for pointer, group in groups.items()
+    ]
 
 
 def _is_json(request: Request) -> bool:
@@ -223,6 +254,31 @@ async def _circuit_error_handler(request: Request, exc: Exception) -> ProblemRes
         kind, title = "invalid-circuit", "Circuito inválido"
     return problem_response(
         request, status=422, kind=kind, title=title, errors=circuit_issues(exc.errors)
+    )
+
+
+async def _unknown_template_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, UnknownTemplateError)
+    issue = Issue(
+        code=ApiErrorCode.UNKNOWN_TEMPLATE, message=f"O template de geração {exc.name} não existe."
+    )
+    return problem_response(
+        request,
+        status=422,
+        kind="unknown-template",
+        title="Template de geração desconhecido",
+        errors=[issue],
+    )
+
+
+async def _invalid_parameters_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, InvalidParametersError)
+    return problem_response(
+        request,
+        status=422,
+        kind="invalid-parameters",
+        title="Parâmetros de geração inválidos",
+        errors=parameter_issues(exc.cause),
     )
 
 
@@ -275,6 +331,8 @@ def problem_responses(*statuses: int) -> dict[int | str, dict[str, Any]]:
 def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RequestValidationError, _request_validation_handler)
     app.add_exception_handler(CircuitValidationError, _circuit_error_handler)
+    app.add_exception_handler(UnknownTemplateError, _unknown_template_handler)
+    app.add_exception_handler(InvalidParametersError, _invalid_parameters_handler)
     app.add_exception_handler(SimulationTimeoutError, _timeout_handler)
     app.add_exception_handler(StarletteHTTPException, _http_error_handler)
     app.add_exception_handler(Exception, _internal_error_handler)

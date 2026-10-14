@@ -95,8 +95,26 @@ O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `appli
 
 | Método | Endpoint | Resposta `200` |
 |---|---|---|
+| `POST` | `/api/v1/circuits/generate` | Documento canónico gerado (`CircuitDocument`, com `nets` já calculado). Corpo: `{ template, parameters }` (ver [Geração por templates](#geração-por-templates)). |
 | `POST` | `/api/v1/circuits/validate` | `{ valid, errors[], warnings[], nets[] \| null }`. Os erros de circuito fazem parte do relatório e não são erros HTTP. `nets` traz a partição em redes quando a normalização foi possível. |
 | `POST` | `/api/v1/circuits/simulate` | Resultado DC (ver [Solver MNA DC](#solver-mna-dc)). |
+
+### Geração por templates
+
+`POST /api/v1/circuits/generate` recebe `{ "template": "<nome>", "parameters": { … } }` e devolve o documento canónico correspondente, já normalizado (com `nets`). Os templates disponíveis (`app/generation/registry.py`, parâmetros em `app/generation/params.py`) são:
+
+| `template` | Parâmetros (camelCase) |
+|---|---|
+| `series_dc` | `voltageV` (> 0), `resistorsOhm` (1 a 12 valores > 0) |
+| `parallel_dc` | `voltageV` (> 0), `resistorsOhm` (1 a 12 valores > 0) |
+| `voltage_divider` | `voltageV` (> 0), `resistorsOhm` (2 a 12 valores > 0) |
+| `switch_circuit` | `voltageV` (> 0), `loadOhm` (> 0), `closed` (opcional, por omissão `true`) |
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/circuits/generate \
+  -H 'content-type: application/json' \
+  --data '{"template": "series_dc", "parameters": {"voltageV": 12, "resistorsOhm": [100, 220]}}'
+```
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/circuits/simulate \
@@ -132,6 +150,8 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `…:malformed-json` | 400 | `MALFORMED_JSON` |
 | `about:blank` | 415 | `UNSUPPORTED_MEDIA_TYPE` (corpo que não é JSON) |
 | `…:invalid-document` | 422 | `INVALID_COMPONENT` (erro de esquema em `components[i]`, com `refs: [id]`), `INVALID_DOCUMENT` (restantes, incluindo `NaN` e `Infinity`) |
+| `…:unknown-template` | 422 | `UNKNOWN_TEMPLATE` (nome de `template` não existe no registo) |
+| `…:invalid-parameters` | 422 | `INVALID_PARAMETERS` (campo em falta, extra ou fora dos limites, com `pointer` em `/parameters/…`) |
 | `…:invalid-circuit` | 422 | Códigos do validador: `UNKNOWN_TERMINAL`, `FLOATING_NET`, `MISSING_GROUND`, `UNSUPPORTED_MODEL`, `INVALID_VALUE`, … |
 | `…:simulation-failed` | 422 | `SINGULAR_MATRIX`, `ILL_CONDITIONED_MATRIX` |
 | `…:simulation-timeout` | 503 | `SIMULATION_TIMEOUT` |
