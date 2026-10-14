@@ -143,3 +143,15 @@ restantes não chamam a API).
 
 O `base` do Vite é `/VCCCircuitLab/` por omissão (site servido em `https://<utilizador>.github.io/VCCCircuitLab/`).
 Para um domínio próprio na raiz, definir `BASE_PATH=/` no build.
+
+O workflow `.github/workflows/pages.yml` constrói e publica automaticamente em cada push a `main`
+que altere `apps/web/`, `packages/` ou o lockfile (ou via `workflow_dispatch`). Usa
+`actions/configure-pages` + `actions/upload-pages-artifact` + `actions/deploy-pages`, pelo que nas
+definições do repositório o "Source" de Pages deve estar configurado como **GitHub Actions**.
+
+A app não usa um router SPA (é um ecrã único), pelo que não há necessidade de fallback de rotas no
+GitHub Pages.
+
+Para apontar o frontend publicado a um backend remoto, definir a variável de repositório (não
+secret, pois fica visível no bundle) `VITE_API_BASE_URL` em *Settings → Secrets and variables →
+Actions → Variables*; sem ela, a app assume mesma origem.
