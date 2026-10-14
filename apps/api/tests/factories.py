@@ -1,11 +1,13 @@
 """Construtores de circuitos para os testes (componentes conformes com o catálogo)."""
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 PACKAGE = Path(__file__).resolve().parents[3] / "packages/circuit-schema"
 FIXTURES = PACKAGE / "test/fixtures/valid"
+ANALYTIC_FIXTURES = Path(__file__).resolve().parent / "fixtures/analytic"
 
 PINS = {
     "dc_voltage_source": ["positive", "negative"],
@@ -27,6 +29,29 @@ PROPERTIES: dict[str, dict[str, Any]] = {
 
 def load_fixture(name: str) -> dict[str, Any]:
     return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
+
+
+@dataclass(frozen=True)
+class AnalyticCase:
+    """Circuito com o resultado esperado calculado à mão (`tests/fixtures/analytic/*.json`)."""
+
+    name: str
+    description: str
+    circuit: dict[str, Any]
+    expected: dict[str, Any]
+
+    @property
+    def is_error(self) -> bool:
+        return "errors" in self.expected
+
+
+def load_analytic_cases() -> list[AnalyticCase]:
+    cases = []
+    for path in sorted(ANALYTIC_FIXTURES.glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        description, circuit, expected = data["description"], data["circuit"], data["expected"]
+        cases.append(AnalyticCase(path.stem, description, circuit, expected))
+    return cases
 
 
 def comp(cid: str, ctype: str, **properties: Any) -> dict[str, Any]:

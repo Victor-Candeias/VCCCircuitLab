@@ -37,5 +37,11 @@ created: {{created}}
 
 ## Impacted Files
 
+<!-- Guidelines:
+- One row per file (or glob for generated fixtures), no duplicates
+- Action column: Create, Modify, Delete
+- Purpose column: brief explanation of the change
+-->
+
 | File | Action | Purpose |
 |------|--------|---------|

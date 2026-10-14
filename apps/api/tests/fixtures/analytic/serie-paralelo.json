@@ -1,0 +1,81 @@
+{
+  "description": "12 V em 100 Ω + (200 Ω ‖ 200 Ω = 100 Ω): I = 0,06 A; N_MID = 6 V; 0,03 A em cada ramo.",
+  "reference": "§12 testes 1–2",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "serie-paralelo",
+    "name": "Resistência em série com duas em paralelo",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 200, "y": 80},
+        "rotation": 0,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "R2",
+        "type": "resistor",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 200},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "R3",
+        "type": "resistor",
+        "position": {"x": 440, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 200},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "junctions": [
+      {"id": "J1", "position": {"x": 320, "y": 80}},
+      {"id": "J2", "position": {"x": 320, "y": 320}}
+    ],
+    "wires": [
+      {"id": "W1", "from": "V1.positive", "to": "R1.a", "waypoints": [{"x": 80, "y": 80}]},
+      {"id": "W2", "from": "R1.b", "to": "J1", "waypoints": []},
+      {"id": "W3", "from": "J1", "to": "R2.a", "waypoints": []},
+      {"id": "W4", "from": "J1", "to": "R3.a", "waypoints": [{"x": 440, "y": 80}]},
+      {"id": "W5", "from": "R2.b", "to": "J2", "waypoints": []},
+      {"id": "W6", "from": "R3.b", "to": "J2", "waypoints": [{"x": 440, "y": 320}]},
+      {"id": "W7", "from": "J2", "to": "V1.negative", "waypoints": [{"x": 80, "y": 320}]},
+      {"id": "W8", "from": "GND1.gnd", "to": "V1.negative", "waypoints": []}
+    ],
+    "nets": [
+      {"id": "N_PLUS", "terminals": ["V1.positive", "R1.a"]},
+      {"id": "N_MID", "terminals": ["R1.b", "R2.a", "R3.a"]},
+      {"id": "N_GND", "terminals": ["V1.negative", "R2.b", "R3.b", "GND1.gnd"]}
+    ]
+  },
+  "expected": {
+    "nodeVoltagesV": {"N_PLUS": 12, "N_MID": 6, "N_GND": 0},
+    "components": {
+      "V1": {"voltageV": 12, "currentA": -0.06, "powerW": -0.72},
+      "R1": {"voltageV": 6, "currentA": 0.06, "powerW": 0.36},
+      "R2": {"voltageV": 6, "currentA": 0.03, "powerW": 0.18},
+      "R3": {"voltageV": 6, "currentA": 0.03, "powerW": 0.18}
+    },
+    "warnings": []
+  }
+}

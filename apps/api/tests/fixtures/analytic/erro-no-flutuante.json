@@ -1,0 +1,70 @@
+{
+  "description": "Malha V2/R2 sem ligação à terra do resto do circuito: potencial indefinido.",
+  "reference": "§12 teste 6",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "erro-no-flutuante",
+    "name": "Sub-circuito flutuante",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      },
+      {
+        "id": "V2",
+        "type": "dc_voltage_source",
+        "position": {"x": 520, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 6},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R2",
+        "type": "resistor",
+        "position": {"x": 640, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 60},
+        "pins": ["a", "b"]
+      }
+    ],
+    "wires": [
+      {
+        "id": "W1",
+        "from": "V1.positive",
+        "to": "R1.a",
+        "waypoints": [{"x": 80, "y": 80}, {"x": 320, "y": 80}]
+      },
+      {
+        "id": "W2",
+        "from": "R1.b",
+        "to": "V1.negative",
+        "waypoints": [{"x": 320, "y": 320}, {"x": 80, "y": 320}]
+      },
+      {"id": "W3", "from": "GND1.gnd", "to": "V1.negative", "waypoints": []},
+      {"id": "W4", "from": "V2.positive", "to": "R2.a", "waypoints": []},
+      {"id": "W5", "from": "R2.b", "to": "V2.negative", "waypoints": []}
+    ]
+  },
+  "expected": {"errors": ["FLOATING_NET"]}
+}

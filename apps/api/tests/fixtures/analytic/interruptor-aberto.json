@@ -1,0 +1,69 @@
+{
+  "description": "Interruptor aberto: corrente nula; a lâmpada fica a 0 V e o interruptor com os 12 V.",
+  "reference": "§12 teste 3",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "interruptor-aberto",
+    "name": "Lâmpada com interruptor aberto",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "S1",
+        "type": "switch",
+        "position": {"x": 200, "y": 80},
+        "rotation": 0,
+        "properties": {"closed": false},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "H1",
+        "type": "lamp",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"ratedVoltageV": 12, "ratedPowerW": 6},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "wires": [
+      {"id": "W1", "from": "V1.positive", "to": "S1.a", "waypoints": [{"x": 80, "y": 80}]},
+      {"id": "W2", "from": "S1.b", "to": "H1.a", "waypoints": [{"x": 320, "y": 80}]},
+      {
+        "id": "W3",
+        "from": "H1.b",
+        "to": "V1.negative",
+        "waypoints": [{"x": 320, "y": 320}, {"x": 80, "y": 320}]
+      },
+      {"id": "W4", "from": "GND1.gnd", "to": "V1.negative", "waypoints": []}
+    ],
+    "nets": [
+      {"id": "N_PLUS", "terminals": ["V1.positive", "S1.a"]},
+      {"id": "N_LAMP", "terminals": ["S1.b", "H1.a"]},
+      {"id": "N_GND", "terminals": ["V1.negative", "H1.b", "GND1.gnd"]}
+    ]
+  },
+  "expected": {
+    "nodeVoltagesV": {"N_PLUS": 12, "N_LAMP": 0, "N_GND": 0},
+    "components": {
+      "V1": {"voltageV": 12, "currentA": 0, "powerW": 0},
+      "S1": {"voltageV": 12, "currentA": 0, "powerW": 0},
+      "H1": {"voltageV": 0, "currentA": 0, "powerW": 0}
+    },
+    "warnings": []
+  }
+}

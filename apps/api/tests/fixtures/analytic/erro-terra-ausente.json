@@ -1,0 +1,43 @@
+{
+  "description": "12 V + 100 Ω sem terra: o potencial é indefinido.",
+  "reference": "§12 teste 6",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "erro-terra-ausente",
+    "name": "Circuito sem terra",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      }
+    ],
+    "wires": [
+      {
+        "id": "W1",
+        "from": "V1.positive",
+        "to": "R1.a",
+        "waypoints": [{"x": 80, "y": 80}, {"x": 320, "y": 80}]
+      },
+      {
+        "id": "W2",
+        "from": "R1.b",
+        "to": "V1.negative",
+        "waypoints": [{"x": 320, "y": 320}, {"x": 80, "y": 320}]
+      }
+    ]
+  },
+  "expected": {"errors": ["MISSING_GROUND"]}
+}

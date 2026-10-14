@@ -1,0 +1,70 @@
+{
+  "description": "12 V em 100 Ω ‖ 300 Ω: I1 = 0,12 A, I2 = 0,04 A, total 0,16 A; P = 1,44 W + 0,48 W = 1,92 W.",
+  "reference": "§12 teste 2",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "paralelo-duas-resistencias",
+    "name": "Duas resistências em paralelo",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "R2",
+        "type": "resistor",
+        "position": {"x": 440, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 300},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "junctions": [
+      {"id": "J1", "position": {"x": 320, "y": 80}},
+      {"id": "J2", "position": {"x": 320, "y": 320}}
+    ],
+    "wires": [
+      {"id": "W1", "from": "V1.positive", "to": "J1", "waypoints": [{"x": 80, "y": 80}]},
+      {"id": "W2", "from": "J1", "to": "R1.a", "waypoints": []},
+      {"id": "W3", "from": "J1", "to": "R2.a", "waypoints": [{"x": 440, "y": 80}]},
+      {"id": "W4", "from": "R1.b", "to": "J2", "waypoints": []},
+      {"id": "W5", "from": "R2.b", "to": "J2", "waypoints": [{"x": 440, "y": 320}]},
+      {"id": "W6", "from": "J2", "to": "V1.negative", "waypoints": [{"x": 80, "y": 320}]},
+      {"id": "W7", "from": "GND1.gnd", "to": "V1.negative", "waypoints": []}
+    ],
+    "nets": [
+      {"id": "N_TOP", "terminals": ["V1.positive", "R1.a", "R2.a"]},
+      {"id": "N_GND", "terminals": ["V1.negative", "R1.b", "R2.b", "GND1.gnd"]}
+    ]
+  },
+  "expected": {
+    "nodeVoltagesV": {"N_TOP": 12, "N_GND": 0},
+    "components": {
+      "V1": {"voltageV": 12, "currentA": -0.16, "powerW": -1.92},
+      "R1": {"voltageV": 12, "currentA": 0.12, "powerW": 1.44},
+      "R2": {"voltageV": 12, "currentA": 0.04, "powerW": 0.48}
+    },
+    "warnings": []
+  }
+}

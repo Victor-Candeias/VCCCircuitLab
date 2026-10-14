@@ -1,0 +1,61 @@
+{
+  "description": "Fontes ideais de 0,1 A e 0,2 A em série: corrente impossível.",
+  "reference": "§12 teste 7",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "erro-fontes-corrente-serie",
+    "name": "Fontes de corrente em série",
+    "units": "SI",
+    "components": [
+      {
+        "id": "I1",
+        "type": "dc_current_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"currentA": 0.1},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "I2",
+        "type": "dc_current_source",
+        "position": {"x": 200, "y": 80},
+        "rotation": 0,
+        "properties": {"currentA": 0.2},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "wires": [
+      {
+        "id": "W1",
+        "from": "I1.positive",
+        "to": "I2.negative",
+        "waypoints": [{"x": 80, "y": 80}]
+      },
+      {"id": "W2", "from": "I2.positive", "to": "R1.a", "waypoints": [{"x": 320, "y": 80}]},
+      {
+        "id": "W3",
+        "from": "R1.b",
+        "to": "I1.negative",
+        "waypoints": [{"x": 320, "y": 320}, {"x": 80, "y": 320}]
+      },
+      {"id": "W4", "from": "GND1.gnd", "to": "I1.negative", "waypoints": []}
+    ]
+  },
+  "expected": {"errors": ["CURRENT_SOURCE_CUTSET"]}
+}

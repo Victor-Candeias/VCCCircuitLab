@@ -1,0 +1,53 @@
+{
+  "description": "Fio ligado a R1.c, um pino que a resistência não tem.",
+  "reference": "§12 teste 8",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "erro-pino-desconhecido",
+    "name": "Pino desconhecido",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "wires": [
+      {
+        "id": "W1",
+        "from": "V1.positive",
+        "to": "R1.a",
+        "waypoints": [{"x": 80, "y": 80}, {"x": 320, "y": 80}]
+      },
+      {
+        "id": "W2",
+        "from": "R1.b",
+        "to": "V1.negative",
+        "waypoints": [{"x": 320, "y": 320}, {"x": 80, "y": 320}]
+      },
+      {"id": "W3", "from": "GND1.gnd", "to": "V1.negative", "waypoints": []},
+      {"id": "W4", "from": "R1.c", "to": "V1.positive", "waypoints": []}
+    ]
+  },
+  "expected": {"errors": ["UNKNOWN_TERMINAL"]}
+}

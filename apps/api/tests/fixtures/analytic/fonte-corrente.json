@@ -1,0 +1,70 @@
+{
+  "description": "Fonte de 0,1 A em 100 Ω ‖ 400 Ω (= 80 Ω): V = 8 V; I(R1) = 0,08 A, I(R2) = 0,02 A; a fonte fornece 0,8 W.",
+  "reference": "§7.1",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "fonte-corrente",
+    "name": "Fonte de corrente com duas resistências em paralelo",
+    "units": "SI",
+    "components": [
+      {
+        "id": "I1",
+        "type": "dc_current_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"currentA": 0.1},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "R2",
+        "type": "resistor",
+        "position": {"x": 440, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 400},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "junctions": [
+      {"id": "J1", "position": {"x": 320, "y": 80}},
+      {"id": "J2", "position": {"x": 320, "y": 320}}
+    ],
+    "wires": [
+      {"id": "W1", "from": "I1.positive", "to": "J1", "waypoints": [{"x": 80, "y": 80}]},
+      {"id": "W2", "from": "J1", "to": "R1.a", "waypoints": []},
+      {"id": "W3", "from": "J1", "to": "R2.a", "waypoints": [{"x": 440, "y": 80}]},
+      {"id": "W4", "from": "R1.b", "to": "J2", "waypoints": []},
+      {"id": "W5", "from": "R2.b", "to": "J2", "waypoints": [{"x": 440, "y": 320}]},
+      {"id": "W6", "from": "J2", "to": "I1.negative", "waypoints": [{"x": 80, "y": 320}]},
+      {"id": "W7", "from": "GND1.gnd", "to": "I1.negative", "waypoints": []}
+    ],
+    "nets": [
+      {"id": "N_TOP", "terminals": ["I1.positive", "R1.a", "R2.a"]},
+      {"id": "N_GND", "terminals": ["I1.negative", "R1.b", "R2.b", "GND1.gnd"]}
+    ]
+  },
+  "expected": {
+    "nodeVoltagesV": {"N_TOP": 8, "N_GND": 0},
+    "components": {
+      "I1": {"voltageV": 8, "currentA": -0.1, "powerW": -0.8},
+      "R1": {"voltageV": 8, "currentA": 0.08, "powerW": 0.64},
+      "R2": {"voltageV": 8, "currentA": 0.02, "powerW": 0.16}
+    },
+    "warnings": []
+  }
+}

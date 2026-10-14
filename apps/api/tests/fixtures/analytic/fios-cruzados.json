@@ -1,0 +1,100 @@
+{
+  "description": "Malhas 12 V/100 Ω e 6 V/60 Ω: W1 (y = 80) e W4 (x = 240) cruzam-se em (240, 80) sem junção, logo as redes N_A e N_B ficam separadas (se se unissem, V1 e V2 ficariam em paralelo).",
+  "reference": "§12 teste 4",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "fios-cruzados",
+    "name": "Fios cruzados sem junção",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 400, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "V2",
+        "type": "dc_voltage_source",
+        "position": {"x": 160, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 6},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R2",
+        "type": "resistor",
+        "position": {"x": 240, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 60},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "wires": [
+      {
+        "id": "W1",
+        "from": "V1.positive",
+        "to": "R1.a",
+        "waypoints": [{"x": 80, "y": 80}, {"x": 400, "y": 80}]
+      },
+      {
+        "id": "W2",
+        "from": "R1.b",
+        "to": "V1.negative",
+        "waypoints": [{"x": 400, "y": 320}, {"x": 80, "y": 320}]
+      },
+      {"id": "W3", "from": "GND1.gnd", "to": "V1.negative", "waypoints": []},
+      {
+        "id": "W4",
+        "from": "V2.positive",
+        "to": "R2.a",
+        "waypoints": [{"x": 160, "y": 40}, {"x": 240, "y": 40}]
+      },
+      {
+        "id": "W5",
+        "from": "R2.b",
+        "to": "V2.negative",
+        "waypoints": [{"x": 240, "y": 280}, {"x": 160, "y": 280}]
+      },
+      {
+        "id": "W6",
+        "from": "V2.negative",
+        "to": "V1.negative",
+        "waypoints": [{"x": 160, "y": 320}]
+      }
+    ],
+    "nets": [
+      {"id": "N_A", "terminals": ["V1.positive", "R1.a"]},
+      {"id": "N_B", "terminals": ["V2.positive", "R2.a"]},
+      {"id": "N_GND", "terminals": ["V1.negative", "R1.b", "V2.negative", "R2.b", "GND1.gnd"]}
+    ]
+  },
+  "expected": {
+    "nodeVoltagesV": {"N_A": 12, "N_B": 6, "N_GND": 0},
+    "components": {
+      "V1": {"voltageV": 12, "currentA": -0.12, "powerW": -1.44},
+      "R1": {"voltageV": 12, "currentA": 0.12, "powerW": 1.44},
+      "V2": {"voltageV": 6, "currentA": -0.1, "powerW": -0.6},
+      "R2": {"voltageV": 6, "currentA": 0.1, "powerW": 0.6}
+    },
+    "warnings": []
+  }
+}

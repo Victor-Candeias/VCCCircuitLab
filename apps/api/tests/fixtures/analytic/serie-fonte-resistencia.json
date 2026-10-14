@@ -1,0 +1,63 @@
+{
+  "description": "Fonte de 12 V e resistência de 100 Ω: I = 12/100 = 0,12 A; P = 12 × 0,12 = 1,44 W.",
+  "reference": "§7.1",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "serie-fonte-resistencia",
+    "name": "Fonte de 12 V com resistência de 100 Ω",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 320, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "wires": [
+      {
+        "id": "W1",
+        "from": "V1.positive",
+        "to": "R1.a",
+        "waypoints": [{"x": 80, "y": 80}, {"x": 320, "y": 80}]
+      },
+      {
+        "id": "W2",
+        "from": "R1.b",
+        "to": "V1.negative",
+        "waypoints": [{"x": 320, "y": 320}, {"x": 80, "y": 320}]
+      },
+      {"id": "W3", "from": "GND1.gnd", "to": "V1.negative", "waypoints": []}
+    ],
+    "nets": [
+      {"id": "N_PLUS", "terminals": ["V1.positive", "R1.a"]},
+      {"id": "N_GND", "terminals": ["V1.negative", "R1.b", "GND1.gnd"]}
+    ]
+  },
+  "expected": {
+    "nodeVoltagesV": {"N_PLUS": 12, "N_GND": 0},
+    "components": {
+      "V1": {"voltageV": 12, "currentA": -0.12, "powerW": -1.44},
+      "R1": {"voltageV": 12, "currentA": 0.12, "powerW": 1.44}
+    },
+    "warnings": []
+  }
+}

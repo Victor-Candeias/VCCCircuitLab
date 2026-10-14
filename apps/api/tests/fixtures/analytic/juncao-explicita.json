@@ -1,0 +1,83 @@
+{
+  "description": "J1 une V1.positive (via J3), R1.a, R2.a e R3.a numa só rede; 12 V em 100, 200 e 300 Ω: 0,12 + 0,06 + 0,04 = 0,22 A; P = 1,44 + 0,72 + 0,48 = 2,64 W.",
+  "reference": "§12 teste 5",
+  "circuit": {
+    "schemaVersion": "1.0",
+    "id": "juncao-explicita",
+    "name": "Junção explícita com quatro terminais",
+    "units": "SI",
+    "components": [
+      {
+        "id": "V1",
+        "type": "dc_voltage_source",
+        "position": {"x": 80, "y": 200},
+        "rotation": 90,
+        "properties": {"voltageV": 12},
+        "pins": ["positive", "negative"]
+      },
+      {
+        "id": "R1",
+        "type": "resistor",
+        "position": {"x": 240, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 100},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "R2",
+        "type": "resistor",
+        "position": {"x": 360, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 200},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "R3",
+        "type": "resistor",
+        "position": {"x": 480, "y": 200},
+        "rotation": 90,
+        "properties": {"resistanceOhm": 300},
+        "pins": ["a", "b"]
+      },
+      {
+        "id": "GND1",
+        "type": "ground",
+        "position": {"x": 80, "y": 360},
+        "rotation": 0,
+        "properties": {},
+        "pins": ["gnd"]
+      }
+    ],
+    "junctions": [
+      {"id": "J1", "position": {"x": 360, "y": 80}},
+      {"id": "J2", "position": {"x": 360, "y": 320}},
+      {"id": "J3", "position": {"x": 160, "y": 80}}
+    ],
+    "wires": [
+      {"id": "W1", "from": "V1.positive", "to": "J3", "waypoints": [{"x": 80, "y": 80}]},
+      {"id": "W2", "from": "J3", "to": "J1", "waypoints": []},
+      {"id": "W3", "from": "J1", "to": "R1.a", "waypoints": [{"x": 240, "y": 80}]},
+      {"id": "W4", "from": "J1", "to": "R2.a", "waypoints": []},
+      {"id": "W5", "from": "J1", "to": "R3.a", "waypoints": [{"x": 480, "y": 80}]},
+      {"id": "W6", "from": "R1.b", "to": "J2", "waypoints": [{"x": 240, "y": 320}]},
+      {"id": "W7", "from": "R2.b", "to": "J2", "waypoints": []},
+      {"id": "W8", "from": "R3.b", "to": "J2", "waypoints": [{"x": 480, "y": 320}]},
+      {"id": "W9", "from": "J2", "to": "V1.negative", "waypoints": [{"x": 80, "y": 320}]},
+      {"id": "W10", "from": "GND1.gnd", "to": "V1.negative", "waypoints": []}
+    ],
+    "nets": [
+      {"id": "N_TOP", "terminals": ["V1.positive", "R1.a", "R2.a", "R3.a"]},
+      {"id": "N_GND", "terminals": ["V1.negative", "R1.b", "R2.b", "R3.b", "GND1.gnd"]}
+    ]
+  },
+  "expected": {
+    "nodeVoltagesV": {"N_TOP": 12, "N_GND": 0},
+    "components": {
+      "V1": {"voltageV": 12, "currentA": -0.22, "powerW": -2.64},
+      "R1": {"voltageV": 12, "currentA": 0.12, "powerW": 1.44},
+      "R2": {"voltageV": 12, "currentA": 0.06, "powerW": 0.72},
+      "R3": {"voltageV": 12, "currentA": 0.04, "powerW": 0.48}
+    },
+    "warnings": []
+  }
+}

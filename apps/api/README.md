@@ -78,6 +78,16 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 - **Erros numéricos:** `SINGULAR_MATRIX` e `ILL_CONDITIONED_MATRIX` (número de condição > 1e12) são erros, para nunca devolver resultados falsos. Com o validador, só ocorrem com valores extremos (por exemplo, resistências de 1e-13 Ω).
 - **Avisos:** os avisos do validador (por exemplo `UNCONNECTED_PIN`) passam para `warnings`.
 
+### Testes com resultados analíticos
+
+`tests/test_solver_analytic.py` corre os casos de `tests/fixtures/analytic/*.json` (arquitetura §7.1 e §12, testes 1–8) de ponta a ponta. Cada fixture tem `description`, `reference`, `circuit` e `expected`. Os valores esperados são calculados à mão e nunca a partir do solver.
+
+- **Sucesso:** `expected` traz `nodeVoltagesV`, `components` e `warnings` (códigos). O circuito declara `nets` com nomes legíveis, para o normalizador confirmar também a partição esperada. Por exemplo, fios que se cruzam sem junção ficam em redes diferentes, e uma junção une todos os seus terminais.
+- **Erro:** `expected.errors` lista os códigos, por ordem.
+- **Verificações extra nos casos de sucesso:** KVL (`voltageV` = V(pino1) − V(pino2)), KCL por nó (as redes com terra formam um só nó), soma das potências igual a 0, valores finitos e sem `-0.0`.
+
+Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_cases()` (`tests/factories.py`) disponibiliza as mesmas fixtures a outros testes.
+
 ## Imagem Docker
 
 O `Dockerfile` usa um build em duas fases sobre `python:3.12-slim`: o venv é criado em `/opt/venv` só com `requirements.txt`, e apenas `app/` é copiado (ver `.dockerignore`). O contexto de build é `apps/api`. A imagem corre `uvicorn` em `0.0.0.0:8000` como `app` (uid/gid 10001), sem cabeçalho `Server`, e o `HEALTHCHECK` consulta `GET /health`. O número de processos define-se com `UVICORN_WORKERS`. Para correr com as restrições de segurança, usar o `docker-compose.yml` da raiz (ver README principal).
