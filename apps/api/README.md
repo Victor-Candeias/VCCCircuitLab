@@ -15,6 +15,7 @@ apps/api/
 │   ├── security/      # Encriptação de campos, hash e qualidade de passwords
 │   ├── users/         # Criação de utilizadores
 │   ├── auth/          # Login, sessões e dependência require_user
+│   ├── component_templates/  # CRUD da coleção `templates` (F2-10), só para admin
 │   ├── generation/    # Templates e layout
 │   ├── circuit/       # Redes, normalização, validação
 │   ├── solver/        # MNA DC
@@ -59,7 +60,7 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 - Na topologia, cada rede é um nó e a terra liga a sua rede a um nó de referência. Resistências e lâmpadas são condutoras. Interruptores fechados, fontes de tensão e terra têm impedância nula. Interruptores abertos e fontes de corrente não fixam potencial.
 - `VOLTAGE_SOURCE_LOOP`: malha só de impedância nula que inclui uma fonte de tensão, como uma fonte em curto, fontes em paralelo ou uma fonte entre duas terras. Os `refs` dão a malha. As malhas só de interruptores ou de terras são aceites.
 - `FLOATING_NET`: grupo de redes sem caminho condutor até à terra, porque o potencial fica indefinido. Se o grupo toca numa fonte de corrente, o erro é `CURRENT_SOURCE_CUTSET` (fonte em aberto ou fontes em série). Sem terra, só se reporta `MISSING_GROUND`.
-- O catálogo é lido de `app/circuit/data/components.json` (`app/circuit/catalog.py`). É uma cópia de `packages/circuit-schema/catalog/components.json`, porque a imagem Docker só inclui `app/`. Um teste falha se as duas versões divergirem: depois de alterar o catálogo, copiar o ficheiro.
+- O catálogo é lido da coleção `templates` do MongoDB (`app/circuit/catalog.py::load_catalog()`, sem cache de processo), gerida por administradores (ver [Templates de componentes](#templates-de-componentes-f2-10)).
 
 ## Solver MNA DC
 
@@ -104,7 +105,7 @@ O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `appli
 | `POST` | `/api/v1/circuits/generate` | Documento canónico gerado (`CircuitDocument`, com `nets` já calculado). Corpo: `{ template, parameters }` (ver [Geração por templates](#geração-por-templates)). |
 | `POST` | `/api/v1/circuits/validate` | `{ valid, errors[], warnings[], nets[] \| null }`. Os erros de circuito fazem parte do relatório e não são erros HTTP. `nets` traz a partição em redes quando a normalização foi possível. |
 | `POST` | `/api/v1/circuits/simulate` | Resultado DC (ver [Solver MNA DC](#solver-mna-dc)). |
-| `GET` | `/api/v1/components` | Catálogo de componentes (E2-06): `{ catalogVersion, gridSize, components[] }`. Cada componente traz o schema completo de propriedades (`NumberPropertyDefinition`/`BooleanPropertyDefinition`, com `unit`, `default` e limites) e `supported` (`simulationModel !== null`), para clientes assinalarem componentes desenháveis mas não simuláveis. Fonte: `app/circuit/data/components.json` (cópia de `packages/circuit-schema/catalog/components.json`, ver [Validação topológica e de valores](#validação-topológica-e-de-valores)). |
+| `GET` | `/api/v1/components` | Catálogo de componentes (E2-06): `{ catalogVersion, gridSize, components[] }`. Cada componente traz o schema completo de propriedades (`NumberPropertyDefinition`/`BooleanPropertyDefinition`, com `unit`, `default` e limites) e `supported` (`simulationModel !== null`), para clientes assinalarem componentes desenháveis mas não simuláveis. Fonte: coleção `templates` do MongoDB (ver [Templates de componentes](#templates-de-componentes-f2-10)); `catalogVersion`/`gridSize` são constantes (`app/circuit/catalog.py`). |
 
 ### Geração por templates
 
@@ -130,6 +131,22 @@ curl -X POST http://127.0.0.1:8000/api/v1/circuits/simulate \
 ```
 
 A simulação tem um limite de tempo, `SIMULATION_TIMEOUT_S` (variável de ambiente, 5 s por omissão). O solver corre numa thread que não é interrompida: esgotado o tempo, a API só deixa de esperar por ela. O isolamento em processo, o limite de payload, o rate limiting e o CORS ficam para o E5-04.
+
+## Templates de componentes (F2-10)
+
+Coleção `templates` (MongoDB): fonte da verdade do catálogo de componentes, geríveis só por administradores (deixou de haver cópia estática em `app/circuit/data/`). O corpo tem os campos de um componente do catálogo (`type`, `label`, `category`, `idPrefix`, `symbol`, `size`, `pins`, `properties`, `simulationModel`; ver `app/models/component.py`, partilhado com `GET /api/v1/components`).
+
+| Método | Endpoint | Acesso | Resposta |
+|---|---|---|---|
+| `GET` | `/api/v1/templates` | Qualquer sessão válida | `200 TemplateOut[]` |
+| `GET` | `/api/v1/templates/{id}` | Qualquer sessão válida | `200 TemplateOut`, `404 template-not-found` |
+| `POST` | `/api/v1/templates` | `ADMIN` (`CurrentAdmin`) | `201 TemplateOut`, `403 forbidden`, `409 template-type-already-exists`, `422 invalid-document` |
+| `PUT` | `/api/v1/templates/{id}` | `ADMIN` (`CurrentAdmin`) | `200 TemplateOut`, `403 forbidden`, `404 template-not-found`, `409 template-type-already-exists`, `422 invalid-document` |
+| `DELETE` | `/api/v1/templates/{id}` | `ADMIN` (`CurrentAdmin`) | `204`, `403 forbidden`, `404 template-not-found` |
+
+`TemplateOut` acrescenta `id`, `createdAt`, `updatedAt` e `createdBy` (email do administrador). O campo `type` tem um índice único (`app/component_templates/service.py`): não pode haver dois templates para o mesmo tipo de componente.
+
+`app/circuit/catalog.py::load_catalog()` lê a coleção a cada chamada (sem cache de processo), para que alterações de administradores (`POST`/`PUT`/`DELETE`) fiquem visíveis de imediato em `GET /api/v1/components` e na validação/simulação/geração de circuitos.
 
 ### Erros (`application/problem+json`, RFC 9457)
 
@@ -164,6 +181,8 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `…:invalid-credentials` | 401 | `INVALID_CREDENTIALS` (login com email ou password errados) |
 | `…:not-authenticated` | 401 | `NOT_AUTHENTICATED` (sem token, ou token inválido, expirado ou terminado; com `WWW-Authenticate: Bearer`) |
 | `…:forbidden` | 403 | `FORBIDDEN` (sessão válida sem o role necessário, ex.: não `ADMIN`) |
+| `…:template-not-found` | 404 | `TEMPLATE_NOT_FOUND` (id de template inexistente) |
+| `…:template-type-already-exists` | 409 | `TEMPLATE_TYPE_ALREADY_EXISTS` (já existe um template com o mesmo `type`) |
 | `…:simulation-timeout` | 503 | `SIMULATION_TIMEOUT` |
 | `about:blank` | 404, 405, … | Nome do estado HTTP (`NOT_FOUND`, `METHOD_NOT_ALLOWED`, …) |
 | `…:internal-error` | 500 | `INTERNAL_ERROR` |
@@ -178,7 +197,7 @@ Configuração em `.env` na raiz (ignorado pelo git; modelo em `.env.example`): 
 
 ## Sessão e autenticação
 
-Públicos: `GET /health`, `POST /api/v1/users` e `POST /api/v1/auth/login`. Tudo o resto (`/api/v1/circuits/…`, `/api/v1/components`) exige `Authorization: Bearer <token>` — dependência `require_user` (`app/auth/dependencies.py`), aplicada aos routers em `app/main.py`.
+Públicos: `GET /health`, `POST /api/v1/users` e `POST /api/v1/auth/login`. Tudo o resto (`/api/v1/circuits/…`, `/api/v1/components`, `/api/v1/templates`) exige `Authorization: Bearer <token>` — dependência `require_user` (`app/auth/dependencies.py`), aplicada aos routers em `app/main.py`. A escrita em `/api/v1/templates` (`POST`/`PUT`/`DELETE`) exige ainda `role: "ADMIN"` (ver [Templates de componentes](#templates-de-componentes-f2-10)).
 
 | Método | Endpoint | Resposta |
 |---|---|---|

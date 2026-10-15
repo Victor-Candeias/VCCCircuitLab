@@ -1,14 +1,13 @@
-import json
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
-from app.circuit.catalog import CATALOG_PATH, ComponentCatalog, load_catalog
+from app.circuit.catalog import ComponentCatalog, load_catalog, load_catalog_documents
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
 from app.circuit.validate import ValidationReport, validate
 from app.models.circuit import CircuitDocument, Component
-from tests.factories import FIXTURES, PACKAGE, PINS, circuit, comp, source_resistor
+from tests.factories import FIXTURES, PINS, circuit, comp, source_resistor
 
 Code = CircuitErrorCode
 
@@ -22,11 +21,6 @@ def codes(issues: tuple[CircuitError, ...]) -> list[Code]:
 
 
 class TestCatalog:
-    def test_bundled_copy_matches_package_catalog(self) -> None:
-        original = json.loads((PACKAGE / "catalog/components.json").read_text(encoding="utf-8"))
-
-        assert json.loads(CATALOG_PATH.read_text(encoding="utf-8")) == original
-
     def test_loads_pins_properties_and_models(self) -> None:
         catalog = load_catalog()
 
@@ -448,11 +442,11 @@ class TestDocumentRules:
         assert codes(report.errors) == [Code.UNKNOWN_TERMINAL]
 
     def test_unsupported_model(self) -> None:
-        raw = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-        for item in raw["components"]:
+        documents = [dict(item) for item in load_catalog_documents()]
+        for item in documents:
             if item["type"] == "lamp":
                 item["simulationModel"] = None
-        catalog = ComponentCatalog.from_dict(raw)
+        catalog = ComponentCatalog.from_dict({"catalogVersion": "1.0", "components": documents})
         data = source_resistor()
         data["components"].append(comp("H1", "lamp"))
         data["wires"] += [

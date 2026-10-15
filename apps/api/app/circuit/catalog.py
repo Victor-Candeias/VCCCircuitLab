@@ -1,19 +1,25 @@
 """Catálogo de componentes usado pelo validador e pelo layout de geração (E3-03).
 
-`data/components.json` é uma cópia de `packages/circuit-schema/catalog/components.json` (a
-imagem Docker só inclui `app/`); um teste garante que se mantém sincronizada. Carregam-se os
-campos de que o backend precisa: pinos (posição incluída), tamanho do símbolo, propriedades
-(tipo e limites), modelo elétrico e o passo da grelha (`gridSize`).
+A fonte da verdade é a coleção `templates` do MongoDB, gerida por administradores (F2-10,
+`app/component_templates/service.py`); não há cópia estática em disco. Carregam-se os campos
+de que o backend precisa: pinos (posição incluída), tamanho do símbolo, propriedades (tipo e
+limites), modelo elétrico. O `catalogVersion`/`gridSize` não são editáveis por administrador,
+por isso ficam como constantes (`CATALOG_VERSION`/`DEFAULT_GRID_SIZE`).
+
+Consulta-se a coleção a cada chamada (sem cache de processo), para que alterações feitas por
+administradores fiquem visíveis de imediato.
 """
 
-import json
 import math
 from dataclasses import dataclass
-from functools import cache
-from pathlib import Path
 from typing import Any, Literal
 
-CATALOG_PATH = Path(__file__).with_name("data") / "components.json"
+from app.db.collections import find
+from app.db.mongo import get_database
+
+TEMPLATES_COLLECTION = "templates"
+CATALOG_VERSION = "1.0"
+DEFAULT_GRID_SIZE = 20.0
 
 
 @dataclass(frozen=True)
@@ -108,7 +114,19 @@ class ComponentCatalog:
         )
 
 
-@cache
+def load_catalog_documents() -> list[dict[str, Any]]:
+    """Documentos em bruto da coleção `templates`, incluindo campos que `ComponentCatalog` não
+    carrega (`description`, `category`, `idPrefix`, `symbol`), usados por
+    `GET /api/v1/components` (E2-06)."""
+    return find(get_database(), TEMPLATES_COLLECTION, limit=1000)
+
+
 def load_catalog() -> ComponentCatalog:
-    """Catálogo incluído na aplicação (carregado uma vez)."""
-    return ComponentCatalog.from_dict(json.loads(CATALOG_PATH.read_text(encoding="utf-8")))
+    """Catálogo lido da coleção `templates` (sem cache de processo, ver docstring do módulo)."""
+    return ComponentCatalog.from_dict(
+        {
+            "catalogVersion": CATALOG_VERSION,
+            "gridSize": DEFAULT_GRID_SIZE,
+            "components": load_catalog_documents(),
+        }
+    )

@@ -7,9 +7,6 @@ from app.circuit.catalog import load_catalog
 from app.generation.layout import chain_loop, parallel_ladder
 from app.models.circuit import CircuitDocument, Component, Point
 
-CATALOG = load_catalog()
-GRID = CATALOG.grid_size
-
 
 def _component(cid: str, ctype: str, pins: list[str], properties: dict | None = None) -> Component:
     return Component(
@@ -33,7 +30,7 @@ def _rotate(dx: float, dy: float, rotation: int) -> tuple[float, float]:
 
 
 def _pin_positions(component: Component) -> dict[str, tuple[float, float]]:
-    spec = CATALOG.get(component.type)
+    spec = load_catalog().get(component.type)
     assert spec is not None
     return {
         pin: (
@@ -45,7 +42,7 @@ def _pin_positions(component: Component) -> dict[str, tuple[float, float]]:
 
 
 def _on_grid(value: float) -> bool:
-    return value % GRID == 0
+    return value % load_catalog().grid_size == 0
 
 
 def _source() -> Component:

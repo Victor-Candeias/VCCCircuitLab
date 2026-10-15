@@ -24,11 +24,9 @@ from app.generation.templates import (
 )
 from app.solver.mna import simulate_dc
 
-CATALOG = load_catalog()
-
 
 def _assert_valid(document: object) -> None:
-    report = validate(document, CATALOG)  # type: ignore[arg-type]
+    report = validate(document, load_catalog())  # type: ignore[arg-type]
     assert report.ok, report.errors
 
 
@@ -42,7 +40,7 @@ class TestSeriesDc:
     def test_current_matches_analytic_formula(self) -> None:
         document = build_series_dc(SeriesDcParams(voltageV=12, resistorsOhm=[100, 220, 330]))
 
-        result = simulate_dc(document, CATALOG)
+        result = simulate_dc(document, load_catalog())
 
         expected_current = 12 / (100 + 220 + 330)
         for cid, resistance in (("R1", 100), ("R2", 220), ("R3", 330)):
@@ -52,7 +50,7 @@ class TestSeriesDc:
     def test_single_resistor(self) -> None:
         document = build_series_dc(SeriesDcParams(voltageV=9, resistorsOhm=[100]))
 
-        result = simulate_dc(document, CATALOG)
+        result = simulate_dc(document, load_catalog())
 
         assert result.components["R1"].current_a == pytest.approx(0.09)
 
@@ -78,7 +76,7 @@ class TestParallelDc:
     def test_each_branch_sees_full_voltage(self) -> None:
         document = build_parallel_dc(ParallelDcParams(voltageV=12, resistorsOhm=[100, 200, 300]))
 
-        result = simulate_dc(document, CATALOG)
+        result = simulate_dc(document, load_catalog())
 
         for cid, resistance in (("R1", 100), ("R2", 200), ("R3", 300)):
             assert result.components[cid].voltage_v == pytest.approx(12)
@@ -95,9 +93,9 @@ class TestVoltageDivider:
     def test_tap_voltage_matches_divider_formula(self) -> None:
         document = build_voltage_divider(VoltageDividerParams(voltageV=12, resistorsOhm=[100, 220]))
 
-        normalized = validate(document, CATALOG).normalized
+        normalized = validate(document, load_catalog()).normalized
         assert normalized is not None
-        result = simulate_dc(document, CATALOG)
+        result = simulate_dc(document, load_catalog())
 
         expected_tap = 12 * 220 / (100 + 220)
         tap_net = next(
@@ -121,7 +119,7 @@ class TestSwitchCircuit:
     def test_closed_switch_allows_current(self) -> None:
         document = build_switch_circuit(SwitchCircuitParams(voltageV=12, loadOhm=100, closed=True))
 
-        result = simulate_dc(document, CATALOG)
+        result = simulate_dc(document, load_catalog())
 
         assert result.components["R1"].current_a == pytest.approx(0.12)
         assert result.components["S1"].current_a == pytest.approx(0.12)
@@ -129,7 +127,7 @@ class TestSwitchCircuit:
     def test_open_switch_blocks_current(self) -> None:
         document = build_switch_circuit(SwitchCircuitParams(voltageV=12, loadOhm=100, closed=False))
 
-        result = simulate_dc(document, CATALOG)
+        result = simulate_dc(document, load_catalog())
 
         assert result.components["R1"].current_a == pytest.approx(0, abs=1e-12)
         assert result.components["S1"].current_a == pytest.approx(0, abs=1e-12)
@@ -169,5 +167,5 @@ class TestRegistry:
         document = spec.build(params)
 
         _assert_valid(document)
-        result = simulate_dc(document, CATALOG)
+        result = simulate_dc(document, load_catalog())
         assert all(math.isfinite(v) for v in result.node_voltages_v.values())

@@ -25,4 +25,6 @@ status: draft
 | F2-07 | Catálogo IEC e modelos para instalações 230/400 V | backlog | 2026-10-12 | developer | medium |  |  |  |  |
 | F2-08 | Template de geração iluminacao_escada (230 V) | backlog | 2026-10-12 | developer | medium |  |  | F2-07 |  |
 | F2-09 | Contas, partilha e colaboração | backlog | 2026-10-12 | developer | low |  |  |  |  |
+| F2-10 | Coleção de templates de componentes com acesso restrito a admin | done | 2026-10-14 | developer | medium | 2026-10-14 |  |  |  |
+| F2-11 | Catálogo de componentes do frontend a partir da API (remover ficheiro estático) | in-progress | 2026-10-15 | developer | medium |  |  |  | [F2-11](../specs/fase-2/f2-11-spec.md) |
 <!-- /maestru:work-items-list -->

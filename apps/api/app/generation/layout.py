@@ -22,13 +22,18 @@ Em ambos, a terra fica por baixo da fonte, ligada a `negative` por um fio vertic
 from app.circuit.catalog import load_catalog
 from app.models.circuit import CircuitDocument, Component, Point, Wire
 
-_CATALOG = load_catalog()
-_GRID = _CATALOG.grid_size
 
-_SOURCE_X = 4 * _GRID  # 80: margem esquerda até à fonte.
-_STEP_X = 8 * _GRID  # 160: espaço horizontal entre elementos da fila/ramos.
-_SOURCE_CENTER_Y = 10 * _GRID  # 200: altura do centro da fonte.
-_GROUND_GAP = 3 * _GRID  # 60: de `negative` ao símbolo de terra.
+def _grid_constants() -> tuple[float, float, float, float]:
+    """`(source_x, step_x, source_center_y, ground_gap)`, derivados do `gridSize` do catálogo
+    (consultado a cada geração, não em tempo de importação: F2-10 tornou o catálogo
+    dependente do MongoDB, que pode não estar acessível quando o módulo é importado)."""
+    grid = load_catalog().grid_size
+    return (
+        4 * grid,  # 80: margem esquerda até à fonte.
+        8 * grid,  # 160: espaço horizontal entre elementos da fila/ramos.
+        10 * grid,  # 200: altura do centro da fonte.
+        3 * grid,  # 60: de `negative` ao símbolo de terra.
+    )
 
 
 def _rotate(dx: float, dy: float, rotation: int) -> tuple[float, float]:
@@ -45,7 +50,7 @@ def _rotate(dx: float, dy: float, rotation: int) -> tuple[float, float]:
 
 
 def _pin_point(component: Component, pin: str) -> Point:
-    spec = _CATALOG.get(component.type)
+    spec = load_catalog().get(component.type)
     if spec is None or pin not in spec.pin_positions:
         raise KeyError(f"{component.type}.{pin}")
     dx, dy = _rotate(*spec.pin_positions[pin], component.rotation)
@@ -55,7 +60,7 @@ def _pin_point(component: Component, pin: str) -> Point:
 def _half_height(component_type: str, rotation: int) -> float:
     """Metade da extensão vertical do símbolo, à rotação dada (as larguras/alturas trocam a
     90°/270°)."""
-    spec = _CATALOG.get(component_type)
+    spec = load_catalog().get(component_type)
     if spec is None:
         raise KeyError(component_type)
     width, height = spec.size
@@ -87,12 +92,13 @@ def chain_loop(
     template: str, name: str, source: Component, chain: list[Component], ground: Component
 ) -> CircuitDocument:
     """Fonte + `chain` em série, com terra em `negative` (ver docstring do módulo)."""
-    source = _place(source, _SOURCE_X, _SOURCE_CENTER_Y, rotation=0)
+    source_x, step_x, source_center_y, ground_gap = _grid_constants()
+    source = _place(source, source_x, source_center_y, rotation=0)
     top_rail = _pin_point(source, "positive").y
     bottom_rail = _pin_point(source, "negative").y
 
     parts = [
-        _place(part, _SOURCE_X + _STEP_X * i, top_rail, rotation=0)
+        _place(part, source_x + step_x * i, top_rail, rotation=0)
         for i, part in enumerate(chain, start=1)
     ]
 
@@ -111,7 +117,7 @@ def chain_loop(
         )
     )
 
-    ground = _place(ground, _SOURCE_X, bottom_rail + _GROUND_GAP, rotation=0)
+    ground = _place(ground, source_x, bottom_rail + ground_gap, rotation=0)
     wires.append(_wire(f"W{len(parts) + 2}", ground.terminal("gnd"), source.terminal("negative")))
 
     return _document(template, name, [source, *parts, ground], wires)
@@ -121,7 +127,8 @@ def parallel_ladder(
     template: str, name: str, source: Component, branches: list[Component], ground: Component
 ) -> CircuitDocument:
     """Fonte + `branches` em paralelo, com terra em `negative` (ver docstring do módulo)."""
-    source = _place(source, _SOURCE_X, _SOURCE_CENTER_Y, rotation=0)
+    source_x, step_x, source_center_y, ground_gap = _grid_constants()
+    source = _place(source, source_x, source_center_y, rotation=0)
     top_rail = _pin_point(source, "positive").y
     bottom_rail = _pin_point(source, "negative").y
 
@@ -129,12 +136,12 @@ def parallel_ladder(
     wires: list[Wire] = []
     for i, branch in enumerate(branches, start=1):
         half = _half_height(branch.type, rotation=90)
-        part = _place(branch, _SOURCE_X + _STEP_X * i, top_rail + half, rotation=90)
+        part = _place(branch, source_x + step_x * i, top_rail + half, rotation=90)
         parts.append(part)
         wires.append(_wire(f"W{2 * i - 1}", source.terminal("positive"), part.terminal("a")))
         wires.append(_wire(f"W{2 * i}", part.terminal("b"), source.terminal("negative")))
 
-    ground = _place(ground, _SOURCE_X, bottom_rail + _GROUND_GAP, rotation=0)
+    ground = _place(ground, source_x, bottom_rail + ground_gap, rotation=0)
     wires.append(
         _wire(f"W{2 * len(parts) + 1}", ground.terminal("gnd"), source.terminal("negative"))
     )

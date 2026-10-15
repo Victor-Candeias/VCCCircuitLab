@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from app.circuit.catalog import CATALOG_PATH, ComponentCatalog
+from app.circuit.catalog import ComponentCatalog, load_catalog_documents
 from app.main import app
 from app.routes import circuits
 from tests.factories import AnalyticCase, comp, load_analytic_cases, load_fixture, source_resistor
@@ -153,11 +153,15 @@ class TestSimulate:
         assert body["detail"] == body["errors"][0]["message"]
 
     def test_unsupported_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        raw = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-        for item in raw["components"]:
+        documents = [dict(item) for item in load_catalog_documents()]
+        for item in documents:
             if item["type"] == "lamp":
                 item["simulationModel"] = None
-        monkeypatch.setattr(circuits, "load_catalog", lambda: ComponentCatalog.from_dict(raw))
+        monkeypatch.setattr(
+            circuits,
+            "load_catalog",
+            lambda: ComponentCatalog.from_dict({"catalogVersion": "1.0", "components": documents}),
+        )
         data = source_resistor()
         data["components"].append(comp("H1", "lamp"))
         data["wires"] += [

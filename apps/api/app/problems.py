@@ -20,6 +20,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.auth.errors import InvalidCredentialsError, NotAuthenticatedError, NotAuthorizedError
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
+from app.component_templates.errors import DuplicateTemplateTypeError, TemplateNotFoundError
 from app.db.errors import DatabaseUnavailableError
 from app.generation.errors import InvalidParametersError, UnknownTemplateError
 from app.users.errors import EmailAlreadyRegisteredError
@@ -43,6 +44,8 @@ class ApiErrorCode(StrEnum):
     INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
     NOT_AUTHENTICATED = "NOT_AUTHENTICATED"
     FORBIDDEN = "FORBIDDEN"
+    TEMPLATE_NOT_FOUND = "TEMPLATE_NOT_FOUND"
+    TEMPLATE_TYPE_ALREADY_EXISTS = "TEMPLATE_TYPE_ALREADY_EXISTS"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -355,6 +358,35 @@ async def _not_authorized_handler(request: Request, exc: Exception) -> ProblemRe
     )
 
 
+async def _template_not_found_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, TemplateNotFoundError)
+    issue = Issue(
+        code=ApiErrorCode.TEMPLATE_NOT_FOUND, message="Template de componente não encontrado."
+    )
+    return problem_response(
+        request,
+        status=404,
+        kind="template-not-found",
+        title="Template não encontrado",
+        errors=[issue],
+    )
+
+
+async def _duplicate_template_type_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, DuplicateTemplateTypeError)
+    issue = Issue(
+        code=ApiErrorCode.TEMPLATE_TYPE_ALREADY_EXISTS,
+        message="Já existe um template com este tipo de componente.",
+    )
+    return problem_response(
+        request,
+        status=409,
+        kind="template-type-already-exists",
+        title="Tipo de componente já existe",
+        errors=[issue],
+    )
+
+
 async def _database_unavailable_handler(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, DatabaseUnavailableError)
     # A causa (configuração em falta, credenciais, ligação) fica só no log do servidor.
@@ -413,6 +445,8 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(InvalidCredentialsError, _invalid_credentials_handler)
     app.add_exception_handler(NotAuthenticatedError, _not_authenticated_handler)
     app.add_exception_handler(NotAuthorizedError, _not_authorized_handler)
+    app.add_exception_handler(TemplateNotFoundError, _template_not_found_handler)
+    app.add_exception_handler(DuplicateTemplateTypeError, _duplicate_template_type_handler)
     app.add_exception_handler(StarletteHTTPException, _http_error_handler)
     app.add_exception_handler(Exception, _internal_error_handler)
 

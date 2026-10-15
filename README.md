@@ -58,6 +58,15 @@ ruff format apps/api     # formatação Python
 
 Configuração: Prettier em `.prettierrc.json`/`.prettierignore` (Markdown, `.maestru/`, `Docs/`, `apps/api/` e tipos gerados ficam de fora); ESLint em `apps/web/eslint.config.js` (com `eslint-config-prettier`); ruff em `apps/api/pyproject.toml`.
 
+### Arrancar API + frontend acessíveis na rede (Linux)
+
+```bash
+./start.sh     # API (uvicorn) + frontend (vite dev) em segundo plano; mostra os URLs
+./stop.sh      # para ambos
+```
+
+O frontend escuta em todas as interfaces (`http://<IP-da-máquina>:5173/VCCCircuitLab/`) e encaminha `/api` para a API, que só escuta em `127.0.0.1:8000` (não fica exposta diretamente). Requer o venv em `apps/api/.venv`, `pnpm install` feito e o `.env` configurado. Logs e PIDs em `.run/` (ignorado pelo git). Variáveis opcionais: `WEB_PORT`, `API_PORT` e `API_HOST` (`0.0.0.0` expõe também a API). Se houver firewall, abrir a porta 5173.
+
 ### API em Docker
 
 ```bash

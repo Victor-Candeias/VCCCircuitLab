@@ -87,6 +87,9 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
+# --- Scripts start.sh/stop.sh (PIDs e logs) ---
+.run/
+
 # --- Temporary Files ---
 tmp/
 temp/
