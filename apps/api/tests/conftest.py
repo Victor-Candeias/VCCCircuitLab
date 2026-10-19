@@ -16,7 +16,8 @@ FAKE_USER = UserOut(
     created_at=datetime(2025, 1, 1, tzinfo=UTC),
 )
 
-#: Catálogo de testes (F2-10): os 6 componentes do antigo catálogo estático, inseridos num
+#: Catálogo de testes (F2-10): os 6 componentes do antigo catálogo estático (mais o
+#: condensador e a bobina da F2-02), inseridos num
 #: MongoDB falso (`mongomock`) para que `load_catalog()` (lido da coleção `templates`) não
 #: dependa de um MongoDB real nem de um ficheiro em disco durante os testes.
 CATALOG_COMPONENTS: list[dict] = [
@@ -149,6 +150,70 @@ CATALOG_COMPONENTS: list[dict] = [
         "simulationModel": "resistive_lamp",
     },
     {
+        "type": "capacitor",
+        "label": "Condensador",
+        "description": "Condensador ideal (F2-02).",
+        "category": "passive",
+        "idPrefix": "C",
+        "symbol": "capacitor_iec",
+        "size": {"width": 80.0, "height": 40.0},
+        "pins": [
+            {"id": "a", "kind": "passive", "position": {"x": -40.0, "y": 0.0}},
+            {"id": "b", "kind": "passive", "position": {"x": 40.0, "y": 0.0}},
+        ],
+        "properties": {
+            "capacitanceF": {
+                "type": "number",
+                "title": "Capacidade",
+                "unit": "F",
+                "default": 0.0001,
+                "exclusiveMinimum": 0.0,
+                "maximum": 10.0,
+            },
+            "initialVoltageV": {
+                "type": "number",
+                "title": "Tensão inicial",
+                "unit": "V",
+                "default": 0.0,
+                "minimum": -1000.0,
+                "maximum": 1000.0,
+            },
+        },
+        "simulationModel": "capacitor",
+    },
+    {
+        "type": "inductor",
+        "label": "Bobina",
+        "description": "Bobina ideal (F2-02).",
+        "category": "passive",
+        "idPrefix": "L",
+        "symbol": "inductor_iec",
+        "size": {"width": 80.0, "height": 40.0},
+        "pins": [
+            {"id": "a", "kind": "passive", "position": {"x": -40.0, "y": 0.0}},
+            {"id": "b", "kind": "passive", "position": {"x": 40.0, "y": 0.0}},
+        ],
+        "properties": {
+            "inductanceH": {
+                "type": "number",
+                "title": "Indutância",
+                "unit": "H",
+                "default": 0.1,
+                "exclusiveMinimum": 0.0,
+                "maximum": 100.0,
+            },
+            "initialCurrentA": {
+                "type": "number",
+                "title": "Corrente inicial",
+                "unit": "A",
+                "default": 0.0,
+                "minimum": -100.0,
+                "maximum": 100.0,
+            },
+        },
+        "simulationModel": "inductor",
+    },
+    {
         "type": "ground",
         "label": "Terra",
         "description": "Referência de potencial (0 V) do circuito.",
@@ -183,9 +248,9 @@ def reset_rate_limiter() -> None:
 @pytest.fixture(autouse=True)
 def catalog_db(monkeypatch: pytest.MonkeyPatch) -> None:
     """Isola `load_catalog()` (F2-10, lido da coleção `templates`) de um MongoDB real: todos
-    os testes passam a ver um `mongomock` pré-semeado com os 6 componentes do antigo catálogo
-    estático. Testes que precisem de outro conteúdo podem sobrepor
-    `app.circuit.catalog.get_database` explicitamente."""
+    os testes passam a ver um `mongomock` pré-semeado com `CATALOG_COMPONENTS`. Testes que
+    precisem de outro conteúdo podem sobrepor `app.circuit.catalog.get_database`
+    explicitamente."""
     database = mongomock.MongoClient().get_database("teste-catalogo")
     database["templates"].insert_many([dict(c) for c in CATALOG_COMPONENTS])
     monkeypatch.setattr(catalog_module, "get_database", lambda: database)

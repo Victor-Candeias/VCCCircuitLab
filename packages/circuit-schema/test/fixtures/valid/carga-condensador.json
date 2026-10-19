@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0",
+  "id": "carga-condensador",
+  "name": "Carga de um condensador (RC)",
+  "description": "Fonte de 5 V a carregar C1 (1 µF, inicialmente descarregado) através de R1 (1 kΩ): na análise transitória a tensão em C1 sobe para 5 V com constante de tempo τ = RC = 1 ms (63 % em 1 ms, mais de 99 % em 5 ms). Em DC o condensador é um circuito aberto.",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": { "x": 100, "y": 180 },
+      "rotation": 0,
+      "properties": { "voltageV": 5 },
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "position": { "x": 300, "y": 100 },
+      "rotation": 0,
+      "properties": { "resistanceOhm": 1000 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "C1",
+      "type": "capacitor",
+      "position": { "x": 460, "y": 100 },
+      "rotation": 0,
+      "properties": { "capacitanceF": 1e-6, "initialVoltageV": 0 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": { "x": 100, "y": 320 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["gnd"]
+    }
+  ],
+  "wires": [
+    { "id": "W1", "from": "V1.positive", "to": "R1.a", "waypoints": [] },
+    { "id": "W2", "from": "R1.b", "to": "C1.a", "waypoints": [] },
+    { "id": "W3", "from": "C1.b", "to": "V1.negative", "waypoints": [] },
+    { "id": "W4", "from": "GND1.gnd", "to": "V1.negative", "waypoints": [] }
+  ]
+}

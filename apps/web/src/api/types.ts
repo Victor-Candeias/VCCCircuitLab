@@ -37,6 +37,31 @@ export interface SimulationResult {
   warnings: CircuitIssue[];
 }
 
+/** Séries de um componente na análise transitória (um valor por instante de `timeS`). */
+export interface ComponentSeries {
+  voltageV: number[];
+  currentA: number[];
+  powerW: number[];
+}
+
+/** Resposta da análise transitória: degrau em t = 0 a partir das condições iniciais. */
+export interface TransientResult {
+  analysis: 'transient';
+  status: 'success';
+  /** Instantes (equidistantes), de 0 a `stopTimeS`. */
+  timeS: number[];
+  /** Série da tensão de cada rede (`N1`…) em relação à terra. */
+  nodeVoltagesV: Record<string, number[]>;
+  components: Record<string, ComponentSeries>;
+  warnings: CircuitIssue[];
+}
+
+/** Parâmetros da análise transitória (segundos). */
+export interface TransientParameters {
+  stopTimeS: number;
+  timeStepS: number;
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: CircuitIssue[];

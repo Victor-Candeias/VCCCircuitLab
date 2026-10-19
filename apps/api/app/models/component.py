@@ -19,6 +19,8 @@ SimulationModel = (
         "resistor",
         "ideal_switch",
         "resistive_lamp",
+        "capacitor",
+        "inductor",
         "ground",
     ]
     | None

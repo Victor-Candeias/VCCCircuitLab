@@ -81,6 +81,8 @@ Monitorização (E5-05): `GET /health/ready` verifica o MongoDB, `GET /metrics` 
 
 Motor de simulação (F2-01): por omissão a API usa o solver MNA interno. Com `SIMULATION_ENGINE=ngspice` usa o ngspice, num processo isolado e com limites. Neste caso a imagem é construída com `WITH_NGSPICE=true` (ver [`apps/api`](apps/api/README.md#motor-ngspice-f2-01)).
 
+Análises (F2-02): ponto de funcionamento DC e análise transitória (condensadores e bobinas, resposta ao degrau em t = 0), escolhidas no painel de simulação. A transitória mostra um gráfico das tensões e correntes e os valores finais (ver [`apps/api`](apps/api/README.md#análise-transitória-f2-02)). O exemplo «Carga de um condensador (RC)» do menu Projeto mostra a carga de um condensador.
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

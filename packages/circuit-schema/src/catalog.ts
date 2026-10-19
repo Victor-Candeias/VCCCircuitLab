@@ -29,7 +29,15 @@ export type PropertyDefinition = NumberPropertyDefinition | BooleanPropertyDefin
  * via the `definition` "SimulationModel".
  */
 export type SimulationModel =
-  'dc_voltage_source' | 'dc_current_source' | 'resistor' | 'ideal_switch' | 'resistive_lamp' | 'ground' | null;
+  | 'dc_voltage_source'
+  | 'dc_current_source'
+  | 'resistor'
+  | 'ideal_switch'
+  | 'resistive_lamp'
+  | 'capacitor'
+  | 'inductor'
+  | 'ground'
+  | null;
 
 /**
  * Catálogo de componentes do VCCCircuitLab. Separa símbolo, terminais, validação de propriedades e modelo elétrico.

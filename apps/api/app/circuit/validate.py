@@ -13,10 +13,16 @@
 Na topologia, cada rede é um nó e a terra liga a sua rede a um nó de referência virtual.
 Resistências e lâmpadas são condutoras; interruptores fechados, fontes de tensão e terra têm
 impedância nula; interruptores abertos e fontes de corrente não fixam potencial.
+
+Os condensadores e as bobinas (F2-02) dependem da análise (`analysis`): em DC o condensador é
+um circuito aberto e a bobina tem impedância nula (como um interruptor fechado); na análise
+transitória ambos são condutores (modelos companheiros), pelo que malhas fonte de
+tensão–condensador e cortes fonte de corrente–bobina são permitidos.
 """
 
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from typing import Literal
 
 from app.circuit.catalog import ComponentCatalog, ComponentSpec, load_catalog
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
@@ -30,7 +36,18 @@ SWITCH_MODEL = "ideal_switch"
 VOLTAGE_SOURCE_MODEL = "dc_voltage_source"
 CURRENT_SOURCE_MODEL = "dc_current_source"
 GROUND_MODEL = "ground"
-TWO_TERMINAL_MODELS = RESISTIVE_MODELS | {SWITCH_MODEL, VOLTAGE_SOURCE_MODEL, CURRENT_SOURCE_MODEL}
+CAPACITOR_MODEL = "capacitor"
+INDUCTOR_MODEL = "inductor"
+REACTIVE_MODELS = frozenset({CAPACITOR_MODEL, INDUCTOR_MODEL})
+TWO_TERMINAL_MODELS = (
+    RESISTIVE_MODELS
+    | REACTIVE_MODELS
+    | {
+        SWITCH_MODEL,
+        VOLTAGE_SOURCE_MODEL,
+        CURRENT_SOURCE_MODEL,
+    }
+)
 SUPPORTED_MODELS = TWO_TERMINAL_MODELS | {GROUND_MODEL}
 
 #: Nó virtual de referência (0 V). O `\0` não é permitido em IDs, logo não colide com redes.
@@ -38,6 +55,9 @@ REFERENCE = "\0GND"
 
 #: (componente, nó, nó)
 Edge = tuple[str, str, str]
+
+#: Análise para a qual o circuito é validado.
+Analysis = Literal["dc", "transient"]
 
 
 @dataclass(frozen=True)
@@ -61,7 +81,9 @@ class ValidationReport:
 
 
 def validate(
-    document: CircuitDocument, catalog: ComponentCatalog | None = None
+    document: CircuitDocument,
+    catalog: ComponentCatalog | None = None,
+    analysis: Analysis = "dc",
 ) -> ValidationReport:
     catalog = catalog or load_catalog()
     errors = [*_check_ids(document), *_check_wires(document)]
@@ -77,7 +99,7 @@ def validate(
 
     warnings = _check_unconnected_pins(normalized)
     if len(specs) == len(document.components):
-        errors += _check_topology(normalized, specs)
+        errors += _check_topology(normalized, specs, analysis)
     return ValidationReport(errors=tuple(errors), warnings=tuple(warnings), normalized=normalized)
 
 
@@ -225,14 +247,14 @@ def _check_unconnected_pins(normalized: NormalizedCircuit) -> list[CircuitError]
 
 
 def _check_topology(
-    normalized: NormalizedCircuit, specs: dict[str, ComponentSpec]
+    normalized: NormalizedCircuit, specs: dict[str, ComponentSpec], analysis: Analysis
 ) -> list[CircuitError]:
     document = normalized.document
     nets = document.nets or []
     net_of = normalized.terminal_to_net
 
     has_ground = False
-    zero: list[Edge] = []  # impedância nula sem fonte: terra e interruptores fechados
+    zero: list[Edge] = []  # impedância nula sem fonte: terra, interruptores fechados, bobinas DC
     voltage_sources: list[Edge] = []
     resistive: list[Edge] = []
     current_sources: list[Edge] = []
@@ -248,6 +270,9 @@ def _check_topology(
         edge = (c.id, net_of[c.terminal(spec.pins[0])], net_of[c.terminal(spec.pins[1])])
         if model == SWITCH_MODEL:
             if c.properties.get("closed") is True:
+                zero.append(edge)
+        elif model in REACTIVE_MODELS and analysis == "dc":
+            if model == INDUCTOR_MODEL:
                 zero.append(edge)
         elif model == VOLTAGE_SOURCE_MODEL:
             voltage_sources.append(edge)

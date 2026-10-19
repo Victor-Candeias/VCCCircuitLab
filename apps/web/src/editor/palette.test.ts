@@ -20,7 +20,7 @@ describe('paletteGroups', () => {
   });
 
   test('pesquisa sem distinguir maiúsculas nem acentos', () => {
-    expect(types('TENSAO')).toEqual(['dc_voltage_source']);
+    expect(types('TENSAO')).toEqual(['dc_voltage_source', 'capacitor']);
     expect(types('lâmpada')).toEqual(['lamp']);
   });
 

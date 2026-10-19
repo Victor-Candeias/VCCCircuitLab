@@ -187,6 +187,10 @@ def _message(group: list[dict[str, Any]]) -> str:
     return f"tipo inválido (esperado {' ou '.join(names)})"
 
 
+#: Parâmetros da análise transitória (`POST /circuits/simulate/transient`).
+_ANALYSIS_PARAMETERS = {"stopTimeS", "timeStepS"}
+
+
 def schema_issues(exc: RequestValidationError) -> list[Issue]:
     body = exc.body
     groups: dict[str, list[dict[str, Any]]] = {}
@@ -203,10 +207,16 @@ def schema_issues(exc: RequestValidationError) -> list[Issue]:
     for pointer, group in groups.items():
         path = paths[pointer]
         code, refs = ApiErrorCode.INVALID_DOCUMENT, []
-        if len(path) >= 2 and path[0] == "components" and isinstance(path[1], int):
+        # A análise transitória envolve o documento em `circuit` (F2-02).
+        document, doc_path = body, path
+        if path[:1] == ["circuit"] and isinstance(body, dict):
+            document, doc_path = body["circuit"], path[1:]
+        if len(path) == 1 and path[0] in _ANALYSIS_PARAMETERS:
+            code = ApiErrorCode.INVALID_PARAMETERS
+        elif len(doc_path) >= 2 and doc_path[0] == "components" and isinstance(doc_path[1], int):
             code = ApiErrorCode.INVALID_COMPONENT
-            components = body["components"]
-            component = components[path[1]] if path[1] < len(components) else None
+            components = document["components"]
+            component = components[doc_path[1]] if doc_path[1] < len(components) else None
             if isinstance(component, dict) and isinstance(component.get("id"), str):
                 refs = [component["id"]]
         where = pointer or "/"

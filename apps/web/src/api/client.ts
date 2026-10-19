@@ -1,6 +1,13 @@
 import type { CircuitDocument, ComponentCatalog } from '@vcccircuitlab/circuit-schema';
 import { toCanonical } from '../project/circuitJson';
-import type { Problem, SimulationResult, UserAccount, ValidationResult } from './types';
+import type {
+  Problem,
+  SimulationResult,
+  TransientParameters,
+  TransientResult,
+  UserAccount,
+  ValidationResult,
+} from './types';
 
 /** Tempo máximo de espera por uma resposta da API, em milissegundos. */
 export const REQUEST_TIMEOUT_MS = 15_000;
@@ -50,6 +57,18 @@ function isSimulationResult(value: unknown): value is SimulationResult {
   return (
     isRecord(value) &&
     value.status === 'success' &&
+    isRecord(value.nodeVoltagesV) &&
+    isRecord(value.components) &&
+    Array.isArray(value.warnings)
+  );
+}
+
+function isTransientResult(value: unknown): value is TransientResult {
+  return (
+    isRecord(value) &&
+    value.status === 'success' &&
+    value.analysis === 'transient' &&
+    Array.isArray(value.timeS) &&
     isRecord(value.nodeVoltagesV) &&
     isRecord(value.components) &&
     Array.isArray(value.warnings)
@@ -191,6 +210,21 @@ export function simulateCircuit(
     '/api/v1/circuits/simulate',
     toCanonical(circuit),
     isSimulationResult,
+    options,
+  );
+}
+
+/** `POST /api/v1/circuits/simulate/transient` com o documento canónico e a duração/passo. */
+export function simulateTransient(
+  circuit: CircuitDocument,
+  parameters: TransientParameters,
+  options: RequestOptions = {},
+): Promise<TransientResult> {
+  return requestJson(
+    'POST',
+    '/api/v1/circuits/simulate/transient',
+    { circuit: toCanonical(circuit), ...parameters },
+    isTransientResult,
     options,
   );
 }

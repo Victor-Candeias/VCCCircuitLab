@@ -13,6 +13,7 @@ import {
   setAuthToken,
   setUnauthorizedHandler,
   simulateCircuit,
+  simulateTransient,
   toApiError,
   validateCircuit,
 } from './client';
@@ -75,6 +76,34 @@ describe('cliente da API', () => {
     const body = JSON.parse(String(init?.body));
     expect(body).not.toHaveProperty('nets');
     expect(body.components).toHaveLength(4);
+  });
+
+  test('simulateTransient envia o circuito canónico com a duração e o passo', async () => {
+    const transient = {
+      analysis: 'transient',
+      status: 'success',
+      timeS: [0, 1e-3],
+      nodeVoltagesV: { N1: [9, 9] },
+      components: {},
+      warnings: [],
+    };
+    fetchMock.mockResolvedValueOnce(json(transient)).mockResolvedValueOnce(json(result));
+    const parameters = { stopTimeS: 1e-3, timeStepS: 1e-3 };
+
+    await expect(simulateTransient(demoCircuit, parameters, { baseUrl: '' })).resolves.toEqual(
+      transient,
+    );
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/v1/circuits/simulate/transient');
+    const body = JSON.parse(String(init?.body));
+    expect(body).toMatchObject(parameters);
+    expect(body.circuit.components).toHaveLength(4);
+    expect(body.circuit).not.toHaveProperty('nets');
+
+    // Uma resposta DC não é um resultado transitório.
+    expect(await failure(simulateTransient(demoCircuit, parameters))).toMatchObject({
+      kind: 'invalid-response',
+    });
   });
 
   test('validateCircuit usa /validate', async () => {

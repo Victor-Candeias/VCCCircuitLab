@@ -24,12 +24,13 @@ from app.problems import SimulationTimeoutError
 from app.routes import circuits
 from app.solver.mna import simulate_dc
 from app.spice.errors import SimulationEngineError
-from app.spice.netlist import build_netlist
+from app.spice.netlist import build_netlist, build_transient_netlist
 from app.spice.rawfile import parse_rawfile
 from app.spice.runner import MAX_FILE_BYTES, NgspiceConfig, run_ngspice
 from tests.factories import circuit, comp, load_fixture, source_resistor
 
 SIMULATE = "/api/v1/circuits/simulate"
+TRANSIENT = "/api/v1/circuits/simulate/transient"
 client = TestClient(app)
 
 #: Rawfile do ngspice para `fonte-resistencia` (12 V, 100 Ω).
@@ -47,7 +48,49 @@ Values:
 \t-1.200000000000000e-01
 """
 
+#: Rawfile do ngspice (após `linearize`) para `rc_circuit()`: 3 pontos.
+RC_TRANSIENT_RAW = """Title: * VCCCircuitLab: analise transitoria
+Plotname: Transient Analysis
+Flags: real
+No. Variables: 5
+No. Points: 3
+Variables:
+\t0\ttime\ttime
+\t1\tv(n1)\tvoltage
+\t2\tv(n2)\tvoltage
+\t3\ti(v1)\tcurrent
+\t4\t@c3[i]\tcurrent
+Values:
+ 0\t0.0
+\t10.0
+\t0.0
+\t-0.01
+\t0.01
+ 1\t5.0e-4
+\t10.0
+\t3.9
+\t-0.0061
+\t0.0061
+ 2\t1.0e-3
+\t10.0
+\t6.3
+\t-0.0037
+\t0.0037
+"""
+
 FakeNgspice = Callable[..., Path]
+
+
+def rc_circuit() -> dict[str, Any]:
+    """10 V, 1 kΩ e 1 µF em série (τ = 1 ms)."""
+    return circuit(
+        [comp("V1", "dc_voltage_source", voltageV=10), comp("R1", "resistor", resistanceOhm=1000)]
+        + [comp("C1", "capacitor", capacitanceF=1e-6), comp("GND1", "ground")],
+        ("V1.positive", "R1.a"),
+        ("R1.b", "C1.a"),
+        ("C1.b", "GND1.gnd"),
+        ("V1.negative", "GND1.gnd"),
+    )
 
 
 @pytest.fixture
@@ -93,6 +136,15 @@ def netlist_of(data: dict[str, Any]) -> Any:
     catalog = load_catalog()
     normalized = validate(CircuitDocument.model_validate(data), catalog).raise_for_errors()
     return build_netlist(normalized, catalog)
+
+
+def transient_netlist_of(data: dict[str, Any]) -> Any:
+    catalog = load_catalog()
+    document = CircuitDocument.model_validate(data)
+    normalized = validate(document, catalog, analysis="transient").raise_for_errors()
+    return build_transient_netlist(
+        normalized, catalog, stop_time_s=1e-3, time_step_s=1e-5, max_step_s=5e-7
+    )
 
 
 class TestNetlist:
@@ -141,6 +193,46 @@ class TestNetlist:
         assert by_name["R5"][2] == "100.0"
         assert netlist.sources == {"S1": "v3"}
 
+    def test_reactive_components_in_dc(self) -> None:
+        data = rc_circuit()
+        data["components"].append(comp("L1", "inductor"))
+        data["wires"][-1] = {"id": "W4", "from": "V1.negative", "to": "L1.a", "waypoints": []}
+        data["wires"].append({"id": "W5", "from": "L1.b", "to": "GND1.gnd", "waypoints": []})
+
+        netlist = netlist_of(data)
+
+        lines = netlist.text.splitlines()
+        assert not any(line.startswith("C") for line in lines)
+        assert "V4 n2 0 DC 0.0" in lines
+        assert netlist.sources == {"V1": "v1", "L1": "v4"}
+
+    def test_transient(self) -> None:
+        data = rc_circuit()
+        data["components"][2]["properties"]["initialVoltageV"] = 2.5
+        data["components"].append(comp("L1", "inductor", inductanceH=0.5, initialCurrentA=-1))
+        data["wires"][-1] = {"id": "W4", "from": "V1.negative", "to": "L1.a", "waypoints": []}
+        data["wires"].append({"id": "W5", "from": "L1.b", "to": "GND1.gnd", "waypoints": []})
+
+        netlist = transient_netlist_of(data)
+
+        assert netlist.text.splitlines() == [
+            "* VCCCircuitLab: analise transitoria",
+            "V1 n1 n2 DC 10.0",
+            "R2 n1 n3 1000.0",
+            "C3 n3 0 1e-06 IC=2.5",
+            "L4 n2 0 0.5 IC=-1.0",
+            ".options method=gear",
+            ".control",
+            "set filetype=ascii",
+            "save all @c3[i]",
+            "tran 1e-05 0.001 0 5e-07 uic",
+            "linearize",
+            "write result.raw",
+            ".endc",
+            ".end",
+        ]
+        assert netlist.sources == {"V1": "v1", "C1": "c3", "L1": "l4"}
+
     def test_user_text_never_reaches_the_netlist(self) -> None:
         data = source_resistor()
         data["name"] = ".include /etc/passwd"
@@ -170,6 +262,17 @@ class TestRawfile:
 
         assert raw.voltages == {"n1": 5.0, "n2": 2.5}
         assert raw.currents == {"v1": -0.001}
+
+    def test_transient_points(self) -> None:
+        raw = parse_rawfile(RC_TRANSIENT_RAW.replace("i(v1)", "v1#branch"))
+
+        assert raw.time == [0.0, 5e-4, 1e-3]
+        assert raw.voltage_series == {"n1": [10.0] * 3, "n2": [0.0, 3.9, 6.3]}
+        assert raw.current_series == {
+            "v1": [-0.01, -0.0061, -0.0037],
+            "c3": [0.01, 0.0061, 0.0037],
+        }
+        assert raw.voltages == {"n1": 10.0, "n2": 0.0}
 
     @pytest.mark.parametrize(
         "text",
@@ -310,6 +413,35 @@ class TestApiWithNgspice:
 
         assert response.status_code == 503
         assert response.json()["code"] == "SIMULATION_TIMEOUT"
+
+    def test_transient(
+        self, fake_ngspice: FakeNgspice, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("NGSPICE_PATH", str(fake_ngspice(raw=RC_TRANSIENT_RAW)))
+        body = {"circuit": rc_circuit(), "stopTimeS": 1e-3, "timeStepS": 5e-4}
+
+        response = client.post(TRANSIENT, json=body)
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["timeS"] == [0.0, 5e-4, 1e-3]
+        assert result["components"]["C1"]["voltageV"] == [0.0, 3.9, 6.3]
+        assert result["components"]["C1"]["currentA"] == [0.01, 0.0061, 0.0037]
+        assert result["components"]["V1"]["currentA"] == [-0.01, -0.0061, -0.0037]
+        assert result["components"]["R1"]["currentA"] == pytest.approx([0.01, 0.0061, 0.0037])
+        netlist = report(tmp_path)["netlist"]
+        assert "tran 0.0005 0.001 0 5e-07 uic" in netlist
+
+    def test_transient_rawfile_without_time_is_engine_error(
+        self, fake_ngspice: FakeNgspice, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("NGSPICE_PATH", str(fake_ngspice()))
+        body = {"circuit": rc_circuit(), "stopTimeS": 1e-3, "timeStepS": 5e-4}
+
+        response = client.post(TRANSIENT, json=body)
+
+        assert response.status_code == 503
+        assert response.json()["code"] == "SIMULATION_ENGINE_ERROR"
 
     def test_unknown_engine_is_503(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("SIMULATION_ENGINE", "spectre")

@@ -213,7 +213,7 @@ describe('EditorCanvas — paleta e rotação', () => {
     for (const group of ['Fontes', 'Passivos', 'Interruptores', 'Cargas', 'Referência']) {
       expect(screen.getByRole('region', { name: group })).toBeInTheDocument();
     }
-    expect(palette.querySelectorAll('.palette-item')).toHaveLength(6);
+    expect(palette.querySelectorAll('.palette-item')).toHaveLength(8);
     expect(paletteItem('Resistência').querySelector('svg')).toHaveAttribute(
       'data-symbol',
       'resistor_iec',

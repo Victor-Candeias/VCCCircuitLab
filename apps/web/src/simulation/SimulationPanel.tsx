@@ -1,12 +1,23 @@
 import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
-import type { CircuitIssue } from '../api/types';
+import { lazy, Suspense, useState } from 'react';
+import type { CircuitIssue, ComponentValues, TransientResult } from '../api/types';
 import { getComponentDefinition } from '../editor/catalog';
 import { parseTerminal } from '../editor/wiring';
 import { useEditorStore } from '../store/editorStore';
 import { formatQuantity } from './format';
 import { circuitNets } from './nets';
-import { isCurrent, useSimulationStore, type SimulationState } from './simulationStore';
+import {
+  isCurrent,
+  isValidTransient,
+  useSimulationStore,
+  type AnalysisKind,
+  type SimulationState,
+} from './simulationStore';
+import { finalValues, type Quantity } from './transient';
 import './simulation.css';
+
+// O Recharts só é descarregado quando há um resultado transitório para desenhar.
+const TransientChart = lazy(() => import('./TransientChart'));
 
 /** Seleciona no canvas os elementos citados num erro e destaca a primeira rede citada. */
 function showRefs(circuit: CircuitDocument, refs: readonly string[]) {
@@ -51,14 +62,16 @@ function SimulationBody({
   simulation: SimulationState;
   circuit: CircuitDocument;
 }) {
-  const selectedIds = useEditorStore((s) => s.selectedIds);
-  const highlightedNet = useSimulationStore((s) => s.highlightedNet);
+  const analysis = useSimulationStore((s) => s.analysis);
 
   if (simulation.status === 'idle') {
     return (
       <p className="results__hint" role="status">
-        Simule o circuito para ver a tensão, a corrente e a potência de cada componente e a tensão
-        de cada rede.
+        {analysis === 'transient'
+          ? 'Simule o circuito para ver a evolução no tempo das tensões e correntes: as fontes ' +
+            'ligam-se em t = 0 e os condensadores e bobinas partem das condições iniciais.'
+          : 'Simule o circuito para ver a tensão, a corrente e a potência de cada componente e a ' +
+            'tensão de cada rede.'}
       </p>
     );
   }
@@ -92,12 +105,6 @@ function SimulationBody({
   }
 
   const { result } = simulation;
-  const nets = circuitNets(circuit);
-  const rows = circuit.components.filter((c) => result.components[c.id]);
-  const select = (id: string) => useEditorStore.getState().setSelection([id]);
-  const toggleNet = (id: string) =>
-    useSimulationStore.getState().setHighlightedNet(highlightedNet === id ? null : id);
-
   return (
     <>
       {result.warnings.length > 0 && (
@@ -106,7 +113,67 @@ function SimulationBody({
           <IssueList issues={result.warnings} circuit={circuit} className="results__issues" />
         </div>
       )}
+      {result.analysis === 'transient' ? (
+        <TransientView result={result} circuit={circuit} />
+      ) : (
+        <ResultTables values={result} circuit={circuit} />
+      )}
+    </>
+  );
+}
 
+function TransientView({ result, circuit }: { result: TransientResult; circuit: CircuitDocument }) {
+  const [quantity, setQuantity] = useState<Quantity>('nets');
+  const components = circuit.components.filter((c) => result.components[c.id]);
+  const end = result.timeS[result.timeS.length - 1] ?? 0;
+
+  return (
+    <>
+      <label className="results__field">
+        Gráfico
+        <select value={quantity} onChange={(event) => setQuantity(event.target.value as Quantity)}>
+          <option value="nets">Tensões das redes</option>
+          {components.map((c) => (
+            <option key={`v-${c.id}`} value={`voltage:${c.id}`}>
+              Tensão em {c.id}
+            </option>
+          ))}
+          {components.map((c) => (
+            <option key={`i-${c.id}`} value={`current:${c.id}`}>
+              Corrente em {c.id}
+            </option>
+          ))}
+        </select>
+      </label>
+      <figure className="results__chart" aria-label="Gráfico da análise transitória">
+        <Suspense fallback={<p className="results__hint">A carregar o gráfico…</p>}>
+          <TransientChart result={result} quantity={quantity} />
+        </Suspense>
+      </figure>
+      <h3 className="results__subtitle">Valores finais (t = {formatQuantity(end, 's')})</h3>
+      <ResultTables values={finalValues(result)} circuit={circuit} />
+    </>
+  );
+}
+
+/** Tabelas por componente e por rede (resultado DC ou valores finais da transitória). */
+function ResultTables({
+  values,
+  circuit,
+}: {
+  values: { nodeVoltagesV: Record<string, number>; components: Record<string, ComponentValues> };
+  circuit: CircuitDocument;
+}) {
+  const selectedIds = useEditorStore((s) => s.selectedIds);
+  const highlightedNet = useSimulationStore((s) => s.highlightedNet);
+  const nets = circuitNets(circuit);
+  const rows = circuit.components.filter((c) => values.components[c.id]);
+  const select = (id: string) => useEditorStore.getState().setSelection([id]);
+  const toggleNet = (id: string) =>
+    useSimulationStore.getState().setHighlightedNet(highlightedNet === id ? null : id);
+
+  return (
+    <>
       <table className="results__table" aria-label="Resultados por componente">
         <thead>
           <tr>
@@ -118,7 +185,7 @@ function SimulationBody({
         </thead>
         <tbody>
           {rows.map((component) => {
-            const values = result.components[component.id];
+            const row = values.components[component.id];
             const label = getComponentDefinition(component.type)?.label ?? component.type;
             return (
               <tr
@@ -135,9 +202,9 @@ function SimulationBody({
                     {component.id}
                   </button>
                 </th>
-                <td>{formatQuantity(values.voltageV, 'V')}</td>
-                <td>{formatQuantity(values.currentA, 'A')}</td>
-                <td>{formatQuantity(values.powerW, 'W')}</td>
+                <td>{formatQuantity(row.voltageV, 'V')}</td>
+                <td>{formatQuantity(row.currentA, 'A')}</td>
+                <td>{formatQuantity(row.powerW, 'W')}</td>
               </tr>
             );
           })}
@@ -159,7 +226,7 @@ function SimulationBody({
         </thead>
         <tbody>
           {nets.map((net) => {
-            const voltage = result.nodeVoltagesV[net.id];
+            const voltage = values.nodeVoltagesV[net.id];
             const highlighted = highlightedNet === net.id;
             return (
               <tr key={net.id} className={highlighted ? 'is-highlighted' : undefined}>
@@ -185,26 +252,104 @@ function SimulationBody({
   );
 }
 
-/** Painel de simulação: botão Simular, resultados por componente e por rede, avisos e erros. */
+/** Campo numérico em `unit` (ms, µs…) para um valor guardado em segundos (`NaN` se inválido). */
+function SecondsField({
+  label,
+  unit,
+  factor,
+  value,
+  onChange,
+}: {
+  label: string;
+  unit: string;
+  factor: number;
+  value: number;
+  onChange: (seconds: number) => void;
+}) {
+  const [text, setText] = useState(() => String(Number((value / factor).toPrecision(12))));
+  const invalid = !(Number.isFinite(value) && value > 0);
+  return (
+    <label className="results__field">
+      {label} ({unit})
+      <input
+        type="number"
+        min={0}
+        step="any"
+        value={text}
+        aria-invalid={invalid || undefined}
+        onChange={(event) => {
+          setText(event.target.value);
+          const parsed = event.target.value.trim() === '' ? Number.NaN : Number(event.target.value);
+          onChange(Number((parsed * factor).toPrecision(12)));
+        }}
+      />
+    </label>
+  );
+}
+
+function AnalysisControls() {
+  const analysis = useSimulationStore((s) => s.analysis);
+  const transient = useSimulationStore((s) => s.transient);
+  const { setAnalysis, setTransient } = useSimulationStore.getState();
+
+  return (
+    <div className="results__analysis">
+      <label className="results__field">
+        Análise
+        <select
+          value={analysis}
+          onChange={(event) => setAnalysis(event.target.value as AnalysisKind)}
+        >
+          <option value="dc">Ponto de funcionamento (DC)</option>
+          <option value="transient">Transitória (no tempo)</option>
+        </select>
+      </label>
+      {analysis === 'transient' && (
+        <>
+          <SecondsField
+            label="Duração"
+            unit="ms"
+            factor={1e-3}
+            value={transient.stopTimeS}
+            onChange={(stopTimeS) => setTransient({ stopTimeS })}
+          />
+          <SecondsField
+            label="Passo"
+            unit="µs"
+            factor={1e-6}
+            value={transient.timeStepS}
+            onChange={(timeStepS) => setTransient({ timeStepS })}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Painel de simulação: análise (DC ou transitória), botão Simular, resultados, avisos e erros. */
 export function SimulationPanel() {
   const circuit = useEditorStore((s) => s.circuit);
   const simulation = useSimulationStore((s) => s.simulation);
+  const invalidParameters = useSimulationStore(
+    (s) => s.analysis === 'transient' && !isValidTransient(s.transient),
+  );
   const running = simulation.status === 'running';
   const empty = circuit.components.length === 0;
 
   return (
     <aside className="results" aria-label="Simulação">
       <div className="results__header">
-        <h2>Simulação DC</h2>
+        <h2>Simulação</h2>
         <button
           type="button"
           className="results__run"
-          disabled={running || empty}
+          disabled={running || empty || invalidParameters}
           onClick={() => void useSimulationStore.getState().simulate(circuit)}
         >
           {running ? 'A simular…' : 'Simular'}
         </button>
       </div>
+      <AnalysisControls />
       <SimulationBody simulation={simulation} circuit={circuit} />
     </aside>
   );

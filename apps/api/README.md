@@ -58,6 +58,7 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 | Topologia (com componentes interpretáveis) | `UNCONNECTED_PIN` (aviso), `MISSING_GROUND`, `VOLTAGE_SOURCE_LOOP`, `FLOATING_NET`, `CURRENT_SOURCE_CUTSET` |
 
 - Na topologia, cada rede é um nó e a terra liga a sua rede a um nó de referência. Resistências e lâmpadas são condutoras. Interruptores fechados, fontes de tensão e terra têm impedância nula. Interruptores abertos e fontes de corrente não fixam potencial.
+- Condensadores e bobinas dependem da análise (`validate(..., analysis="dc" | "transient")`, F2-02). Em DC, o condensador é um circuito aberto e a bobina tem impedância nula, pelo que uma bobina em paralelo com uma fonte de tensão é `VOLTAGE_SOURCE_LOOP`. Na transitória, ambos são condutores: uma malha fonte de tensão–condensador é aceite (o salto em t = 0 é resolvido pelo primeiro passo).
 - `VOLTAGE_SOURCE_LOOP`: malha só de impedância nula que inclui uma fonte de tensão, como uma fonte em curto, fontes em paralelo ou uma fonte entre duas terras. Os `refs` dão a malha. As malhas só de interruptores ou de terras são aceites.
 - `FLOATING_NET`: grupo de redes sem caminho condutor até à terra, porque o potencial fica indefinido. Se o grupo toca numa fonte de corrente, o erro é `CURRENT_SOURCE_CUTSET` (fonte em aberto ou fontes em série). Sem terra, só se reporta `MISSING_GROUND`.
 - O catálogo é lido da coleção `templates` do MongoDB (`app/circuit/catalog.py::load_catalog()`, sem cache de processo), gerida por administradores (ver [Templates de componentes](#templates-de-componentes-f2-10)).
@@ -79,7 +80,7 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 }
 ```
 
-- **Modelos:** a resistência e a lâmpada são condutâncias (lâmpada: R = `ratedVoltageV`² / `ratedPowerW`). Um interruptor fechado é uma fonte de 0 V; um interruptor aberto não entra na matriz (sem R = 0 nem R = ∞). A fonte de corrente injeta `currentA` na rede de `positive`. Todas as redes com terra ficam a 0 V.
+- **Modelos:** a resistência e a lâmpada são condutâncias (lâmpada: R = `ratedVoltageV`² / `ratedPowerW`). O condensador é um circuito aberto (corrente 0) e a bobina uma fonte de 0 V (`dc_branches()`). Um interruptor fechado é uma fonte de 0 V; um interruptor aberto não entra na matriz (sem R = 0 nem R = ∞). A fonte de corrente injeta `currentA` na rede de `positive`. Todas as redes com terra ficam a 0 V.
 - **Sinais (convenção passiva, pinos pela ordem do catálogo):** `voltageV = V(pino1) − V(pino2)`. `currentA` entra pelo pino 1 e atravessa o componente. `powerW = voltageV × currentA` é a potência absorvida, negativa quando o componente fornece energia. A soma das potências é 0. A terra não tem resultado próprio.
 - **Erros numéricos:** `SINGULAR_MATRIX` e `ILL_CONDITIONED_MATRIX` (número de condição > 1e12) são erros, para nunca devolver resultados falsos. Com o validador, só ocorrem com valores extremos (por exemplo, resistências de 1e-13 Ω).
 - **Avisos:** os avisos do validador (por exemplo `UNCONNECTED_PIN`) passam para `warnings`.
@@ -94,19 +95,41 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 
 Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_cases()` (`tests/factories.py`) disponibiliza as mesmas fixtures a outros testes.
 
+## Análise transitória (F2-02)
+
+`app/solver/transient.py`: `simulate_transient(doc, stop_time_s=…, time_step_s=…)` calcula a resposta no tempo entre 0 e `stopTimeS`. As fontes (DC) ligam-se em t = 0 e os condensadores (`capacitanceF`, `initialVoltageV`) e bobinas (`inductanceH`, `initialCurrentA`) partem das condições iniciais (0 por omissão): é a resposta ao degrau de circuitos RC, RL e RLC.
+
+```json
+{
+  "analysis": "transient",
+  "status": "success",
+  "timeS": [0, 0.00001, …],
+  "nodeVoltagesV": { "N1": [5, 5, …], "N2": [0, 0.0499, …] },
+  "components": { "C1": { "voltageV": […], "currentA": […], "powerW": […] } },
+  "warnings": []
+}
+```
+
+- **Integração:** BDF2 (Gear de 2.ª ordem, L-estável, sem oscilações numéricas) com modelos companheiros e passo fixo. O primeiro passo é de Euler implícito. Há subpassos internos para ter pelo menos 2000 passos, e a saída fica nos instantes `k · stopTimeS / n`, com n = ⌈`stopTimeS` / `timeStepS`⌉.
+- **t = 0:** solução consistente com as condições iniciais (condensadores como fontes de tensão, bobinas como fontes de corrente). Se for singular (por exemplo, um condensador diretamente aos terminais de uma fonte), usa-se o estado em 0⁺.
+- **Sinais e erros:** mesma convenção passiva e mesmos erros numéricos da DC; o prazo `SIMULATION_TIMEOUT_S` é verificado durante a integração.
+- **Limites:** `stopTimeS` ∈ ]0, 1000] s, `timeStepS` > 0 e no máximo 10 000 intervalos de saída. Fora disto, a resposta é `422 INVALID_PARAMETERS` com `pointer` `/stopTimeS` ou `/timeStepS`.
+- **Testes:** `tests/test_solver_transient.py` compara com as soluções analíticas (carga RC, RL, RLC subamortecido e condições iniciais).
+
 ## Motor ngspice (F2-01)
 
-`SIMULATION_ENGINE` escolhe o motor de `POST /simulate`: `mna` (por omissão, o solver acima) ou `ngspice`. A escolha é feita em `app/solver/engine.py`. A resposta tem o mesmo formato com os dois motores. O ngspice prepara as fases seguintes (componentes não lineares, análise transitória).
+`SIMULATION_ENGINE` escolhe o motor de `POST /simulate` e `POST /simulate/transient`: `mna` (por omissão, os solvers acima) ou `ngspice`. A escolha é feita em `app/solver/engine.py`. A resposta tem o mesmo formato com os dois motores.
 
 - **Netlist** (`app/spice/netlist.py`): o circuito validado é traduzido com as mesmas estampas do MNA (`dc_branches()`):
   - as redes com terra ficam no nó `0` e as restantes em `n1`, `n2`, …;
-  - resistências e lâmpadas → `R`; fontes de tensão → `V … DC`; interruptores fechados → `V … DC 0`; interruptores abertos → sem elemento; fontes de corrente → `I neg pos DC`.
+  - resistências e lâmpadas → `R`; fontes de tensão → `V … DC`; interruptores fechados → `V … DC 0`; interruptores abertos → sem elemento; fontes de corrente → `I neg pos DC`;
+  - em DC, condensadores → sem elemento e bobinas → `V … DC 0`; na transitória (`build_transient_netlist`) → `C … IC=` e `L … IC=`, com `.options method=gear` e `tran passo fim 0 passo_máx uic` seguido de `linearize` (pontos equidistantes, iguais aos do MNA).
   
   Os nomes de nós e elementos são gerados, e os valores são `float` validados. Ids, nomes e etiquetas do utilizador nunca entram na netlist, o que impede injetar diretivas (`.include`, `.control`, `shell`).
 - **Execução isolada** (`app/spice/runner.py`): `ngspice -b` num diretório temporário próprio, num grupo de processos novo, com ambiente mínimo e sem stdin.
   - O lançador `app/spice/sandbox.py` aplica `RLIMIT_CPU`, `RLIMIT_AS` (`NGSPICE_MAX_MEMORY_MB`), `RLIMIT_FSIZE` (16 MiB) e `RLIMIT_CORE=0` antes do `exec`.
   - Se `SIMULATION_TIMEOUT_S` for excedido, o grupo de processos é morto (`503 SIMULATION_TIMEOUT`).
-- **Resultado** (`app/spice/rawfile.py`): o rawfile ASCII de `op` é lido (aceita `v(n1)`/`i(v1)` e `n1`/`v1#branch`). As tensões e as correntes de ramo das fontes passam por `component_results()`, a mesma conversão do MNA.
+- **Resultado** (`app/spice/rawfile.py`): o rawfile ASCII é lido, com um ponto (`op`) ou vários (`tran`, com o vetor `time`). Aceita `v(n1)`/`i(v1)`, `n1`/`v1#branch` e `@c1[i]` (corrente dos condensadores). As tensões e as correntes de ramo das fontes passam por `component_results()`, a mesma conversão do MNA.
 - **Erros:**
   - sistema singular reportado pelo ngspice → `422 SINGULAR_MATRIX`;
   - ngspice inexistente, `SIMULATION_ENGINE` inválido ou falha do ngspice → `503 SIMULATION_ENGINE_ERROR` (o detalhe fica só no log do servidor).
@@ -119,7 +142,7 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 
 Testes:
 - `tests/test_spice.py` cobre a netlist, o rawfile, os limites, o timeout e os erros, com um ngspice falso.
-- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6). É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
+- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6), e as transitórias RC, RL e RLC (tolerância de 0,5 % do máximo de cada série). É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
 
 Instalação local: `sudo apt-get install ngspice`. Na imagem Docker: `--build-arg WITH_NGSPICE=true`, ou `WITH_NGSPICE=true` no `.env` do compose.
 
@@ -134,6 +157,7 @@ O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `appli
 | `POST` | `/api/v1/circuits/generate` | Documento canónico gerado (`CircuitDocument`, com `nets` já calculado). Corpo: `{ template, parameters }` (ver [Geração por templates](#geração-por-templates)). |
 | `POST` | `/api/v1/circuits/validate` | `{ valid, errors[], warnings[], nets[] \| null }`. Os erros de circuito fazem parte do relatório e não são erros HTTP. `nets` traz a partição em redes quando a normalização foi possível. |
 | `POST` | `/api/v1/circuits/simulate` | Resultado DC (ver [Solver MNA DC](#solver-mna-dc)). |
+| `POST` | `/api/v1/circuits/simulate/transient` | Séries no tempo. Corpo: `{ circuit, stopTimeS, timeStepS }` (ver [Análise transitória](#análise-transitória-f2-02)). |
 | `GET` | `/api/v1/components` | Catálogo de componentes (E2-06): `{ catalogVersion, gridSize, components[] }`. Cada componente traz o schema completo de propriedades (`NumberPropertyDefinition`/`BooleanPropertyDefinition`, com `unit`, `default` e limites) e `supported` (`simulationModel !== null`), para clientes assinalarem componentes desenháveis mas não simuláveis. Fonte: coleção `templates` do MongoDB (ver [Templates de componentes](#templates-de-componentes-f2-10)); `catalogVersion`/`gridSize` são constantes (`app/circuit/catalog.py`). |
 
 ### Geração por templates
@@ -204,9 +228,9 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 |---|---|---|
 | `…:malformed-json` | 400 | `MALFORMED_JSON` |
 | `about:blank` | 415 | `UNSUPPORTED_MEDIA_TYPE` (corpo que não é JSON) |
-| `…:invalid-document` | 422 | `INVALID_COMPONENT` (erro de esquema em `components[i]`, com `refs: [id]`), `INVALID_DOCUMENT` (restantes, incluindo `NaN` e `Infinity`) |
+| `…:invalid-document` | 422 | `INVALID_COMPONENT` (erro de esquema em `components[i]`, com `refs: [id]`; na transitória o `pointer` começa em `/circuit`), `INVALID_DOCUMENT` (restantes, incluindo `NaN` e `Infinity`) |
 | `…:unknown-template` | 422 | `UNKNOWN_TEMPLATE` (nome de `template` não existe no registo) |
-| `…:invalid-parameters` | 422 | `INVALID_PARAMETERS` (campo em falta, extra ou fora dos limites, com `pointer` em `/parameters/…`) |
+| `…:invalid-parameters` | 422 | `INVALID_PARAMETERS` (campo em falta, extra ou fora dos limites, com `pointer` em `/parameters/…`; na transitória, `/stopTimeS` ou `/timeStepS`) |
 | `…:invalid-circuit` | 422 | Códigos do validador: `UNKNOWN_TERMINAL`, `FLOATING_NET`, `MISSING_GROUND`, `UNSUPPORTED_MODEL`, `INVALID_VALUE`, … |
 | `…:simulation-failed` | 422 | `SINGULAR_MATRIX`, `ILL_CONDITIONED_MATRIX` |
 | `…:invalid-credentials` | 401 | `INVALID_CREDENTIALS` (login com email ou password errados) |

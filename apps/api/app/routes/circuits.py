@@ -1,12 +1,13 @@
-"""Circuitos: `POST /api/v1/circuits/{generate,validate,simulate}`."""
+"""Circuitos: `POST /api/v1/circuits/{generate,validate,simulate,simulate/transient}`."""
 
 import os
+from collections.abc import Callable
 from functools import partial
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Protocol
 
 import anyio
 from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, ValidationInfo, field_validator
 
 from app.circuit.catalog import load_catalog
 from app.circuit.errors import CircuitError
@@ -16,7 +17,8 @@ from app.generation.errors import InvalidParametersError, UnknownTemplateError
 from app.generation.registry import get_template
 from app.models.circuit import CircuitDocument
 from app.problems import CircuitIssue, SimulationTimeoutError, problem_responses
-from app.solver.engine import simulate
+from app.solver.engine import simulate, simulate_transient
+from app.solver.transient import MAX_OUTPUT_INTERVALS, MAX_STOP_TIME_S, output_intervals
 
 #: Tempo máximo de uma simulação, em segundos (variável de ambiente `SIMULATION_TIMEOUT_S`).
 SIMULATION_TIMEOUT_S = float(os.environ.get("SIMULATION_TIMEOUT_S", "5"))
@@ -56,6 +58,42 @@ class SimulationResponse(_AliasedModel):
     node_voltages_v: dict[str, float] = Field(alias="nodeVoltagesV")
     components: dict[str, ComponentValues]
     warnings: list[CircuitIssue]
+
+
+class ComponentSeriesOut(_AliasedModel):
+    voltage_v: list[float] = Field(alias="voltageV")
+    current_a: list[float] = Field(alias="currentA")
+    power_w: list[float] = Field(alias="powerW")
+
+
+class TransientResponse(_AliasedModel):
+    analysis: Literal["transient"]
+    status: Literal["success"]
+    time_s: list[float] = Field(alias="timeS")
+    node_voltages_v: dict[str, list[float]] = Field(alias="nodeVoltagesV")
+    components: dict[str, ComponentSeriesOut]
+    warnings: list[CircuitIssue]
+
+
+class TransientRequest(_AliasedModel):
+    model_config = ConfigDict(
+        validate_by_name=True, validate_by_alias=True, serialize_by_alias=True, extra="forbid"
+    )
+    circuit: CircuitDocument
+    #: Duração da simulação (s); as fontes ligam-se em t = 0.
+    stop_time_s: float = Field(alias="stopTimeS", gt=0, le=MAX_STOP_TIME_S, allow_inf_nan=False)
+    #: Passo de saída (s); o efetivo é `stopTimeS / ceil(stopTimeS / timeStepS)`.
+    time_step_s: float = Field(alias="timeStepS", gt=0, allow_inf_nan=False)
+
+    @field_validator("time_step_s")
+    @classmethod
+    def _limit_points(cls, value: float, info: ValidationInfo) -> float:
+        stop = info.data.get("stop_time_s")
+        if stop is not None and output_intervals(stop, value) > MAX_OUTPUT_INTERVALS:
+            raise ValueError(
+                f"demasiados pontos: stopTimeS / timeStepS não pode exceder {MAX_OUTPUT_INTERVALS}"
+            )
+        return value
 
 
 class GenerateRequest(_AliasedModel):
@@ -122,13 +160,46 @@ def _issue(error: CircuitError) -> dict[str, Any]:
 )
 async def simulate_circuit(document: CircuitDocument) -> dict[str, Any]:
     catalog = load_catalog()
+    return await _run_simulation(
+        partial(simulate, document, catalog, timeout_s=SIMULATION_TIMEOUT_S)
+    )
+
+
+@router.post(
+    "/simulate/transient",
+    response_model=TransientResponse,
+    responses=problem_responses(400, 415, 422, 503),
+    summary="Simular a resposta transitória (condensadores e bobinas)",
+    description=(
+        "As fontes DC ligam-se em t = 0 e os condensadores/bobinas partem das condições "
+        f"iniciais. `stopTimeS` ∈ ]0, {MAX_STOP_TIME_S:g}] s e no máximo "
+        f"{MAX_OUTPUT_INTERVALS} intervalos de saída. Mesmo motor e timeout que `/simulate`."
+    ),
+)
+async def simulate_circuit_transient(body: TransientRequest) -> dict[str, Any]:
+    catalog = load_catalog()
+    return await _run_simulation(
+        partial(
+            simulate_transient,
+            body.circuit,
+            catalog,
+            stop_time_s=body.stop_time_s,
+            time_step_s=body.time_step_s,
+            timeout_s=SIMULATION_TIMEOUT_S,
+        )
+    )
+
+
+class _Result(Protocol):
+    def to_json_dict(self) -> dict[str, Any]: ...
+
+
+async def _run_simulation(run: Callable[[], _Result]) -> dict[str, Any]:
     try:
         with anyio.fail_after(SIMULATION_TIMEOUT_S):
-            # A thread não é interrompida: só deixa de se esperar por ela.
-            result = await anyio.to_thread.run_sync(
-                partial(simulate, document, catalog, timeout_s=SIMULATION_TIMEOUT_S),
-                abandon_on_cancel=True,
-            )
+            # A thread não é interrompida: só deixa de se esperar por ela (a análise
+            # transitória do MNA verifica ela própria o prazo).
+            result = await anyio.to_thread.run_sync(run, abandon_on_cancel=True)
     except TimeoutError as exc:
         raise SimulationTimeoutError(SIMULATION_TIMEOUT_S) from exc
     return result.to_json_dict()

@@ -11,14 +11,20 @@ Correspondência (mesmas estampas do solver MNA, `app/solver/mna.py`):
 - fonte de tensão → `V pos neg DC v`; interruptor fechado → `V a b DC 0` (dá a corrente);
 - interruptor aberto → sem elemento;
 - fonte de corrente → `I neg pos DC i`: no SPICE a corrente atravessa a fonte de `n+` para
-  `n-`, logo sai pelo terminal `positive` para o circuito externo, como no MNA.
+  `n-`, logo sai pelo terminal `positive` para o circuito externo, como no MNA;
+- condensador → aberto em DC; `C a b val IC=v0` na análise transitória (corrente `@cK[i]`);
+- bobina → `V a b DC 0` em DC; `L a b val IC=i0` na análise transitória.
+
+A análise transitória (F2-02) usa `tran passo fim 0 passo_máx uic` (sem ponto de
+funcionamento inicial: as fontes ligam-se em t = 0 e os elementos reativos partem de `IC=`),
+com o método de Gear, e `linearize` para devolver pontos equidistantes.
 """
 
 from dataclasses import dataclass
 
 from app.circuit.catalog import ComponentCatalog
 from app.circuit.normalize import NormalizedCircuit
-from app.solver.mna import Branch, BranchKind, dc_branches
+from app.solver.mna import Branch, BranchKind, circuit_branches, dc_branches
 
 GROUND_NODE = "0"
 RAWFILE_NAME = "result.raw"
@@ -31,19 +37,58 @@ class Netlist:
     """Rede do documento → nó SPICE."""
     branches: list[Branch]
     sources: dict[str, str]
-    """Componente com corrente de ramo (fonte de tensão, interruptor fechado) → elemento `V`."""
+    """Componente com corrente lida do rawfile (fonte de tensão, interruptor fechado e, na
+    análise transitória, bobina e condensador) → elemento SPICE (minúsculas)."""
 
 
 def build_netlist(normalized: NormalizedCircuit, catalog: ComponentCatalog) -> Netlist:
     grounded, branches = dc_branches(normalized, catalog)
+    nodes = _nodes(normalized, grounded)
+    elements, sources = _elements(branches, nodes)
+    lines = ["* VCCCircuitLab: ponto de funcionamento DC", *elements]
+    lines += [".control", "set filetype=ascii", "op", f"write {RAWFILE_NAME}", ".endc", ".end", ""]
+    return Netlist("\n".join(lines), nodes, branches, sources)
+
+
+def build_transient_netlist(
+    normalized: NormalizedCircuit,
+    catalog: ComponentCatalog,
+    *,
+    stop_time_s: float,
+    time_step_s: float,
+    max_step_s: float,
+) -> Netlist:
+    grounded, branches = circuit_branches(normalized, catalog)
+    nodes = _nodes(normalized, grounded)
+    elements, sources = _elements(branches, nodes)
+    device_currents = [f"@{e}[i]" for e in sources.values() if e.startswith("c")]
+    lines = ["* VCCCircuitLab: analise transitoria", *elements, ".options method=gear"]
+    lines += [".control", "set filetype=ascii"]
+    if device_currents:
+        lines.append(f"save all {' '.join(device_currents)}")
+    lines += [
+        f"tran {_value(time_step_s)} {_value(stop_time_s)} 0 {_value(max_step_s)} uic",
+        "linearize",
+        f"write {RAWFILE_NAME}",
+        ".endc",
+        ".end",
+        "",
+    ]
+    return Netlist("\n".join(lines), nodes, branches, sources)
+
+
+def _nodes(normalized: NormalizedCircuit, grounded: set[str]) -> dict[str, str]:
     nodes: dict[str, str] = {}
     for net in normalized.document.nets or []:
         if net.id in grounded:
             nodes[net.id] = GROUND_NODE
         else:
             nodes[net.id] = f"n{sum(n != GROUND_NODE for n in nodes.values()) + 1}"
+    return nodes
 
-    lines = ["* VCCCircuitLab: ponto de funcionamento DC"]
+
+def _elements(branches: list[Branch], nodes: dict[str, str]) -> tuple[list[str], dict[str, str]]:
+    lines: list[str] = []
     sources: dict[str, str] = {}
     for k, br in enumerate(branches, start=1):
         a, b = nodes[br.a], nodes[br.b]
@@ -54,9 +99,14 @@ def build_netlist(normalized: NormalizedCircuit, catalog: ComponentCatalog) -> N
             lines.append(f"V{k} {a} {b} DC {_value(br.value)}")
         elif br.kind is BranchKind.CURRENT:
             lines.append(f"I{k} {b} {a} DC {_value(br.value)}")
+        elif br.kind is BranchKind.CAPACITOR:
+            sources[br.component] = f"c{k}"
+            lines.append(f"C{k} {a} {b} {_value(br.value)} IC={_value(br.initial)}")
+        elif br.kind is BranchKind.INDUCTOR:
+            sources[br.component] = f"l{k}"
+            lines.append(f"L{k} {a} {b} {_value(br.value)} IC={_value(br.initial)}")
         # BranchKind.OPEN (interruptor aberto): sem elemento.
-    lines += [".control", "set filetype=ascii", "op", f"write {RAWFILE_NAME}", ".endc", ".end", ""]
-    return Netlist("\n".join(lines), nodes, branches, sources)
+    return lines, sources
 
 
 def _value(value: float) -> str:

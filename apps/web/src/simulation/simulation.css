@@ -154,3 +154,47 @@
   color: var(--accent);
   text-decoration: underline;
 }
+
+.results__analysis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
+.results__field {
+  display: flex;
+  flex: 1 1 120px;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.results__field select,
+.results__field input {
+  min-width: 0;
+  padding: 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg, #fff);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.results__field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.results__chart {
+  margin: 0;
+  min-height: 220px;
+}
+
+.results__subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-h);
+}

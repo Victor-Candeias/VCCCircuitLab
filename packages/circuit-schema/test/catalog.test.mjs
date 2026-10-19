@@ -10,13 +10,15 @@ const catalog = await readJson(new URL('./fixtures/catalog.json', import.meta.ur
 const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });
 const validateCatalog = ajv.compile(catalogSchema);
 
-const MVP_TYPES = [
+const CATALOG_TYPES = [
   'dc_voltage_source',
   'dc_current_source',
   'resistor',
   'switch',
   'lamp',
   'ground',
+  'capacitor',
+  'inductor',
 ];
 
 const byType = new Map(catalog.components.map((c) => [c.type, c]));
@@ -30,8 +32,8 @@ describe('catálogo', () => {
     assert.ok(validateCatalog(catalog), JSON.stringify(validateCatalog.errors, null, 2));
   });
 
-  test('contém os componentes do MVP', () => {
-    assert.deepEqual([...byType.keys()].sort(), [...MVP_TYPES].sort());
+  test('contém os componentes do catálogo', () => {
+    assert.deepEqual([...byType.keys()].sort(), [...CATALOG_TYPES].sort());
   });
 
   test('tipos e prefixos de ID são únicos', () => {

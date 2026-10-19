@@ -125,6 +125,70 @@
       "simulationModel": "resistive_lamp"
     },
     {
+      "type": "capacitor",
+      "label": "Condensador",
+      "description": "Condensador ideal. Em DC é um circuito aberto; na análise transitória parte da tensão inicial `initialVoltageV` (pino `a` em relação ao pino `b`).",
+      "category": "passive",
+      "idPrefix": "C",
+      "symbol": "capacitor_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "a", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "b", "kind": "passive", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "capacitanceF": {
+          "type": "number",
+          "title": "Capacidade",
+          "unit": "F",
+          "default": 0.0001,
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "initialVoltageV": {
+          "type": "number",
+          "title": "Tensão inicial",
+          "unit": "V",
+          "default": 0,
+          "minimum": -1000,
+          "maximum": 1000
+        }
+      },
+      "simulationModel": "capacitor"
+    },
+    {
+      "type": "inductor",
+      "label": "Bobina",
+      "description": "Bobina ideal (sem resistência). Em DC é um curto-circuito; na análise transitória parte da corrente inicial `initialCurrentA` (do pino `a` para o pino `b`).",
+      "category": "passive",
+      "idPrefix": "L",
+      "symbol": "inductor_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "a", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "b", "kind": "passive", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "inductanceH": {
+          "type": "number",
+          "title": "Indutância",
+          "unit": "H",
+          "default": 0.1,
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "initialCurrentA": {
+          "type": "number",
+          "title": "Corrente inicial",
+          "unit": "A",
+          "default": 0,
+          "minimum": -100,
+          "maximum": 100
+        }
+      },
+      "simulationModel": "inductor"
+    },
+    {
       "type": "ground",
       "label": "Terra",
       "description": "Referência de potencial (0 V) do circuito.",

@@ -15,6 +15,8 @@ PINS = {
     "resistor": ["a", "b"],
     "switch": ["a", "b"],
     "lamp": ["a", "b"],
+    "capacitor": ["a", "b"],
+    "inductor": ["a", "b"],
     "ground": ["gnd"],
 }
 PROPERTIES: dict[str, dict[str, Any]] = {
@@ -23,6 +25,8 @@ PROPERTIES: dict[str, dict[str, Any]] = {
     "resistor": {"resistanceOhm": 100},
     "switch": {"closed": True},
     "lamp": {"ratedVoltageV": 12, "ratedPowerW": 5},
+    "capacitor": {"capacitanceF": 1e-4, "initialVoltageV": 0},
+    "inductor": {"inductanceH": 0.1, "initialCurrentA": 0},
     "ground": {},
 }
 

@@ -416,7 +416,7 @@ class TestDocumentRules:
 
     def test_unknown_component_type(self) -> None:
         data = source_resistor()
-        data["components"].append({**comp("R2", "resistor"), "type": "capacitor"})
+        data["components"].append({**comp("R2", "resistor"), "type": "transformer"})
 
         report = run(data)
 

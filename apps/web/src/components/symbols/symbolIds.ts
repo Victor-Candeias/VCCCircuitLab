@@ -3,6 +3,8 @@ export const SYMBOL_IDS = [
   'dc_voltage_source_iec',
   'dc_current_source_iec',
   'resistor_iec',
+  'capacitor_iec',
+  'inductor_iec',
   'switch_spst_iec',
   'lamp_iec',
   'ground_iec',

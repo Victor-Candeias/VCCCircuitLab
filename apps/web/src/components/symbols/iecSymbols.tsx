@@ -80,6 +80,29 @@ function ResistorSymbol() {
   );
 }
 
+/** Condensador (IEC 60617-04-02-01): duas armaduras paralelas. */
+function CapacitorSymbol() {
+  return (
+    <>
+      <Lead from={{ x: -40, y: 0 }} to={{ x: -5, y: 0 }} />
+      <Lead from={{ x: 5, y: 0 }} to={{ x: 40, y: 0 }} />
+      <Line from={{ x: -5, y: -14 }} to={{ x: -5, y: 14 }} />
+      <Line from={{ x: 5, y: -14 }} to={{ x: 5, y: 14 }} />
+    </>
+  );
+}
+
+/** Bobina (IEC 60617-04-03-01): quatro semicírculos. */
+function InductorSymbol() {
+  return (
+    <>
+      <Lead from={{ x: -40, y: 0 }} to={{ x: -24, y: 0 }} />
+      <Lead from={{ x: 24, y: 0 }} to={{ x: 40, y: 0 }} />
+      <path d="M -24 0 a 6 6 0 0 1 12 0 a 6 6 0 0 1 12 0 a 6 6 0 0 1 12 0 a 6 6 0 0 1 12 0" />
+    </>
+  );
+}
+
 /**
  * Interruptor unipolar, contacto de fecho (IEC 60617-07-02-01); desenha o estado `closed`.
  * Os contactos (círculos ocos) distinguem o interruptor fechado de um fio.
@@ -133,6 +156,10 @@ export function IecSymbol({ symbol, properties, rotation }: SymbolProps & { symb
       return <DcCurrentSourceSymbol />;
     case 'resistor_iec':
       return <ResistorSymbol />;
+    case 'capacitor_iec':
+      return <CapacitorSymbol />;
+    case 'inductor_iec':
+      return <InductorSymbol />;
     case 'switch_spst_iec':
       return <SwitchSpstSymbol properties={properties} />;
     case 'lamp_iec':

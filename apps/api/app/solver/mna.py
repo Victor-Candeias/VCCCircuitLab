@@ -7,7 +7,8 @@ das fontes de tensão e dos interruptores fechados. Estampas:
 - fonte de tensão → `V(positive) − V(negative) = voltageV`;
 - interruptor fechado → fonte de 0 V (corrente definida, sem R = 0);
 - interruptor aberto → sem estampa (corrente 0, sem R = ∞);
-- fonte de corrente → `currentA` sai por `positive` para o circuito e entra por `negative`.
+- fonte de corrente → `currentA` sai por `positive` para o circuito e entra por `negative`;
+- condensador → aberto (corrente 0); bobina → fonte de 0 V (como um interruptor fechado).
 
 Convenção de sinais passiva para todos os componentes de dois terminais (pinos pela ordem do
 catálogo): `voltageV = V(pino1) − V(pino2)`, `currentA` entra pelo pino 1 e atravessa o
@@ -25,8 +26,10 @@ from app.circuit.catalog import ComponentCatalog, load_catalog
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
 from app.circuit.normalize import NormalizedCircuit
 from app.circuit.validate import (
+    CAPACITOR_MODEL,
     CURRENT_SOURCE_MODEL,
     GROUND_MODEL,
+    INDUCTOR_MODEL,
     SWITCH_MODEL,
     VOLTAGE_SOURCE_MODEL,
     validate,
@@ -44,6 +47,10 @@ class BranchKind(Enum):
     VOLTAGE = "voltage"
     CURRENT = "current"
     OPEN = "open"
+    CAPACITOR = "capacitor"
+    """`value` = capacidade (F), `initial` = tensão inicial (V)."""
+    INDUCTOR = "inductor"
+    """`value` = indutância (H), `initial` = corrente inicial (A, do pino 1 para o pino 2)."""
 
 
 @dataclass(frozen=True)
@@ -55,6 +62,7 @@ class Branch:
     a: str
     b: str
     value: float
+    initial: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -166,7 +174,25 @@ def component_results(
 def dc_branches(
     normalized: NormalizedCircuit, catalog: ComponentCatalog
 ) -> tuple[set[str], list[Branch]]:
-    """Redes com terra e ramos de dois terminais (pela ordem do documento)."""
+    """Redes com terra e ramos de dois terminais (pela ordem do documento), com os condensadores
+    e as bobinas substituídos pelos equivalentes DC (aberto e fonte de 0 V)."""
+    grounded, branches = circuit_branches(normalized, catalog)
+    return grounded, [_dc_equivalent(br) for br in branches]
+
+
+def _dc_equivalent(br: Branch) -> Branch:
+    if br.kind is BranchKind.CAPACITOR:
+        return Branch(br.component, BranchKind.OPEN, br.a, br.b, 0.0)
+    if br.kind is BranchKind.INDUCTOR:
+        return Branch(br.component, BranchKind.VOLTAGE, br.a, br.b, 0.0)
+    return br
+
+
+def circuit_branches(
+    normalized: NormalizedCircuit, catalog: ComponentCatalog
+) -> tuple[set[str], list[Branch]]:
+    """Redes com terra e ramos de dois terminais (pela ordem do documento), incluindo os
+    condensadores e as bobinas (`BranchKind.CAPACITOR`/`INDUCTOR`)."""
     net_of = normalized.terminal_to_net
     grounded: set[str] = set()
     branches: list[Branch] = []
@@ -178,23 +204,29 @@ def dc_branches(
         if spec.simulation_model == GROUND_MODEL:
             grounded.update(nodes)
             continue
-        kind, value = _stamp(spec.simulation_model, c)
-        branches.append(Branch(c.id, kind, nodes[0], nodes[1], value))
+        kind, value, initial = _stamp(spec.simulation_model, c)
+        branches.append(Branch(c.id, kind, nodes[0], nodes[1], value, initial))
     return grounded, branches
 
 
-def _stamp(model: str | None, c: Component) -> tuple[BranchKind, float]:
+def _stamp(model: str | None, c: Component) -> tuple[BranchKind, float, float]:
     p = c.properties
     if model == "resistor":
-        return BranchKind.CONDUCTANCE, 1 / float(p["resistanceOhm"])
+        return BranchKind.CONDUCTANCE, 1 / float(p["resistanceOhm"]), 0.0
     if model == "resistive_lamp":
-        return BranchKind.CONDUCTANCE, float(p["ratedPowerW"]) / float(p["ratedVoltageV"]) ** 2
+        conductance = float(p["ratedPowerW"]) / float(p["ratedVoltageV"]) ** 2
+        return BranchKind.CONDUCTANCE, conductance, 0.0
     if model == VOLTAGE_SOURCE_MODEL:
-        return BranchKind.VOLTAGE, float(p["voltageV"])
+        return BranchKind.VOLTAGE, float(p["voltageV"]), 0.0
     if model == CURRENT_SOURCE_MODEL:
-        return BranchKind.CURRENT, float(p["currentA"])
+        return BranchKind.CURRENT, float(p["currentA"]), 0.0
     if model == SWITCH_MODEL:
-        return (BranchKind.VOLTAGE, 0.0) if p.get("closed") is True else (BranchKind.OPEN, 0.0)
+        kind = BranchKind.VOLTAGE if p.get("closed") is True else BranchKind.OPEN
+        return kind, 0.0, 0.0
+    if model == CAPACITOR_MODEL:
+        return BranchKind.CAPACITOR, float(p["capacitanceF"]), float(p["initialVoltageV"])
+    if model == INDUCTOR_MODEL:
+        return BranchKind.INDUCTOR, float(p["inductanceH"]), float(p["initialCurrentA"])
     raise ValueError(f"modelo {model} não suportado: validar antes de resolver")
 
 

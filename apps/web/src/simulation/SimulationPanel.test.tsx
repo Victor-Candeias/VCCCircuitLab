@@ -188,6 +188,55 @@ describe('SimulationPanel', { timeout: 15_000 }, () => {
     expect(alert).toHaveTextContent('Não foi possível contactar a API');
   });
 
+  test('análise transitória: envia duração e passo, mostra o gráfico e os valores finais', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        analysis: 'transient',
+        status: 'success',
+        timeS: [0, 0.001, 0.002],
+        nodeVoltagesV: { N1: [9, 9, 9], N2: [0, 0, 0], N3: [9, 9, 9] },
+        components: Object.fromEntries(
+          Object.entries(paraleloResult.components).map(([id, v]) => [
+            id,
+            {
+              voltageV: [0, v.voltageV, v.voltageV],
+              currentA: [0, 0, v.currentA],
+              powerW: [0, 0, v.powerW],
+            },
+          ]),
+        ),
+        warnings: [],
+      }),
+    );
+    renderEditor();
+    fireEvent.change(screen.getByLabelText('Análise'), { target: { value: 'transient' } });
+    expect(screen.getByText(/evolução no tempo/)).toBeInTheDocument();
+    const duration = screen.getByLabelText('Duração (ms)');
+    expect(duration).toHaveValue(10);
+    expect(screen.getByLabelText('Passo (µs)')).toHaveValue(10);
+
+    fireEvent.change(duration, { target: { value: '' } });
+    expect(duration).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: 'Simular' })).toBeDisabled();
+    fireEvent.change(duration, { target: { value: '2' } });
+    simulate();
+
+    expect(await screen.findByText('Valores finais (t = 2 ms)')).toBeInTheDocument();
+    expect(screen.getByRole('figure', { name: 'Gráfico da análise transitória' })).toBeVisible();
+    const table = screen.getByRole('table', { name: 'Resultados por componente' });
+    expect(within(table).getByRole('button', { name: 'R1' }).closest('tr')).toHaveTextContent(
+      'R19 V40,9 mA368 mW',
+    );
+    const chart = screen.getByLabelText('Gráfico');
+    expect(within(chart).getByRole('option', { name: 'Corrente em R2' })).toBeInTheDocument();
+    fireEvent.change(chart, { target: { value: 'current:R2' } });
+    expect(chart).toHaveValue('current:R2');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/simulate\/transient$/);
+    expect(JSON.parse(String(init?.body))).toMatchObject({ stopTimeS: 0.002, timeStepS: 1e-5 });
+  });
+
   test('Simular fica desativado com o circuito vazio', () => {
     useEditorStore
       .getState()

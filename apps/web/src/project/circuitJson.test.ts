@@ -109,9 +109,9 @@ describe('circuitJson — validação na importação', () => {
     expect(errors).toContain('/components/1: faltam pinos de resistor: b');
 
     const unknownType = clone();
-    unknownType.components[0] = { ...unknownType.components[0], type: 'capacitor' };
+    unknownType.components[0] = { ...unknownType.components[0], type: 'transformer' };
     expect(errorsOf(unknownType)).toContain(
-      '/components/0: tipo de componente desconhecido "capacitor"',
+      '/components/0: tipo de componente desconhecido "transformer"',
     );
   });
 

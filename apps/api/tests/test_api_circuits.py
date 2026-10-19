@@ -8,10 +8,18 @@ from fastapi.testclient import TestClient
 from app.circuit.catalog import ComponentCatalog, load_catalog_documents
 from app.main import app
 from app.routes import circuits
-from tests.factories import AnalyticCase, comp, load_analytic_cases, load_fixture, source_resistor
+from tests.factories import (
+    AnalyticCase,
+    circuit,
+    comp,
+    load_analytic_cases,
+    load_fixture,
+    source_resistor,
+)
 
 VALIDATE = "/api/v1/circuits/validate"
 SIMULATE = "/api/v1/circuits/simulate"
+TRANSIENT = "/api/v1/circuits/simulate/transient"
 PROBLEM = "application/problem+json"
 TYPE_PREFIX = "urn:vcccircuitlab:problem:"
 TOLERANCE = 1e-9
@@ -201,6 +209,91 @@ class TestSimulate:
         assert elapsed < 0.4
 
 
+def rc_circuit() -> dict[str, Any]:
+    """12 V, 100 Ω e 100 µF em série (τ = 10 ms)."""
+    return circuit(
+        [comp("V1", "dc_voltage_source"), comp("R1", "resistor"), comp("C1", "capacitor")]
+        + [comp("GND1", "ground")],
+        ("V1.positive", "R1.a"),
+        ("R1.b", "C1.a"),
+        ("C1.b", "V1.negative"),
+        ("GND1.gnd", "V1.negative"),
+    )
+
+
+class TestSimulateTransient:
+    def test_rc_charge(self) -> None:
+        response = client.post(
+            TRANSIENT, json={"circuit": rc_circuit(), "stopTimeS": 0.05, "timeStepS": 1e-3}
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["analysis"] == "transient"
+        assert len(body["timeS"]) == 51
+        capacitor = body["components"]["C1"]
+        assert capacitor["voltageV"][0] == 0
+        assert capacitor["currentA"][0] == pytest.approx(0.12)
+        assert capacitor["voltageV"][-1] == pytest.approx(12 * (1 - 2.718281828**-5), rel=1e-3)
+        assert set(body["nodeVoltagesV"]) == {n["id"] for n in rc_nets()}
+
+    @pytest.mark.parametrize(
+        ("parameters", "pointer"),
+        [
+            ({"stopTimeS": 0, "timeStepS": 1e-3}, "/stopTimeS"),
+            ({"stopTimeS": 2000, "timeStepS": 1}, "/stopTimeS"),
+            ({"stopTimeS": 1, "timeStepS": -1}, "/timeStepS"),
+            ({"stopTimeS": 1, "timeStepS": 1e-5}, "/timeStepS"),
+            ({"stopTimeS": 1}, "/timeStepS"),
+        ],
+        ids=["zero-stop", "long-stop", "negative-step", "too-many-points", "missing-step"],
+    )
+    def test_invalid_parameters(self, parameters: dict[str, Any], pointer: str) -> None:
+        response = client.post(TRANSIENT, json={"circuit": rc_circuit(), **parameters})
+
+        body = assert_problem(response, 422, "invalid-document", "INVALID_PARAMETERS")
+        assert [e["pointer"] for e in body["errors"]] == [pointer]
+
+    def test_component_errors_point_into_the_circuit(self) -> None:
+        data = rc_circuit()
+        data["components"][1]["properties"]["resistanceOhm"] = "100"
+
+        response = client.post(TRANSIENT, json={"circuit": data, "stopTimeS": 1, "timeStepS": 0.1})
+
+        body = assert_problem(response, 422, "invalid-document", "INVALID_COMPONENT")
+        error = body["errors"][0]
+        assert (error["pointer"], error["refs"]) == (
+            "/circuit/components/1/properties/resistanceOhm",
+            ["R1"],
+        )
+
+    def test_invalid_circuit(self) -> None:
+        data = rc_circuit()
+        data["components"] = [c for c in data["components"] if c["type"] != "ground"]
+        data["wires"] = [w for w in data["wires"] if not w["from"].startswith("GND1")]
+
+        response = client.post(TRANSIENT, json={"circuit": data, "stopTimeS": 1, "timeStepS": 0.1})
+
+        assert_problem(response, 422, "invalid-circuit", "MISSING_GROUND")
+
+    def test_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def slow(*args: Any, **kwargs: Any) -> None:
+            time.sleep(0.5)
+
+        monkeypatch.setattr(circuits, "simulate_transient", slow)
+        monkeypatch.setattr(circuits, "SIMULATION_TIMEOUT_S", 0.05)
+
+        response = client.post(
+            TRANSIENT, json={"circuit": rc_circuit(), "stopTimeS": 1, "timeStepS": 0.1}
+        )
+
+        assert_problem(response, 503, "simulation-timeout", "SIMULATION_TIMEOUT")
+
+
+def rc_nets() -> list[dict[str, Any]]:
+    return client.post(VALIDATE, json=rc_circuit()).json()["nets"]
+
+
 class TestSchemaErrors:
     def test_component_errors_have_pointer_and_refs(self) -> None:
         data = source_resistor()
@@ -311,6 +404,7 @@ class TestOpenApi:
         for path, statuses in (
             (VALIDATE, ["400", "415", "422"]),
             (SIMULATE, ["400", "415", "422", "503"]),
+            (TRANSIENT, ["400", "415", "422", "503"]),
         ):
             responses = spec["paths"][path]["post"]["responses"]
             assert "application/json" in responses["200"]["content"]
