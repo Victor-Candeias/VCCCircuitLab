@@ -175,6 +175,12 @@ def authenticated(request: pytest.FixtureRequest) -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def reset_rate_limiter() -> None:
+    """Cada teste começa com o rate limiter (E5-04) vazio: os testes partilham o mesmo IP."""
+    app.state.rate_limiter.reset()
+
+
+@pytest.fixture(autouse=True)
 def catalog_db(monkeypatch: pytest.MonkeyPatch) -> None:
     """Isola `load_catalog()` (F2-10, lido da coleção `templates`) de um MongoDB real: todos
     os testes passam a ver um `mongomock` pré-semeado com os 6 componentes do antigo catálogo

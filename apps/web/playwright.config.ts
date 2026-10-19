@@ -39,6 +39,8 @@ export default defineConfig({
           {
             command: `../api/.venv/bin/uvicorn app.main:app --app-dir ../api --host 127.0.0.1 --port ${API_PORT}`,
             url: `http://127.0.0.1:${API_PORT}/health`,
+            // Cada teste regista/inicia sessão a partir do mesmo IP (E5-04).
+            env: { AUTH_RATE_LIMIT_PER_MINUTE: '1000', RATE_LIMIT_PER_MINUTE: '0' },
             reuseExistingServer: !process.env.CI,
             timeout: 60_000,
           },

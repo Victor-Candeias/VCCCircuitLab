@@ -168,4 +168,5 @@ GitHub Pages.
 
 Para apontar o frontend publicado a um backend remoto, definir a variável de repositório (não
 secret, pois fica visível no bundle) `VITE_API_BASE_URL` em *Settings → Secrets and variables →
-Actions → Variables*; sem ela, a app assume mesma origem.
+Actions → Variables*; sem ela, a app assume mesma origem. O backend tem de autorizar a origem do
+site em `CORS_ALLOWED_ORIGINS` (ex.: `https://victor-candeias.github.io`; ver `apps/api/README.md`).

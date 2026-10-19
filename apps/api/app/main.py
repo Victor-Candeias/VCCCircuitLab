@@ -1,11 +1,13 @@
 from fastapi import Depends, FastAPI
 
 from app.auth.dependencies import require_user
+from app.http_security import install_security
 from app.problems import install_problem_handlers, problem_responses
 from app.routes import auth, circuits, components, health, templates, users
 
 app = FastAPI(title="VCCCircuitLab API", version="0.1.0")
 install_problem_handlers(app)
+install_security(app)
 
 # Públicas: health check, criar conta e iniciar sessão. Tudo o resto exige sessão válida.
 app.include_router(health.router)

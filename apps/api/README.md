@@ -183,6 +183,8 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `…:forbidden` | 403 | `FORBIDDEN` (sessão válida sem o role necessário, ex.: não `ADMIN`) |
 | `…:template-not-found` | 404 | `TEMPLATE_NOT_FOUND` (id de template inexistente) |
 | `…:template-type-already-exists` | 409 | `TEMPLATE_TYPE_ALREADY_EXISTS` (já existe um template com o mesmo `type`) |
+| `…:payload-too-large` | 413 | `PAYLOAD_TOO_LARGE` (corpo acima de `MAX_REQUEST_BODY_BYTES`) |
+| `…:rate-limited` | 429 | `RATE_LIMITED` (com `Retry-After`, ver [Segurança operacional](#segurança-operacional-e5-04)) |
 | `…:simulation-timeout` | 503 | `SIMULATION_TIMEOUT` |
 | `about:blank` | 404, 405, … | Nome do estado HTTP (`NOT_FOUND`, `METHOD_NOT_ALLOWED`, …) |
 | `…:internal-error` | 500 | `INTERNAL_ERROR` |
@@ -211,6 +213,22 @@ Públicos: `GET /health`, `POST /api/v1/users` e `POST /api/v1/auth/login`. Tudo
 - Roles: `USER` (registo) e `ADMIN` (só pelo seed). Contas sem `role` contam como `USER`. A dependência `CurrentAdmin` (`app/auth/dependencies.py`) responde `403 forbidden` (`FORBIDDEN`) a sessões sem role `ADMIN`.
 - Nos testes, `tests/conftest.py` substitui `require_user` por um utilizador falso; os testes marcados com `@pytest.mark.real_auth` (ex.: `test_api_auth.py`) usam a autenticação real.
 - Limitar tentativas de login repetidas fica para o E5-04. `/docs` e `/openapi.json` continuam públicos.
+
+## Segurança operacional (E5-04)
+
+Instalada em `app/http_security.py` (de fora para dentro: CORS → rate limiting → limite do corpo) e configurada por variáveis de ambiente, lidas no arranque:
+
+| Variável | Omissão | Efeito |
+|---|---|---|
+| `CORS_ALLOWED_ORIGINS` | vazio | Origens autorizadas no browser, separadas por vírgulas (ex.: `https://utilizador.github.io`). Vazio = só a mesma origem (o `vite dev` usa proxy). Métodos `GET/POST/PUT/DELETE`, cabeçalhos `Authorization`, `Content-Type`, `Accept`, sem cookies. |
+| `MAX_REQUEST_BODY_BYTES` | `1048576` | Corpo acima do limite → `413 PAYLOAD_TOO_LARGE` (pelo `Content-Length` ou ao ler um corpo em streaming). |
+| `RATE_LIMIT_PER_MINUTE` | `120` | Pedidos por minuto e por IP (janela deslizante) → `429 RATE_LIMITED` com `Retry-After`. |
+| `AUTH_RATE_LIMIT_PER_MINUTE` | `20` | Idem, contado à parte, para `POST /api/v1/auth/login` e `POST /api/v1/users` (força bruta). |
+| `SIMULATION_TIMEOUT_S` | `5` | Tempo máximo de uma simulação → `503 SIMULATION_TIMEOUT`. |
+
+- `0` desativa o limite correspondente. `/health` e os preflight `OPTIONS` não contam para o rate limiting.
+- O rate limiting é em memória e por processo (com `UVICORN_WORKERS=N` o limite efetivo é N×). O IP é o de `scope["client"]`: atrás de um reverse proxy, o uvicorn tem de confiar no `X-Forwarded-For` do proxy (`--proxy-headers`, ativo por omissão, e `FORWARDED_ALLOW_IPS`/`UVICORN_FORWARDED_ALLOW_IPS`); o `docker-compose.yml` já o configura.
+- Nunca se executa código do cliente: não há `eval`/`exec`/`pickle` sobre dados recebidos; os templates de geração são procurados num registo fixo (`app/generation/registry.py`) e os parâmetros validados por Pydantic.
 
 ## Imagem Docker
 
