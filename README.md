@@ -79,6 +79,8 @@ O `docker-compose.yml` constrói `apps/api/Dockerfile` e corre a API como utiliz
 
 Monitorização (E5-05): `GET /health/ready` verifica o MongoDB, `GET /metrics` expõe métricas Prometheus (com `METRICS_TOKEN`) e os logs não incluem dados sensíveis. O timer systemd `deploy/vcccircuitlab-healthcheck.timer` verifica a API a cada minuto e reinicia-a se `/health` falhar (ver [`apps/api`](apps/api/README.md#observabilidade-e5-05)).
 
+Motor de simulação (F2-01): por omissão a API usa o solver MNA interno. Com `SIMULATION_ENGINE=ngspice` usa o ngspice, num processo isolado e com limites. Neste caso a imagem é construída com `WITH_NGSPICE=true` (ver [`apps/api`](apps/api/README.md#motor-ngspice-f2-01)).
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

@@ -11,9 +11,16 @@ COPY requirements.txt /tmp/requirements.txt
 RUN /opt/venv/bin/pip install --no-compile -r /tmp/requirements.txt
 
 FROM ${PYTHON_IMAGE} AS runtime
+# F2-01: `--build-arg WITH_NGSPICE=true` instala o ngspice (para SIMULATION_ENGINE=ngspice).
+ARG WITH_NGSPICE=false
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
+RUN if [ "$WITH_NGSPICE" = "true" ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends ngspice \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --no-create-home --home-dir /nonexistent \
         --shell /usr/sbin/nologin app

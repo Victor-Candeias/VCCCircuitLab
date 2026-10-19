@@ -1,6 +1,7 @@
 """Circuitos: `POST /api/v1/circuits/{generate,validate,simulate}`."""
 
 import os
+from functools import partial
 from typing import Annotated, Any, Literal
 
 import anyio
@@ -15,7 +16,7 @@ from app.generation.errors import InvalidParametersError, UnknownTemplateError
 from app.generation.registry import get_template
 from app.models.circuit import CircuitDocument
 from app.problems import CircuitIssue, SimulationTimeoutError, problem_responses
-from app.solver.mna import simulate_dc
+from app.solver.engine import simulate
 
 #: Tempo máximo de uma simulação, em segundos (variável de ambiente `SIMULATION_TIMEOUT_S`).
 SIMULATION_TIMEOUT_S = float(os.environ.get("SIMULATION_TIMEOUT_S", "5"))
@@ -114,6 +115,10 @@ def _issue(error: CircuitError) -> dict[str, Any]:
     response_model=SimulationResponse,
     responses=problem_responses(400, 415, 422, 503),
     summary="Simular o ponto de funcionamento DC",
+    description=(
+        "Motor configurado por `SIMULATION_ENGINE` (`mna` por omissão, ou `ngspice`). "
+        "503 se a simulação exceder `SIMULATION_TIMEOUT_S` ou o motor estiver indisponível."
+    ),
 )
 async def simulate_circuit(document: CircuitDocument) -> dict[str, Any]:
     catalog = load_catalog()
@@ -121,7 +126,8 @@ async def simulate_circuit(document: CircuitDocument) -> dict[str, Any]:
         with anyio.fail_after(SIMULATION_TIMEOUT_S):
             # A thread não é interrompida: só deixa de se esperar por ela.
             result = await anyio.to_thread.run_sync(
-                simulate_dc, document, catalog, abandon_on_cancel=True
+                partial(simulate, document, catalog, timeout_s=SIMULATION_TIMEOUT_S),
+                abandon_on_cancel=True,
             )
     except TimeoutError as exc:
         raise SimulationTimeoutError(SIMULATION_TIMEOUT_S) from exc

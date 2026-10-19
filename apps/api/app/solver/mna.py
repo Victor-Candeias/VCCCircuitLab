@@ -39,7 +39,7 @@ MAX_CONDITION_NUMBER = 1e12
 SINGULAR_CONDITION_NUMBER = 1 / np.finfo(float).eps
 
 
-class _Kind(Enum):
+class BranchKind(Enum):
     CONDUCTANCE = "conductance"
     VOLTAGE = "voltage"
     CURRENT = "current"
@@ -47,9 +47,11 @@ class _Kind(Enum):
 
 
 @dataclass(frozen=True)
-class _Branch:
+class Branch:
+    """Componente de dois terminais: `a`/`b` são as redes dos pinos 1 e 2 (ordem do catálogo)."""
+
     component: str
-    kind: _Kind
+    kind: BranchKind
     a: str
     b: str
     value: float
@@ -103,10 +105,10 @@ def solve_dc(
     catalog = catalog or load_catalog()
     document = normalized.document
     nets = [n.id for n in document.nets or []]
-    grounded, branches = _branches(normalized, catalog)
+    grounded, branches = dc_branches(normalized, catalog)
 
     index = {net: i for i, net in enumerate(n for n in nets if n not in grounded)}
-    voltage_branches = [br for br in branches if br.kind is _Kind.VOLTAGE]
+    voltage_branches = [br for br in branches if br.kind is BranchKind.VOLTAGE]
     extra = {br.component: len(index) + k for k, br in enumerate(voltage_branches)}
     size = len(index) + len(voltage_branches)
     matrix = np.zeros((size, size))
@@ -114,16 +116,16 @@ def solve_dc(
 
     for br in branches:
         i, j = index.get(br.a), index.get(br.b)
-        if br.kind is _Kind.CONDUCTANCE:
+        if br.kind is BranchKind.CONDUCTANCE:
             for p, q, sign in ((i, i, 1), (j, j, 1), (i, j, -1), (j, i, -1)):
                 if p is not None and q is not None:
                     matrix[p, q] += sign * br.value
-        elif br.kind is _Kind.CURRENT:
+        elif br.kind is BranchKind.CURRENT:
             if i is not None:
                 rhs[i] += br.value
             if j is not None:
                 rhs[j] -= br.value
-        elif br.kind is _Kind.VOLTAGE:
+        elif br.kind is BranchKind.VOLTAGE:
             k = extra[br.component]
             for p, sign in ((i, 1), (j, -1)):
                 if p is not None:
@@ -133,30 +135,41 @@ def solve_dc(
 
     solution = _solve(matrix, rhs)
     voltages = {net: _clean(solution[index[net]]) if net in index else 0.0 for net in nets}
+    source_currents = {c: float(solution[k]) for c, k in extra.items()}
+    results = component_results(branches, voltages, source_currents)
+    return DcResult(node_voltages_v=voltages, components=results, warnings=tuple(warnings))
+
+
+def component_results(
+    branches: list[Branch], voltages: dict[str, float], source_currents: dict[str, float]
+) -> dict[str, ComponentResult]:
+    """Tensão, corrente e potência (convenção passiva) a partir das tensões das redes e das
+    correntes de ramo das fontes de tensão/interruptores fechados (as incógnitas extra do MNA,
+    ou as correntes de ramo do SPICE — mesma orientação: entram pelo pino 1)."""
     results: dict[str, ComponentResult] = {}
     for br in branches:
-        if br.kind is _Kind.VOLTAGE:
-            voltage, current = br.value, solution[extra[br.component]]
+        if br.kind is BranchKind.VOLTAGE:
+            voltage, current = br.value, source_currents[br.component]
         else:
             voltage = voltages[br.a] - voltages[br.b]
             current = {
-                _Kind.CONDUCTANCE: voltage * br.value,
-                _Kind.CURRENT: -br.value,
-                _Kind.OPEN: 0.0,
+                BranchKind.CONDUCTANCE: voltage * br.value,
+                BranchKind.CURRENT: -br.value,
+                BranchKind.OPEN: 0.0,
             }[br.kind]
         results[br.component] = ComponentResult(
             _clean(voltage), _clean(current), _clean(voltage * current)
         )
-    return DcResult(node_voltages_v=voltages, components=results, warnings=tuple(warnings))
+    return results
 
 
-def _branches(
+def dc_branches(
     normalized: NormalizedCircuit, catalog: ComponentCatalog
-) -> tuple[set[str], list[_Branch]]:
+) -> tuple[set[str], list[Branch]]:
     """Redes com terra e ramos de dois terminais (pela ordem do documento)."""
     net_of = normalized.terminal_to_net
     grounded: set[str] = set()
-    branches: list[_Branch] = []
+    branches: list[Branch] = []
     for c in normalized.document.components:
         spec = catalog.get(c.type)
         if spec is None:
@@ -166,22 +179,22 @@ def _branches(
             grounded.update(nodes)
             continue
         kind, value = _stamp(spec.simulation_model, c)
-        branches.append(_Branch(c.id, kind, nodes[0], nodes[1], value))
+        branches.append(Branch(c.id, kind, nodes[0], nodes[1], value))
     return grounded, branches
 
 
-def _stamp(model: str | None, c: Component) -> tuple[_Kind, float]:
+def _stamp(model: str | None, c: Component) -> tuple[BranchKind, float]:
     p = c.properties
     if model == "resistor":
-        return _Kind.CONDUCTANCE, 1 / float(p["resistanceOhm"])
+        return BranchKind.CONDUCTANCE, 1 / float(p["resistanceOhm"])
     if model == "resistive_lamp":
-        return _Kind.CONDUCTANCE, float(p["ratedPowerW"]) / float(p["ratedVoltageV"]) ** 2
+        return BranchKind.CONDUCTANCE, float(p["ratedPowerW"]) / float(p["ratedVoltageV"]) ** 2
     if model == VOLTAGE_SOURCE_MODEL:
-        return _Kind.VOLTAGE, float(p["voltageV"])
+        return BranchKind.VOLTAGE, float(p["voltageV"])
     if model == CURRENT_SOURCE_MODEL:
-        return _Kind.CURRENT, float(p["currentA"])
+        return BranchKind.CURRENT, float(p["currentA"])
     if model == SWITCH_MODEL:
-        return (_Kind.VOLTAGE, 0.0) if p.get("closed") is True else (_Kind.OPEN, 0.0)
+        return (BranchKind.VOLTAGE, 0.0) if p.get("closed") is True else (BranchKind.OPEN, 0.0)
     raise ValueError(f"modelo {model} não suportado: validar antes de resolver")
 
 

@@ -94,6 +94,35 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 
 Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_cases()` (`tests/factories.py`) disponibiliza as mesmas fixtures a outros testes.
 
+## Motor ngspice (F2-01)
+
+`SIMULATION_ENGINE` escolhe o motor de `POST /simulate`: `mna` (por omissão, o solver acima) ou `ngspice`. A escolha é feita em `app/solver/engine.py`. A resposta tem o mesmo formato com os dois motores. O ngspice prepara as fases seguintes (componentes não lineares, análise transitória).
+
+- **Netlist** (`app/spice/netlist.py`): o circuito validado é traduzido com as mesmas estampas do MNA (`dc_branches()`):
+  - as redes com terra ficam no nó `0` e as restantes em `n1`, `n2`, …;
+  - resistências e lâmpadas → `R`; fontes de tensão → `V … DC`; interruptores fechados → `V … DC 0`; interruptores abertos → sem elemento; fontes de corrente → `I neg pos DC`.
+  
+  Os nomes de nós e elementos são gerados, e os valores são `float` validados. Ids, nomes e etiquetas do utilizador nunca entram na netlist, o que impede injetar diretivas (`.include`, `.control`, `shell`).
+- **Execução isolada** (`app/spice/runner.py`): `ngspice -b` num diretório temporário próprio, num grupo de processos novo, com ambiente mínimo e sem stdin.
+  - O lançador `app/spice/sandbox.py` aplica `RLIMIT_CPU`, `RLIMIT_AS` (`NGSPICE_MAX_MEMORY_MB`), `RLIMIT_FSIZE` (16 MiB) e `RLIMIT_CORE=0` antes do `exec`.
+  - Se `SIMULATION_TIMEOUT_S` for excedido, o grupo de processos é morto (`503 SIMULATION_TIMEOUT`).
+- **Resultado** (`app/spice/rawfile.py`): o rawfile ASCII de `op` é lido (aceita `v(n1)`/`i(v1)` e `n1`/`v1#branch`). As tensões e as correntes de ramo das fontes passam por `component_results()`, a mesma conversão do MNA.
+- **Erros:**
+  - sistema singular reportado pelo ngspice → `422 SINGULAR_MATRIX`;
+  - ngspice inexistente, `SIMULATION_ENGINE` inválido ou falha do ngspice → `503 SIMULATION_ENGINE_ERROR` (o detalhe fica só no log do servidor).
+
+| Variável | Omissão | Efeito |
+| --- | --- | --- |
+| `SIMULATION_ENGINE` | `mna` | `mna` ou `ngspice`. |
+| `NGSPICE_PATH` | `ngspice` no `PATH` | Executável do ngspice. |
+| `NGSPICE_MAX_MEMORY_MB` | `512` (`256` no compose) | Limite do espaço de endereçamento de cada simulação (`0` desliga). |
+
+Testes:
+- `tests/test_spice.py` cobre a netlist, o rawfile, os limites, o timeout e os erros, com um ngspice falso.
+- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6). É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
+
+Instalação local: `sudo apt-get install ngspice`. Na imagem Docker: `--build-arg WITH_NGSPICE=true`, ou `WITH_NGSPICE=true` no `.env` do compose.
+
 ## Endpoints `/api/v1/circuits`
 
 Exigem sessão iniciada (`Authorization: Bearer <token>`, ver [Sessão e autenticação](#sessão-e-autenticação)); sem ela a resposta é `401 not-authenticated`.
@@ -130,7 +159,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/circuits/simulate \
   --data @packages/circuit-schema/test/fixtures/valid/fonte-resistencia.json
 ```
 
-A simulação tem um limite de tempo, `SIMULATION_TIMEOUT_S` (variável de ambiente, 5 s por omissão). O solver corre numa thread que não é interrompida: esgotado o tempo, a API só deixa de esperar por ela. O isolamento em processo, o limite de payload, o rate limiting e o CORS ficam para o E5-04.
+A simulação tem um limite de tempo, `SIMULATION_TIMEOUT_S` (variável de ambiente, 5 s por omissão). O solver corre numa thread que não é interrompida: esgotado o tempo, a API só deixa de esperar por ela. Com `SIMULATION_ENGINE=ngspice`, a simulação corre num processo isolado que é morto no fim do tempo (ver [Motor ngspice](#motor-ngspice-f2-01)).
 
 ## Templates de componentes (F2-10)
 
@@ -188,6 +217,7 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `…:payload-too-large` | 413 | `PAYLOAD_TOO_LARGE` (corpo acima de `MAX_REQUEST_BODY_BYTES`) |
 | `…:rate-limited` | 429 | `RATE_LIMITED` (com `Retry-After`, ver [Segurança operacional](#segurança-operacional-e5-04)) |
 | `…:simulation-timeout` | 503 | `SIMULATION_TIMEOUT` |
+| `…:simulation-engine-error` | 503 | `SIMULATION_ENGINE_ERROR` (motor ngspice indisponível ou com falha, ver [Motor ngspice](#motor-ngspice-f2-01)) |
 | `about:blank` | 404, 405, … | Nome do estado HTTP (`NOT_FOUND`, `METHOD_NOT_ALLOWED`, …) |
 | `…:internal-error` | 500 | `INTERNAL_ERROR` |
 
@@ -249,7 +279,7 @@ No servidor, `deploy/healthcheck.sh` corre a cada minuto via `deploy/vcccircuitl
 
 ## Imagem Docker
 
-O `Dockerfile` usa um build em duas fases sobre `python:3.12-slim`: o venv é criado em `/opt/venv` só com `requirements.txt`, e apenas `app/` é copiado (ver `.dockerignore`). O contexto de build é `apps/api`. A imagem corre `uvicorn` em `0.0.0.0:8000` como `app` (uid/gid 10001), sem cabeçalho `Server` nem access log do uvicorn, e o `HEALTHCHECK` consulta `GET /health`. O número de processos define-se com `UVICORN_WORKERS`. Para correr com as restrições de segurança, usar o `docker-compose.yml` da raiz (ver README principal).
+O `Dockerfile` usa um build em duas fases sobre `python:3.12-slim`: o venv é criado em `/opt/venv` só com `requirements.txt`, e apenas `app/` é copiado (ver `.dockerignore`). O contexto de build é `apps/api`. A imagem corre `uvicorn` em `0.0.0.0:8000` como `app` (uid/gid 10001), sem cabeçalho `Server` nem access log do uvicorn, e o `HEALTHCHECK` consulta `GET /health`. O número de processos define-se com `UVICORN_WORKERS`. O ngspice só é instalado com `--build-arg WITH_NGSPICE=true` (F2-01). Para correr com as restrições de segurança, usar o `docker-compose.yml` da raiz (ver README principal).
 
 ```bash
 docker build -t vcccircuitlab-api:local apps/api

@@ -23,6 +23,7 @@ from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidation
 from app.component_templates.errors import DuplicateTemplateTypeError, TemplateNotFoundError
 from app.db.errors import DatabaseUnavailableError
 from app.generation.errors import InvalidParametersError, UnknownTemplateError
+from app.spice.errors import SimulationEngineError
 from app.users.errors import EmailAlreadyRegisteredError
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ class ApiErrorCode(StrEnum):
     UNKNOWN_TEMPLATE = "UNKNOWN_TEMPLATE"
     INVALID_PARAMETERS = "INVALID_PARAMETERS"
     SIMULATION_TIMEOUT = "SIMULATION_TIMEOUT"
+    SIMULATION_ENGINE_ERROR = "SIMULATION_ENGINE_ERROR"
     EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
     SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
     INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
@@ -314,6 +316,23 @@ async def _timeout_handler(request: Request, exc: Exception) -> ProblemResponse:
     )
 
 
+async def _engine_error_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, SimulationEngineError)
+    # O detalhe (executável em falta, saída do ngspice) fica só no log do servidor.
+    logger.error("Motor de simulação indisponível: %s", exc)
+    issue = Issue(
+        code=ApiErrorCode.SIMULATION_ENGINE_ERROR,
+        message="O motor de simulação está temporariamente indisponível.",
+    )
+    return problem_response(
+        request,
+        status=503,
+        kind="simulation-engine-error",
+        title="Motor de simulação indisponível",
+        errors=[issue],
+    )
+
+
 async def _email_registered_handler(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, EmailAlreadyRegisteredError)
     issue = Issue(
@@ -442,6 +461,7 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(UnknownTemplateError, _unknown_template_handler)
     app.add_exception_handler(InvalidParametersError, _invalid_parameters_handler)
     app.add_exception_handler(SimulationTimeoutError, _timeout_handler)
+    app.add_exception_handler(SimulationEngineError, _engine_error_handler)
     app.add_exception_handler(EmailAlreadyRegisteredError, _email_registered_handler)
     app.add_exception_handler(DatabaseUnavailableError, _database_unavailable_handler)
     app.add_exception_handler(InvalidCredentialsError, _invalid_credentials_handler)

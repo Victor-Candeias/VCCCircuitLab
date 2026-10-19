@@ -16,7 +16,7 @@ status: draft
 <!-- maestru:work-items-list -->
 | ID | Title | Status | Created | Owner | Priority | Completed | Template | Blocked By | Spec |
 |---|---|---|---|---|---|---|---|---|---|
-| F2-01 | Integração ngspice (tradutor JSON → netlist SPICE) | backlog | 2026-10-12 | developer | high |  |  |  |  |
+| F2-01 | Integração ngspice (tradutor JSON → netlist SPICE) | done | 2026-10-12 | developer | high | 2026-10-19 |  |  | [F2-01](../specs/fase-2/f2-01-spec.md) |
 | F2-02 | Condensadores, bobinas e análise transitória | backlog | 2026-10-12 | developer | high |  |  | F2-01 |  |
 | F2-03 | Instrumentos virtuais: voltímetro, amperímetro e osciloscópio | backlog | 2026-10-12 | developer | high |  |  | F2-02 |  |
 | F2-04 | Díodos, LEDs e transístores | backlog | 2026-10-12 | developer | medium |  |  | F2-01 |  |

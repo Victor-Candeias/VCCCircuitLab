@@ -8,6 +8,9 @@ services:
   api:
     build:
       context: ./apps/api
+      args:
+        # F2-01: `true` instala o ngspice na imagem (necessário para SIMULATION_ENGINE=ngspice).
+        WITH_NGSPICE: '${WITH_NGSPICE:-false}'
     image: vcccircuitlab-api:local
     restart: unless-stopped
     init: true
@@ -23,6 +26,9 @@ services:
       RATE_LIMIT_PER_MINUTE: '${RATE_LIMIT_PER_MINUTE:-120}'
       AUTH_RATE_LIMIT_PER_MINUTE: '${AUTH_RATE_LIMIT_PER_MINUTE:-20}'
       SIMULATION_TIMEOUT_S: '${SIMULATION_TIMEOUT_S:-5}'
+      # F2-01: motor de simulação (`mna` ou `ngspice`) e limite de memória de cada ngspice.
+      SIMULATION_ENGINE: '${SIMULATION_ENGINE:-mna}'
+      NGSPICE_MAX_MEMORY_MB: '${NGSPICE_MAX_MEMORY_MB:-256}'
       # E5-05: nível dos logs `app.*` e token de acesso a GET /metrics (vazio = desativado).
       LOG_LEVEL: '${LOG_LEVEL:-INFO}'
       METRICS_TOKEN: '${METRICS_TOKEN:-}'

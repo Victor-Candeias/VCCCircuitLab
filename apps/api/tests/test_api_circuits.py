@@ -189,7 +189,7 @@ class TestSimulate:
         def slow(*args: Any, **kwargs: Any) -> None:
             time.sleep(0.5)
 
-        monkeypatch.setattr(circuits, "simulate_dc", slow)
+        monkeypatch.setattr(circuits, "simulate", slow)
         monkeypatch.setattr(circuits, "SIMULATION_TIMEOUT_S", 0.05)
 
         started = time.perf_counter()
@@ -295,7 +295,7 @@ class TestHttpErrors:
         def boom(*args: Any, **kwargs: Any) -> None:
             raise RuntimeError("segredo interno")
 
-        monkeypatch.setattr(circuits, "simulate_dc", boom)
+        monkeypatch.setattr(circuits, "simulate", boom)
         unsafe_client = TestClient(app, raise_server_exceptions=False)
 
         response = unsafe_client.post(SIMULATE, json=source_resistor())

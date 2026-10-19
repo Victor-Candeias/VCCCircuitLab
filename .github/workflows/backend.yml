@@ -22,6 +22,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r apps/api/requirements-dev.txt
 
+      # F2-01: os testes de comparação ngspice vs. MNA são ignorados sem o ngspice.
+      - name: Install ngspice
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ngspice
+
       - name: Lint (ruff check)
         run: ruff check apps/api
 
