@@ -31,7 +31,7 @@ from app.problems import ApiErrorCode, Issue, ProblemResponse, problem_response
 
 WINDOW_S = 60.0
 AUTH_ENDPOINTS = {("POST", "/api/v1/auth/login"), ("POST", "/api/v1/users")}
-EXEMPT_PATHS = {"/health"}
+EXEMPT_PATHS = {"/health", "/health/ready", "/metrics"}
 
 
 def _int_env(name: str, default: int) -> int:

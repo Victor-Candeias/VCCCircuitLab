@@ -23,6 +23,9 @@ services:
       RATE_LIMIT_PER_MINUTE: '${RATE_LIMIT_PER_MINUTE:-120}'
       AUTH_RATE_LIMIT_PER_MINUTE: '${AUTH_RATE_LIMIT_PER_MINUTE:-20}'
       SIMULATION_TIMEOUT_S: '${SIMULATION_TIMEOUT_S:-5}'
+      # E5-05: nível dos logs `app.*` e token de acesso a GET /metrics (vazio = desativado).
+      LOG_LEVEL: '${LOG_LEVEL:-INFO}'
+      METRICS_TOKEN: '${METRICS_TOKEN:-}'
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777

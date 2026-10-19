@@ -1,0 +1,17 @@
+# Verificação de saúde da API do VCCCircuitLab (E5-05), lançada pelo
+# vcccircuitlab-healthcheck.timer. Ver deploy/healthcheck.sh.
+#
+# Instalação (repositório em /opt/vcccircuitlab):
+#   sudo cp deploy/vcccircuitlab-healthcheck.service deploy/vcccircuitlab-healthcheck.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now vcccircuitlab-healthcheck.timer
+# Consultar resultados: journalctl -u vcccircuitlab-healthcheck.service
+
+[Unit]
+Description=VCCCircuitLab API health check
+Requires=docker.service
+After=docker.service vcccircuitlab-api.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /opt/vcccircuitlab/deploy/healthcheck.sh

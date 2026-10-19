@@ -77,6 +77,8 @@ docker compose down
 
 O `docker-compose.yml` constrói `apps/api/Dockerfile` e corre a API como utilizador não privilegiado (uid 10001). O sistema de ficheiros é só de leitura (exceto `/tmp` em tmpfs), sem capabilities e com `no-new-privileges`, limites de memória, CPU e PIDs, health check e `restart: unless-stopped`. A porta só é publicada em `127.0.0.1`; o acesso externo deve passar por um reverse proxy HTTPS ou Cloudflare Tunnel. As variáveis `API_PORT` (8000) e `API_WORKERS` (1) permitem ajustar a porta e o número de processos.
 
+Monitorização (E5-05): `GET /health/ready` verifica o MongoDB, `GET /metrics` expõe métricas Prometheus (com `METRICS_TOKEN`) e os logs não incluem dados sensíveis. O timer systemd `deploy/vcccircuitlab-healthcheck.timer` verifica a API a cada minuto e reinicia-a se `/health` falhar (ver [`apps/api`](apps/api/README.md#observabilidade-e5-05)).
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

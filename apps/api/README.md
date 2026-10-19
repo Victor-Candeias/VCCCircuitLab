@@ -9,7 +9,7 @@ apps/api/
 ├── app/
 │   ├── main.py        # app = FastAPI()
 │   ├── problems.py    # Erros application/problem+json
-│   ├── routes/        # Rotas HTTP (GET /health, /api/v1/circuits/…, /api/v1/users, /api/v1/auth/…)
+│   ├── routes/        # Rotas HTTP (GET /health, /health/ready, /metrics, /api/v1/circuits/…, /api/v1/users, /api/v1/auth/…)
 │   ├── models/        # Modelos Pydantic
 │   ├── db/            # Ligação ao MongoDB e CRUD de collections
 │   ├── security/      # Encriptação de campos, hash e qualidade de passwords
@@ -199,7 +199,7 @@ Configuração em `.env` na raiz (ignorado pelo git; modelo em `.env.example`): 
 
 ## Sessão e autenticação
 
-Públicos: `GET /health`, `POST /api/v1/users` e `POST /api/v1/auth/login`. Tudo o resto (`/api/v1/circuits/…`, `/api/v1/components`, `/api/v1/templates`) exige `Authorization: Bearer <token>` — dependência `require_user` (`app/auth/dependencies.py`), aplicada aos routers em `app/main.py`. A escrita em `/api/v1/templates` (`POST`/`PUT`/`DELETE`) exige ainda `role: "ADMIN"` (ver [Templates de componentes](#templates-de-componentes-f2-10)).
+Públicos: `GET /health`, `GET /health/ready`, `POST /api/v1/users` e `POST /api/v1/auth/login`. Tudo o resto (`/api/v1/circuits/…`, `/api/v1/components`, `/api/v1/templates`) exige `Authorization: Bearer <token>` — dependência `require_user` (`app/auth/dependencies.py`), aplicada aos routers em `app/main.py`. A escrita em `/api/v1/templates` (`POST`/`PUT`/`DELETE`) exige ainda `role: "ADMIN"` (ver [Templates de componentes](#templates-de-componentes-f2-10)).
 
 | Método | Endpoint | Resposta |
 |---|---|---|
@@ -226,13 +226,28 @@ Instalada em `app/http_security.py` (de fora para dentro: CORS → rate limiting
 | `AUTH_RATE_LIMIT_PER_MINUTE` | `20` | Idem, contado à parte, para `POST /api/v1/auth/login` e `POST /api/v1/users` (força bruta). |
 | `SIMULATION_TIMEOUT_S` | `5` | Tempo máximo de uma simulação → `503 SIMULATION_TIMEOUT`. |
 
-- `0` desativa o limite correspondente. `/health` e os preflight `OPTIONS` não contam para o rate limiting.
+- `0` desativa o limite correspondente. `/health`, `/health/ready`, `/metrics` e os preflight `OPTIONS` não contam para o rate limiting.
 - O rate limiting é em memória e por processo (com `UVICORN_WORKERS=N` o limite efetivo é N×). O IP é o de `scope["client"]`: atrás de um reverse proxy, o uvicorn tem de confiar no `X-Forwarded-For` do proxy (`--proxy-headers`, ativo por omissão, e `FORWARDED_ALLOW_IPS`/`UVICORN_FORWARDED_ALLOW_IPS`); o `docker-compose.yml` já o configura.
 - Nunca se executa código do cliente: não há `eval`/`exec`/`pickle` sobre dados recebidos; os templates de geração são procurados num registo fixo (`app/generation/registry.py`) e os parâmetros validados por Pydantic.
 
+## Observabilidade (E5-05)
+
+`app/observability.py` instala o middleware mais exterior (mede também os `413`/`429`):
+
+- **Request ID:** cada resposta traz `X-Request-ID`. Um `X-Request-ID` recebido (ex.: do reverse proxy) é reutilizado se tiver 1–64 caracteres `[A-Za-z0-9._-]`; caso contrário gera-se um UUID.
+- **Log de pedidos** (logger `app.access`, uma linha por pedido): `request_id=… method=GET route=/api/v1/templates/{template_id} status=200 duration_ms=12.3`. Regista-se o *template* da rota (`unmatched` se nenhuma corresponder), nunca o caminho concreto, a query string, o corpo, cabeçalhos, tokens, emails ou IPs. `/health`, `/health/ready` e `/metrics` não são registados. O nível dos loggers `app.*` define-se com `LOG_LEVEL` (por omissão `INFO`); a imagem Docker desliga o access log do uvicorn (`--no-access-log`), que incluiria IP e query string.
+- **Métricas Prometheus** em `GET /metrics`, protegido por `Authorization: Bearer <METRICS_TOKEN>` (`401` se faltar ou estiver errado; `404` se `METRICS_TOKEN` não estiver definido): `http_requests_total{method,route,status}`, o histograma `http_request_duration_seconds{method,route}`, `http_requests_in_progress` e `process_uptime_seconds`. São em memória e por processo.
+
+| Método | Endpoint | Resposta |
+|---|---|---|
+| `GET` | `/health` | Liveness: `200 {"status":"ok"}` sem consultar dependências. Usado pelo `HEALTHCHECK` da imagem e para reiniciar a API. |
+| `GET` | `/health/ready` | Readiness: `ping` ao MongoDB → `200 {"status":"ok","checks":{"database":"ok"}}`, ou `503 {"status":"unavailable","checks":{"database":"unavailable"}}` (o erro fica no log só com o tipo da exceção). |
+
+No servidor, `deploy/healthcheck.sh` corre a cada minuto via `deploy/vcccircuitlab-healthcheck.timer`: se `/health` falhar, reinicia o serviço `api` (`docker compose restart api`); se só `/health/ready` falhar, regista um aviso no journal (`journalctl -u vcccircuitlab-healthcheck.service`). Instalação nos comentários de `deploy/vcccircuitlab-healthcheck.service`.
+
 ## Imagem Docker
 
-O `Dockerfile` usa um build em duas fases sobre `python:3.12-slim`: o venv é criado em `/opt/venv` só com `requirements.txt`, e apenas `app/` é copiado (ver `.dockerignore`). O contexto de build é `apps/api`. A imagem corre `uvicorn` em `0.0.0.0:8000` como `app` (uid/gid 10001), sem cabeçalho `Server`, e o `HEALTHCHECK` consulta `GET /health`. O número de processos define-se com `UVICORN_WORKERS`. Para correr com as restrições de segurança, usar o `docker-compose.yml` da raiz (ver README principal).
+O `Dockerfile` usa um build em duas fases sobre `python:3.12-slim`: o venv é criado em `/opt/venv` só com `requirements.txt`, e apenas `app/` é copiado (ver `.dockerignore`). O contexto de build é `apps/api`. A imagem corre `uvicorn` em `0.0.0.0:8000` como `app` (uid/gid 10001), sem cabeçalho `Server` nem access log do uvicorn, e o `HEALTHCHECK` consulta `GET /health`. O número de processos define-se com `UVICORN_WORKERS`. Para correr com as restrições de segurança, usar o `docker-compose.yml` da raiz (ver README principal).
 
 ```bash
 docker build -t vcccircuitlab-api:local apps/api

@@ -1,0 +1,12 @@
+# Executa vcccircuitlab-healthcheck.service a cada minuto (E5-05).
+
+[Unit]
+Description=VCCCircuitLab API health check (a cada minuto)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
