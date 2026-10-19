@@ -148,6 +148,8 @@ Coleção `templates` (MongoDB): fonte da verdade do catálogo de componentes, g
 
 `app/circuit/catalog.py::load_catalog()` lê a coleção a cada chamada (sem cache de processo), para que alterações de administradores (`POST`/`PUT`/`DELETE`) fiquem visíveis de imediato em `GET /api/v1/components` e na validação/simulação/geração de circuitos.
 
+Numa instalação nova a coleção está vazia (o editor mostra um erro ao carregar o catálogo). Para a semear com os componentes de um catálogo JSON (`{"components": [...]}`), a partir de `apps/api`: `python -m app.component_templates.seed ../../packages/circuit-schema/test/fixtures/catalog.json`. É idempotente: só insere os tipos que ainda não existem (`createdBy: "seed"`), sem tocar nos templates editados por administradores. Usado também pelo workflow E2E (E5-06).
+
 ### Erros (`application/problem+json`, RFC 9457)
 
 Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:

@@ -153,6 +153,41 @@ backend precisa do MongoDB configurado no `.env` — e injeta o token no `sessio
 `PLAYWRIGHT_SKIP_BACKEND=1` simula `GET /api/v1/auth/me`. `e2e/login.spec.ts` testa o próprio
 ecrã de login.
 
+### Browsers e tablets (E5-06)
+
+| Projeto | Dispositivo | Cenários |
+|---|---|---|
+| `chromium` | Desktop Chrome (1280×720) | todos |
+| `firefox` | Desktop Firefox | `examples.spec.ts` |
+| `webkit` | Desktop Safari | `examples.spec.ts` |
+| `tablet-ipad` | iPad (gen 7), vertical, WebKit com toque | `examples.spec.ts` |
+| `tablet-android` | Galaxy Tab S4, horizontal, Chromium com toque | `examples.spec.ts` |
+
+`e2e/examples.spec.ts` abre cada exemplo do menu, confirma que a página não tem scroll horizontal,
+que o canvas tem uma área utilizável e que as ações principais estão visíveis, e simula (sem
+erros). Nos tablets também seleciona e adiciona componentes por toque. Abaixo de 1180 px os
+painéis laterais estreitam; abaixo de 900 px o canvas passa para uma linha própria e os painéis
+ficam por baixo.
+
+```bash
+pnpm --filter @vcccircuitlab/web exec playwright install --with-deps chromium firefox webkit
+pnpm --filter @vcccircuitlab/web test:e2e --project=firefox --project=tablet-ipad
+```
+
+O workflow `.github/workflows/e2e.yml` corre todos os projetos com um MongoDB efémero, depois de
+semear os templates de componentes (`python -m app.component_templates.seed`, ver
+`apps/api/README.md`).
+
+**Contra o site publicado:** `PLAYWRIGHT_BASE_URL` (com `/` final) dispensa os servidores locais;
+`PLAYWRIGHT_API_URL` é a URL da API (o mesmo valor do `VITE_API_BASE_URL`) e `E2E_EMAIL`/
+`E2E_PASSWORD` permitem usar uma conta existente:
+
+```bash
+PLAYWRIGHT_BASE_URL=https://victor-candeias.github.io/VCCCircuitLab/ \
+PLAYWRIGHT_API_URL=https://api.exemplo.pt E2E_EMAIL=… E2E_PASSWORD=… \
+  pnpm --filter @vcccircuitlab/web test:e2e examples.spec.ts
+```
+
 ## GitHub Pages
 
 O `base` do Vite é `/VCCCircuitLab/` por omissão (site servido em `https://<utilizador>.github.io/VCCCircuitLab/`).

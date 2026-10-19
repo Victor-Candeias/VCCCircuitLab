@@ -338,3 +338,41 @@
   color: #fff;
   font-size: 12px;
 }
+
+/* Tablet (E5-06): painéis laterais mais estreitos para deixar espaço ao canvas. */
+@media (max-width: 1180px) {
+  .editor .palette {
+    width: 160px;
+  }
+
+  .editor .properties {
+    width: 200px;
+  }
+
+  .editor .results {
+    width: 240px;
+  }
+}
+
+/* Tablet em vertical / ecrãs estreitos: canvas numa linha própria e painéis por baixo. */
+@media (max-width: 900px) {
+  .editor {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow-y: auto;
+  }
+
+  .editor__canvas {
+    order: -1;
+    flex: 1 0 100%;
+    height: 60svh;
+  }
+
+  .editor .palette,
+  .editor .properties,
+  .editor .results {
+    flex: 1 1 220px;
+    width: auto;
+    border-top: 1px solid var(--border);
+  }
+}
