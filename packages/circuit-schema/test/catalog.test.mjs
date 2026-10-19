@@ -6,7 +6,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 const readJson = async (url) => JSON.parse(await readFile(url, 'utf8'));
 
 const catalogSchema = await readJson(new URL('../schema/catalog.schema.json', import.meta.url));
-const catalog = await readJson(new URL('../catalog/components.json', import.meta.url));
+const catalog = await readJson(new URL('./fixtures/catalog.json', import.meta.url));
 const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });
 const validateCatalog = ajv.compile(catalogSchema);
 

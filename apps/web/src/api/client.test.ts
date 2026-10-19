@@ -5,6 +5,7 @@ import {
   ApiError,
   createUser,
   generateCircuit,
+  getComponents,
   getCurrentUser,
   login,
   logoutSession,
@@ -109,6 +110,24 @@ describe('cliente da API', () => {
     fetchMock.mockResolvedValue(json({ ok: true }));
     const error = await failure(generateCircuit('series_dc', { voltageV: 12 }));
     expect(error).toMatchObject({ kind: 'invalid-response' });
+  });
+
+  test('getComponents faz GET /api/v1/components e rejeita catálogos sem componentes', async () => {
+    const body = {
+      catalogVersion: '1.0',
+      gridSize: 20,
+      components: [{ type: 'resistor', pins: [], size: { width: 80, height: 40 }, properties: {} }],
+    };
+    fetchMock.mockResolvedValueOnce(json(body));
+    await expect(getComponents({ baseUrl: '' })).resolves.toEqual(body);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/v1/components');
+    expect(init?.method).toBe('GET');
+
+    fetchMock.mockResolvedValueOnce(json({ ...body, components: [] }));
+    await expect(getComponents({ baseUrl: '' })).rejects.toMatchObject({
+      kind: 'invalid-response',
+    });
   });
 
   test('erros problem+json ficam disponíveis com código, estado e lista de erros', async () => {

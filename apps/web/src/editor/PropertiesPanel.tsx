@@ -45,7 +45,7 @@ type FormValues = Record<string, unknown>;
 /**
  * Painel lateral de propriedades do componente selecionado: um campo por propriedade do
  * catálogo, validado imediatamente (React Hook Form + Zod) a partir dos limites do catálogo
- * partilhado (`packages/circuit-schema/catalog`). Alterações válidas atualizam o documento de
+ * carregado da API (`GET /api/v1/components`). Alterações válidas atualizam o documento de
  * imediato; inválidas ficam assinaladas sem tocar no circuito.
  */
 export function PropertiesPanel() {

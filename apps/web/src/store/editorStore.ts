@@ -91,7 +91,7 @@ const samePosition = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 export const HISTORY_LIMIT = 100;
 
 /** Deslocamento de cada colagem sucessiva (duas células na diagonal). */
-const PASTE_STEP = 2 * GRID_SIZE;
+const pasteStep = () => 2 * GRID_SIZE;
 
 /**
  * Alteração do documento com registo no histórico (exceto dentro de um gesto, que é registado
@@ -202,7 +202,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     set((state) => {
       if (!state.clipboard) return state;
       const pastes = state.clipboard.pastes + 1;
-      const offset = { x: pastes * PASTE_STEP, y: pastes * PASTE_STEP };
+      const offset = { x: pastes * pasteStep(), y: pastes * pasteStep() };
       const pasted = pasteFragment(state.circuit, state.clipboard.fragment, offset);
       return {
         ...record(state, pasted.circuit),

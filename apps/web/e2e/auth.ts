@@ -1,11 +1,13 @@
 import { expect, test as base } from '@playwright/test';
+import catalogFixture from '@vcccircuitlab/circuit-schema/fixtures/catalog.json' with { type: 'json' };
 
 /**
  * Sem sessão a aplicação só mostra o ecrã de login (E5-09). Este `test` inicia sessão antes de
  * cada teste e injeta o token no `sessionStorage`, para os cenários começarem já no editor.
  *
  * Com o backend, regista (uma vez) e autentica um utilizador de teste na API — precisa do
- * MongoDB configurado no `.env`. Com `PLAYWRIGHT_SKIP_BACKEND=1` simula `GET /api/v1/auth/me`.
+ * MongoDB configurado no `.env`. Com `PLAYWRIGHT_SKIP_BACKEND=1` simula `GET /api/v1/auth/me` e
+ * `GET /api/v1/components` (catálogo da fixture de `circuit-schema`).
  */
 export const SESSION_STORAGE_KEY = 'vcccircuitlab.session';
 export const E2E_USER = {
@@ -31,6 +33,9 @@ export const test = base.extend<{ session: string }>({
               createdAt: '2025-01-01T00:00:00Z',
             },
           }),
+        );
+        await page.route('**/api/v1/components', (route) =>
+          route.fulfill({ json: catalogFixture }),
         );
       } else {
         const created = await request.post('/api/v1/users', {

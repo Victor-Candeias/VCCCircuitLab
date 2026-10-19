@@ -1,11 +1,11 @@
 # @vcccircuitlab/circuit-schema
 
-JSON Schema **1.0** do documento canónico de circuito do VCCCircuitLab (`schema/circuit.schema.json`, draft 2020-12), catálogo de componentes (`catalog/components.json`, validado por `schema/catalog.schema.json`) e tipos TypeScript gerados (`src/circuit.ts`, `src/catalog.ts`).
+JSON Schema **1.0** do documento canónico de circuito do VCCCircuitLab (`schema/circuit.schema.json`, draft 2020-12), schema do catálogo de componentes (`schema/catalog.schema.json`) e tipos TypeScript gerados (`src/circuit.ts`, `src/catalog.ts`).
 
 ```ts
 import type { CircuitDocument, ComponentCatalog } from '@vcccircuitlab/circuit-schema';
 import schema from '@vcccircuitlab/circuit-schema/circuit.schema.json';
-import catalog from '@vcccircuitlab/circuit-schema/catalog.json';
+import catalogFixture from '@vcccircuitlab/circuit-schema/fixtures/catalog.json'; // só para testes
 import ramificado from '@vcccircuitlab/circuit-schema/examples/ramificado.json'; // fixtures válidas
 ```
 
@@ -71,7 +71,7 @@ As fixtures válidas (`test/fixtures/valid/*.json`) são também exportadas como
 
 ## Catálogo de componentes
 
-`catalog/components.json` separa, por tipo de componente, o **símbolo**, os **terminais**, a **validação de propriedades** e o **modelo elétrico** (§4.1 da arquitetura).
+O catálogo de componentes vem da API (`GET /api/v1/components`, coleção `templates` do MongoDB — F2-10/F2-11); não há cópia estática de produção neste pacote. `test/fixtures/catalog.json` (exportado como `./fixtures/catalog.json`) é a fixture de referência usada pelos testes (deste pacote e do `apps/web`), validada por `schema/catalog.schema.json`. O catálogo separa, por tipo de componente, o **símbolo**, os **terminais**, a **validação de propriedades** e o **modelo elétrico** (§4.1 da arquitetura).
 
 | Tipo | Prefixo | Pinos | Propriedades (omissão) | Modelo elétrico |
 |---|---|---|---|---|
@@ -101,4 +101,4 @@ Verificadas pelo validador do backend (E2-02), não pelo schema:
 - referências de fios/redes a componentes, pinos e junções existentes;
 - `from` ≠ `to` num fio;
 - consistência de `nets` com `wires`/`junctions`;
-- propriedades exigidas e limites de valores por tipo de componente (definidos em `catalog/components.json`).
+- propriedades exigidas e limites de valores por tipo de componente (definidos no catálogo de componentes).

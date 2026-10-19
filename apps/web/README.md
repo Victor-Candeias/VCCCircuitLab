@@ -24,7 +24,7 @@ src/
 │   ├── connectivity.ts    # redes derivadas de fios + junções (union-find, como a API)
 │   ├── editing.ts         # apagar, copiar e colar (fragmentos com novos IDs)
 │   ├── geometry.ts        # snap, rotação, âncora ↔ canto superior esquerdo
-│   ├── catalog.ts         # catálogo de @vcccircuitlab/circuit-schema
+│   ├── catalog.ts         # catálogo carregado de GET /api/v1/components (setCatalog)
 │   ├── export.ts          # exportação PNG/SVG do canvas e impressão/PDF via browser
 │   ├── PropertiesPanel.tsx    # formulário das propriedades do componente selecionado (React Hook Form + Zod)
 │   └── demoCircuit.ts
@@ -47,6 +47,7 @@ src/
 
 ## Editor
 
+- O catálogo de componentes é pedido à API (`GET /api/v1/components`) depois do login e antes de montar o editor (`App.tsx` → `setCatalog`); se falhar, mostra o erro com "Tentar novamente". Não há cópia estática no bundle. Nos testes, `test/setup.ts` injeta a fixture `@vcccircuitlab/circuit-schema/fixtures/catalog.json`.
 - O store guarda o **documento canónico** (`CircuitDocument`) separado do **estado de vista** (seleção, fio em desenho). Os nós e fios do React Flow são derivados do documento; as alterações do canvas voltam ao store.
 - `Component.position` é o **centro** do símbolo (âncora); o tamanho vem do catálogo e roda com o componente. O snap à grelha (20) é aplicado à âncora, para que os pinos fiquem na grelha.
 - Interação: arrastar o fundo faz pan; roda do rato/controlos fazem zoom; clique seleciona; Ctrl/⌘ + clique acrescenta à seleção; Shift + arrastar seleciona por caixa; arrastar um componente move-o (com snap).

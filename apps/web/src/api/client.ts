@@ -1,4 +1,4 @@
-import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
+import type { CircuitDocument, ComponentCatalog } from '@vcccircuitlab/circuit-schema';
 import { toCanonical } from '../project/circuitJson';
 import type { Problem, SimulationResult, UserAccount, ValidationResult } from './types';
 
@@ -229,6 +229,30 @@ export function generateCircuit(
     isCircuitDocument,
     options,
   );
+}
+
+function isComponentCatalog(value: unknown): value is ComponentCatalog {
+  return (
+    isRecord(value) &&
+    typeof value.catalogVersion === 'string' &&
+    typeof value.gridSize === 'number' &&
+    value.gridSize > 0 &&
+    Array.isArray(value.components) &&
+    value.components.length > 0 &&
+    value.components.every(
+      (c) =>
+        isRecord(c) &&
+        typeof c.type === 'string' &&
+        Array.isArray(c.pins) &&
+        isRecord(c.size) &&
+        isRecord(c.properties),
+    )
+  );
+}
+
+/** `GET /api/v1/components`: catálogo de componentes (fonte: coleção `templates` do MongoDB). */
+export function getComponents(options: RequestOptions = {}): Promise<ComponentCatalog> {
+  return requestJson('GET', '/api/v1/components', undefined, isComponentCatalog, options);
 }
 
 function isUserAccount(value: unknown): value is UserAccount {
