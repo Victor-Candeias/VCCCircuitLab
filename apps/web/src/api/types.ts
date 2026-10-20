@@ -72,6 +72,23 @@ export interface ValidationResult {
 }
 
 /** Resposta de `POST /api/v1/circuits/import/spice` (F2-05). */
+/** Resposta de `POST /api/v1/circuits/generate/text` (F2-06). */
+export interface GenerateTextResult {
+  /** Template escolhido pelo parser (ex.: `series_dc`). */
+  template: string;
+  title: string;
+  /** Parâmetros do template, já validados pela API. */
+  parameters: Record<string, unknown>;
+  /** Resumo legível do circuito interpretado. */
+  summary: string;
+  /** Valores assumidos por omissão ou interpretações a confirmar. */
+  assumptions: string[];
+  /** Circuito gerado e validado (com `nets`). */
+  circuit: CircuitDocument;
+  /** Avisos do validador sobre o circuito gerado. */
+  warnings: CircuitIssue[];
+}
+
 export interface SpiceImportResult {
   /** Documento canónico (sem `nets`). */
   circuit: CircuitDocument;

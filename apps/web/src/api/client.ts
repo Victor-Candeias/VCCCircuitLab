@@ -1,6 +1,7 @@
 import type { CircuitDocument, ComponentCatalog } from '@vcccircuitlab/circuit-schema';
 import { toCanonical } from '../project/circuitJson';
 import type {
+  GenerateTextResult,
   Problem,
   SimulationResult,
   SpiceImportResult,
@@ -262,6 +263,34 @@ export function generateCircuit(
     '/api/v1/circuits/generate',
     { template, parameters },
     isCircuitDocument,
+    options,
+  );
+}
+
+function isGenerateTextResult(value: unknown): value is GenerateTextResult {
+  return (
+    isRecord(value) &&
+    typeof value.template === 'string' &&
+    typeof value.summary === 'string' &&
+    Array.isArray(value.assumptions) &&
+    isCircuitDocument(value.circuit) &&
+    Array.isArray(value.warnings)
+  );
+}
+
+/**
+ * `POST /api/v1/circuits/generate/text`: interpreta uma descrição em português e devolve o
+ * circuito gerado com o resumo e os valores assumidos, para o utilizador confirmar.
+ */
+export function generateFromText(
+  text: string,
+  options: RequestOptions = {},
+): Promise<GenerateTextResult> {
+  return requestJson(
+    'POST',
+    '/api/v1/circuits/generate/text',
+    { text },
+    isGenerateTextResult,
     options,
   );
 }

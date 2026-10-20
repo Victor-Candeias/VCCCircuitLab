@@ -89,6 +89,8 @@ Semicondutores (F2-04): díodo, LED e transístores bipolares NPN e PNP, no grup
 
 Netlists SPICE (F2-05): no menu Projeto, «Exportar SPICE» descarrega o circuito como netlist `.cir` (legível pelo ngspice) e «Importar SPICE…» abre uma netlist com elementos R, C, L, V/I DC, D e Q. Uma netlist exportada pelo VCCCircuitLab e não editada reabre o circuito original, com o mesmo desenho. As outras são desenhadas numa grelha e mostram avisos para o que foi ignorado ou aproximado. Os elementos não suportados dão erro com o número da linha (detalhes em [`apps/api/README.md`](apps/api/README.md#importaçãoexportação-spice-f2-05)).
 
+Geração por texto livre (F2-06): em «Gerar…», o modo «Texto livre» aceita uma descrição em português, por exemplo «divisor de tensão de 9 V com 10k e 4,7k». A API interpreta-a com um parser de intenções determinístico (sem LLM nem serviços externos) e valida o resultado com o schema do template e as regras elétricas. Antes de abrir o circuito no editor, o diálogo mostra o resumo, os valores assumidos e uma pré-visualização (detalhes em [`apps/api/README.md`](apps/api/README.md#geração-por-linguagem-natural-f2-06)).
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

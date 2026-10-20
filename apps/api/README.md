@@ -208,6 +208,7 @@ O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `appli
 | Método | Endpoint | Resposta `200` |
 |---|---|---|
 | `POST` | `/api/v1/circuits/generate` | Documento canónico gerado (`CircuitDocument`, com `nets` já calculado). Corpo: `{ template, parameters }` (ver [Geração por templates](#geração-por-templates)). |
+| `POST` | `/api/v1/circuits/generate/text` | `{ template, title, parameters, summary, assumptions[], circuit, warnings[] }`. Corpo: `{ text }` (ver [Geração por linguagem natural](#geração-por-linguagem-natural-f2-06)). |
 | `POST` | `/api/v1/circuits/validate` | `{ valid, errors[], warnings[], nets[] \| null }`. Os erros de circuito fazem parte do relatório e não são erros HTTP. `nets` traz a partição em redes quando a normalização foi possível. |
 | `POST` | `/api/v1/circuits/simulate` | Resultado DC (ver [Solver MNA DC](#solver-mna-dc)). |
 | `POST` | `/api/v1/circuits/simulate/transient` | Séries no tempo. Corpo: `{ circuit, stopTimeS, timeStepS }` (ver [Análise transitória](#análise-transitória-f2-02)). |
@@ -230,6 +231,24 @@ O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `appli
 curl -X POST http://127.0.0.1:8000/api/v1/circuits/generate \
   -H 'content-type: application/json' \
   --data '{"template": "series_dc", "parameters": {"voltageV": 12, "resistorsOhm": [100, 220]}}'
+```
+
+### Geração por linguagem natural (F2-06)
+
+`POST /api/v1/circuits/generate/text` recebe `{ "text": "…" }` (1 a 1000 caracteres, em português) e escolhe um dos templates acima. O parser de intenções (`app/generation/natural.py`) é determinístico e corre só no servidor: não usa LLM nem serviços externos e o texto nunca é executado. O resultado passa sempre pelo modelo Pydantic do template (schema) e pelo validador elétrico (`validate`), tal como um pedido a `/generate`.
+
+- **Topologia** (palavras-chave, sem acentos nem maiúsculas): `divisor` → `voltage_divider`; `interruptor`/`comutador` → `switch_circuit`; `paralelo` → `parallel_dc`; `série` → `series_dc`. Sem palavra-chave, mas com valores, assume série. Série e paralelo ao mesmo tempo é erro (circuitos mistos ainda não são gerados).
+- **Valores:** `12 V`, `500 mV`, `1,5 volts`, `100 Ω`, `4,7k`, `1MΩ`, `10 kohm`. A vírgula entre dígitos é decimal. Números sem unidade ficam com a da lista a que pertencem («100, 220 e 330 Ω») ou com a do contexto («fonte de 5», «resistência de 220»); se não, é erro. Corrente, potência, capacidade, indutância e frequência são rejeitadas.
+- **Contagens:** «três resistências de 1 kΩ» repete o valor; «duas resistências de 10k e 4,7k» exige um valor por resistência. Máximo de 12.
+- **Interruptor:** `aberto`/`desligado` → `closed: false`; `fechado` ou nada → `true`. Lâmpadas e cargas são resistências.
+- **Valores assumidos:** o que falta (tensão: 12 V; resistências: as do formulário de cada template; estado do interruptor; topologia) é preenchido e listado em `assumptions`, para o editor pedir confirmação com a pré-visualização antes de abrir o circuito.
+
+Erros: 422 `uninterpretable-text` (`code: UNINTERPRETABLE_TEXT`), com um item em `errors` por motivo; valores fora dos limites do template dão 422 `invalid-parameters`, como em `/generate`.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/circuits/generate/text \
+  -H 'content-type: application/json' \
+  --data '{"text": "divisor de tensão de 9 V com 10k e 4,7k"}'
 ```
 
 ```bash
@@ -285,6 +304,7 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `about:blank` | 415 | `UNSUPPORTED_MEDIA_TYPE` (corpo que não é JSON) |
 | `…:invalid-document` | 422 | `INVALID_COMPONENT` (erro de esquema em `components[i]`, com `refs: [id]`; na transitória o `pointer` começa em `/circuit`), `INVALID_DOCUMENT` (restantes, incluindo `NaN` e `Infinity`) |
 | `…:unknown-template` | 422 | `UNKNOWN_TEMPLATE` (nome de `template` não existe no registo) |
+| `…:uninterpretable-text` | 422 | `UNINTERPRETABLE_TEXT` (texto livre que não descreve um circuito suportado; ver [Geração por linguagem natural](#geração-por-linguagem-natural-f2-06)) |
 | `…:invalid-netlist` | 422 | `INVALID_NETLIST` (netlist SPICE não traduzível; os códigos de cada erro estão em [Importação/exportação SPICE](#importaçãoexportação-spice-f2-05)) |
 | `…:invalid-parameters` | 422 | `INVALID_PARAMETERS` (campo em falta, extra ou fora dos limites, com `pointer` em `/parameters/…`; na transitória, `/stopTimeS` ou `/timeStepS`) |
 | `…:invalid-circuit` | 422 | Códigos do validador: `UNKNOWN_TERMINAL`, `FLOATING_NET`, `MISSING_GROUND`, `UNSUPPORTED_MODEL`, `INVALID_VALUE`, … |

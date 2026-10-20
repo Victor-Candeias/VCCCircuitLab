@@ -6,6 +6,7 @@ import {
   exportSpice,
   createUser,
   generateCircuit,
+  generateFromText,
   getComponents,
   getCurrentUser,
   importSpice,
@@ -152,6 +153,28 @@ describe('cliente da API', () => {
     expect(url).toBe('/api/v1/circuits/export/spice');
     expect(init?.method).toBe('POST');
     expect(JSON.parse(String(init?.body))).not.toHaveProperty('nets');
+  });
+
+  test('generateFromText envia o texto e valida a resposta', async () => {
+    const body = {
+      template: 'series_dc',
+      title: 'Circuito em série',
+      parameters: { voltageV: 12, resistorsOhm: [100] },
+      summary: 'Circuito em série: fonte de 12 V e resistência de 100 Ω.',
+      assumptions: [],
+      circuit: demoCircuit,
+      warnings: [],
+    };
+    fetchMock.mockResolvedValueOnce(json(body));
+
+    await expect(generateFromText('série 12 V 100 Ω', { baseUrl: '' })).resolves.toEqual(body);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/v1/circuits/generate/text');
+    expect(JSON.parse(String(init?.body))).toEqual({ text: 'série 12 V 100 Ω' });
+
+    fetchMock.mockResolvedValueOnce(json({ ...body, circuit: undefined }));
+    const error = await failure(generateFromText('x', { baseUrl: '' }));
+    expect(error).toMatchObject({ kind: 'invalid-response' });
   });
 
   test('importSpice envia a netlist e valida a resposta', async () => {

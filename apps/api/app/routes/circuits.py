@@ -1,5 +1,6 @@
-"""Circuitos: `POST /api/v1/circuits/{generate,validate,simulate,simulate/transient}` e
-importação/exportação SPICE (`export/spice`, `import/spice`)."""
+"""Circuitos: `POST /api/v1/circuits/{generate,validate,simulate,simulate/transient}`,
+geração por texto livre (`generate/text`) e importação/exportação SPICE (`export/spice`,
+`import/spice`)."""
 
 import os
 from collections.abc import Callable
@@ -15,6 +16,7 @@ from app.circuit.errors import CircuitError
 from app.circuit.normalize import normalize
 from app.circuit.validate import validate
 from app.generation.errors import InvalidParametersError, UnknownTemplateError
+from app.generation.natural import MAX_TEXT_CHARS, interpret
 from app.generation.registry import get_template
 from app.models.circuit import CircuitDocument
 from app.problems import CircuitIssue, SimulationTimeoutError, problem_responses
@@ -139,6 +141,57 @@ def generate_circuit(body: GenerateRequest) -> CircuitDocument:
     except ValidationError as exc:
         raise InvalidParametersError(body.template, exc) from exc
     return normalize(spec.build(params)).document
+
+
+class GenerateTextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: Descrição do circuito em português (ex.: «série com 12 V e 100, 220 Ω»).
+    text: Annotated[str, Field(min_length=1, max_length=MAX_TEXT_CHARS)]
+
+
+class GenerateTextResponse(BaseModel):
+    #: Template escolhido (ver `POST /generate`).
+    template: str
+    title: str
+    #: Parâmetros do template, já validados (camelCase).
+    parameters: dict[str, Any]
+    #: Resumo legível do que foi interpretado, para confirmação.
+    summary: str
+    #: Valores assumidos por omissão ou interpretações a confirmar.
+    assumptions: list[str]
+    circuit: CircuitDocument
+    #: Avisos do validador sobre o circuito gerado.
+    warnings: list[CircuitIssue]
+
+
+@router.post(
+    "/generate/text",
+    response_model=GenerateTextResponse,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 415, 422),
+    summary="Gerar um circuito a partir de uma descrição em linguagem natural",
+    description=(
+        "Parser de intenções determinístico (português, sem LLM): o texto só escolhe um template "
+        "e os seus parâmetros, que passam pelo schema do template e pelo validador elétrico. "
+        "Nunca é executado. O resultado inclui um resumo e os valores assumidos, para o "
+        "utilizador confirmar antes de abrir o circuito. 422 `uninterpretable-text` se o texto "
+        "não descrever um circuito suportado."
+    ),
+)
+def generate_from_text(body: GenerateTextRequest) -> dict[str, Any]:
+    interpretation = interpret(body.text)
+    spec = get_template(interpretation.template)
+    report = validate(spec.build(interpretation.params), load_catalog())
+    circuit = report.raise_for_errors().document
+    return {
+        "template": spec.name,
+        "title": spec.title,
+        "parameters": interpretation.parameters,
+        "summary": interpretation.summary,
+        "assumptions": interpretation.assumptions,
+        "circuit": circuit,
+        "warnings": [_issue(w) for w in report.warnings],
+    }
 
 
 @router.post(

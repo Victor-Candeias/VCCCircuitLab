@@ -6,12 +6,14 @@ import { GenerateDialog } from './GenerateDialog';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
-  return { ...actual, generateCircuit: vi.fn() };
+  return { ...actual, generateCircuit: vi.fn(), generateFromText: vi.fn() };
 });
 
-import { ApiError, generateCircuit } from '../api/client';
+import { ApiError, generateCircuit, generateFromText } from '../api/client';
+import type { GenerateTextResult } from '../api/types';
 
 const generateCircuitMock = vi.mocked(generateCircuit);
+const generateFromTextMock = vi.mocked(generateFromText);
 const initialState = useEditorStore.getState();
 
 beforeEach(() => {
@@ -21,7 +23,22 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   generateCircuitMock.mockReset();
+  generateFromTextMock.mockReset();
 });
+
+const interpretation: GenerateTextResult = {
+  template: 'series_dc',
+  title: 'Circuito em série',
+  parameters: { voltageV: 12, resistorsOhm: [100, 220] },
+  summary: 'Circuito em série: fonte de 12 V e resistências de 100 Ω e 220 Ω.',
+  assumptions: ['Topologia não indicada: assumido um circuito em série.'],
+  circuit: { ...demoCircuit, id: 'interpretado' },
+  warnings: [],
+};
+
+const switchToText = () => fireEvent.click(screen.getByLabelText('Texto livre'));
+const typeDescription = (text: string) =>
+  fireEvent.change(screen.getByLabelText('Descrição do circuito'), { target: { value: text } });
 
 describe('GenerateDialog', () => {
   test('gera com os valores por omissão e substitui o circuito (com confirmação)', async () => {
@@ -131,6 +148,87 @@ describe('GenerateDialog', () => {
 
   test('foca o primeiro campo ao abrir', () => {
     render(<GenerateDialog onClose={vi.fn()} />);
-    expect(screen.getByLabelText('Template')).toHaveFocus();
+    expect(screen.getByLabelText('Por template')).toHaveFocus();
+  });
+
+  describe('texto livre', () => {
+    test('interpreta, mostra resumo, valores assumidos e pré-visualização antes de abrir', async () => {
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      generateFromTextMock.mockResolvedValue(interpretation);
+      const onClose = vi.fn();
+
+      render(<GenerateDialog onClose={onClose} />);
+      switchToText();
+      typeDescription('  12 V com 100 e 220 Ω  ');
+      fireEvent.click(screen.getByRole('button', { name: 'Interpretar' }));
+
+      const section = await screen.findByRole('region', { name: 'Interpretação' });
+      expect(generateFromTextMock).toHaveBeenCalledWith('12 V com 100 e 220 Ω');
+      expect(section).toHaveTextContent(interpretation.summary);
+      expect(section).toHaveTextContent('Topologia não indicada');
+      const preview = screen.getByRole('img', {
+        name: `Pré-visualização: ${interpretation.summary}`,
+      });
+      expect(preview.querySelectorAll('[data-component-id]')).toHaveLength(
+        demoCircuit.components.length,
+      );
+      expect(preview.querySelectorAll('path.circuit-preview__wire')).toHaveLength(
+        demoCircuit.wires.length,
+      );
+      expect(useEditorStore.getState().circuit).toBe(demoCircuit);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir no editor' }));
+
+      expect(confirm).toHaveBeenCalledOnce();
+      expect(useEditorStore.getState().circuit.id).toBe('interpretado');
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    test('alterar o texto descarta a interpretação anterior', async () => {
+      generateFromTextMock.mockResolvedValue(interpretation);
+
+      render(<GenerateDialog onClose={vi.fn()} />);
+      switchToText();
+      typeDescription('série 12 V 1k');
+      fireEvent.click(screen.getByRole('button', { name: 'Interpretar' }));
+      await screen.findByRole('button', { name: 'Abrir no editor' });
+
+      typeDescription('paralelo 12 V 1k');
+
+      expect(screen.queryByRole('region', { name: 'Interpretação' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Interpretar' })).toBeInTheDocument();
+    });
+
+    test('mostra o problema da API quando o texto não é interpretável', async () => {
+      const problem = {
+        type: 'urn:vcccircuitlab:problem:uninterpretable-text',
+        title: 'Não foi possível interpretar o pedido',
+        status: 422,
+        code: 'UNINTERPRETABLE_TEXT',
+        errors: [{ code: 'UNINTERPRETABLE_TEXT', message: 'Descreva a topologia.', refs: [] }],
+      };
+      generateFromTextMock.mockRejectedValue(
+        new ApiError('problem', problem.title, { status: 422, problem }),
+      );
+
+      render(<GenerateDialog onClose={vi.fn()} />);
+      switchToText();
+      typeDescription('uma torradeira');
+      fireEvent.click(screen.getByRole('button', { name: 'Interpretar' }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('Não foi possível interpretar o pedido');
+      expect(alert).toHaveTextContent('Descreva a topologia.');
+      expect(useEditorStore.getState().circuit).toBe(demoCircuit);
+    });
+
+    test('não chama a API com a descrição vazia', () => {
+      render(<GenerateDialog onClose={vi.fn()} />);
+      switchToText();
+      fireEvent.click(screen.getByRole('button', { name: 'Interpretar' }));
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Descreva o circuito');
+      expect(generateFromTextMock).not.toHaveBeenCalled();
+    });
   });
 });

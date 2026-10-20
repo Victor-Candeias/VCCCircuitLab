@@ -22,7 +22,11 @@ from app.auth.errors import InvalidCredentialsError, NotAuthenticatedError, NotA
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
 from app.component_templates.errors import DuplicateTemplateTypeError, TemplateNotFoundError
 from app.db.errors import DatabaseUnavailableError
-from app.generation.errors import InvalidParametersError, UnknownTemplateError
+from app.generation.errors import (
+    InvalidParametersError,
+    UninterpretableTextError,
+    UnknownTemplateError,
+)
 from app.spice.errors import SimulationEngineError
 from app.spice.exchange import InvalidNetlistError
 from app.users.errors import EmailAlreadyRegisteredError
@@ -41,6 +45,7 @@ class ApiErrorCode(StrEnum):
     UNKNOWN_TEMPLATE = "UNKNOWN_TEMPLATE"
     INVALID_PARAMETERS = "INVALID_PARAMETERS"
     INVALID_NETLIST = "INVALID_NETLIST"
+    UNINTERPRETABLE_TEXT = "UNINTERPRETABLE_TEXT"
     SIMULATION_TIMEOUT = "SIMULATION_TIMEOUT"
     SIMULATION_ENGINE_ERROR = "SIMULATION_ENGINE_ERROR"
     EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
@@ -329,6 +334,18 @@ async def _invalid_netlist_handler(request: Request, exc: Exception) -> ProblemR
     )
 
 
+async def _uninterpretable_text_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, UninterpretableTextError)
+    return problem_response(
+        request,
+        status=422,
+        kind="uninterpretable-text",
+        title="Não foi possível interpretar o pedido",
+        errors=[Issue(code=ApiErrorCode.UNINTERPRETABLE_TEXT, message=r) for r in exc.reasons],
+        code=ApiErrorCode.UNINTERPRETABLE_TEXT,
+    )
+
+
 async def _timeout_handler(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, SimulationTimeoutError)
     issue = Issue(
@@ -489,6 +506,7 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(UnknownTemplateError, _unknown_template_handler)
     app.add_exception_handler(InvalidParametersError, _invalid_parameters_handler)
     app.add_exception_handler(InvalidNetlistError, _invalid_netlist_handler)
+    app.add_exception_handler(UninterpretableTextError, _uninterpretable_text_handler)
     app.add_exception_handler(SimulationTimeoutError, _timeout_handler)
     app.add_exception_handler(SimulationEngineError, _engine_error_handler)
     app.add_exception_handler(EmailAlreadyRegisteredError, _email_registered_handler)

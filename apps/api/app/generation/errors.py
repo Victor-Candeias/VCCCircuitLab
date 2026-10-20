@@ -1,4 +1,5 @@
-"""Erros de pedidos de geração: template desconhecido ou parâmetros inválidos.
+"""Erros de pedidos de geração: template desconhecido, parâmetros inválidos ou texto livre
+que não descreve um circuito suportado (`app.generation.natural`).
 
 Diferente de `app.circuit.errors.CircuitValidationError` (erros do próprio circuito): estes
 erros acontecem antes de qualquer circuito existir, ao escolher o template e validar os seus
@@ -23,3 +24,13 @@ class InvalidParametersError(Exception):
         self.template = template
         self.cause = cause
         super().__init__(f"parâmetros inválidos para o template {template}")
+
+
+class UninterpretableTextError(Exception):
+    """O texto não descreve um circuito que os templates consigam gerar."""
+
+    def __init__(self, reasons: list[str]) -> None:
+        if not reasons:
+            raise ValueError("UninterpretableTextError exige pelo menos um motivo")
+        self.reasons = reasons
+        super().__init__("; ".join(reasons))
