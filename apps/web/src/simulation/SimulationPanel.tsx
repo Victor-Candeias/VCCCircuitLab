@@ -1,10 +1,16 @@
 import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
 import { lazy, Suspense, useState } from 'react';
-import type { CircuitIssue, ComponentValues, TransientResult } from '../api/types';
+import type {
+  CircuitIssue,
+  ComponentValues,
+  SimulationResult,
+  TransientResult,
+} from '../api/types';
 import { getComponentDefinition } from '../editor/catalog';
 import { parseTerminal } from '../editor/wiring';
 import { useEditorStore } from '../store/editorStore';
 import { formatQuantity } from './format';
+import { formatReading, instrumentModel, instrumentReadings } from './instruments';
 import { circuitNets } from './nets';
 import {
   isCurrent,
@@ -113,6 +119,7 @@ function SimulationBody({
           <IssueList issues={result.warnings} circuit={circuit} className="results__issues" />
         </div>
       )}
+      <InstrumentTable result={result} circuit={circuit} />
       {result.analysis === 'transient' ? (
         <TransientView result={result} circuit={circuit} />
       ) : (
@@ -122,8 +129,69 @@ function SimulationBody({
   );
 }
 
+const INSTRUMENT_LABELS = {
+  voltmeter: 'Voltímetro',
+  ammeter: 'Amperímetro',
+  oscilloscope: 'Osciloscópio',
+} as const;
+
+/** Leituras dos instrumentos virtuais (valores finais na transitória). */
+function InstrumentTable({
+  result,
+  circuit,
+}: {
+  result: SimulationResult | TransientResult;
+  circuit: CircuitDocument;
+}) {
+  const readings = instrumentReadings(circuit, result);
+  if (readings.length === 0) return null;
+  const select = (id: string) => useEditorStore.getState().setSelection([id]);
+  return (
+    <>
+      <h3 className="results__subtitle">
+        Instrumentos{result.analysis === 'transient' ? ' (valores finais)' : ''}
+      </h3>
+      <table className="results__table" aria-label="Leituras dos instrumentos">
+        <thead>
+          <tr>
+            <th scope="col">Instr.</th>
+            <th scope="col">Tipo</th>
+            <th scope="col">Leitura</th>
+          </tr>
+        </thead>
+        <tbody>
+          {readings.map(({ component, model, values }) => (
+            <tr key={component.id}>
+              <th scope="row">
+                <button
+                  type="button"
+                  className="results__ref"
+                  title={`Selecionar ${component.id}`}
+                  onClick={() => select(component.id)}
+                >
+                  {component.id}
+                </button>
+              </th>
+              <td>{INSTRUMENT_LABELS[model]}</td>
+              <td>
+                {values
+                  .map((v) => (model === 'oscilloscope' ? `${v.label}: ` : '') + formatReading(v))
+                  .join(' · ')}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 function TransientView({ result, circuit }: { result: TransientResult; circuit: CircuitDocument }) {
-  const [quantity, setQuantity] = useState<Quantity>('nets');
+  const scopes = circuit.components.filter((c) => instrumentModel(c.type) === 'oscilloscope');
+  // Com osciloscópios, o gráfico abre no primeiro (como um ecrã de osciloscópio).
+  const [quantity, setQuantity] = useState<Quantity>(() =>
+    scopes.length > 0 ? `scope:${scopes[0].id}` : 'nets',
+  );
   const components = circuit.components.filter((c) => result.components[c.id]);
   const end = result.timeS[result.timeS.length - 1] ?? 0;
 
@@ -132,6 +200,11 @@ function TransientView({ result, circuit }: { result: TransientResult; circuit: 
       <label className="results__field">
         Gráfico
         <select value={quantity} onChange={(event) => setQuantity(event.target.value as Quantity)}>
+          {scopes.map((c) => (
+            <option key={`s-${c.id}`} value={`scope:${c.id}`}>
+              Osciloscópio {c.id}
+            </option>
+          ))}
           <option value="nets">Tensões das redes</option>
           {components.map((c) => (
             <option key={`v-${c.id}`} value={`voltage:${c.id}`}>
@@ -147,7 +220,7 @@ function TransientView({ result, circuit }: { result: TransientResult; circuit: 
       </label>
       <figure className="results__chart" aria-label="Gráfico da análise transitória">
         <Suspense fallback={<p className="results__hint">A carregar o gráfico…</p>}>
-          <TransientChart result={result} quantity={quantity} />
+          <TransientChart result={result} quantity={quantity} circuit={circuit} />
         </Suspense>
       </figure>
       <h3 className="results__subtitle">Valores finais (t = {formatQuantity(end, 's')})</h3>

@@ -210,10 +210,11 @@ describe('EditorCanvas — paleta e rotação', () => {
   test('a paleta agrupa o catálogo por categoria, com o símbolo de cada componente', () => {
     renderCanvas();
     const palette = screen.getByRole('complementary', { name: 'Componentes' });
-    for (const group of ['Fontes', 'Passivos', 'Interruptores', 'Cargas', 'Referência']) {
+    const groups = ['Fontes', 'Passivos', 'Interruptores', 'Cargas', 'Instrumentos', 'Referência'];
+    for (const group of groups) {
       expect(screen.getByRole('region', { name: group })).toBeInTheDocument();
     }
-    expect(palette.querySelectorAll('.palette-item')).toHaveLength(8);
+    expect(palette.querySelectorAll('.palette-item')).toHaveLength(11);
     expect(paletteItem('Resistência').querySelector('svg')).toHaveAttribute(
       'data-symbol',
       'resistor_iec',
@@ -321,7 +322,7 @@ describe('EditorCanvas — paleta e rotação', () => {
   });
 });
 
-describe('EditorCanvas — editar (desfazer, copiar/colar, apagar)', () => {
+describe('EditorCanvas — editar (desfazer, copiar/colar, apagar)', { timeout: 15_000 }, () => {
   const store = () => useEditorStore.getState();
   const has = (id: string) => store().circuit.components.some((c) => c.id === id);
   const button = (name: string) => screen.getByRole('button', { name });

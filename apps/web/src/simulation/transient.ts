@@ -1,17 +1,26 @@
+import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
 import type { ComponentValues, TransientResult } from '../api/types';
+import { scopeChannels } from './instruments';
 
 /** Máximo de pontos desenhados por série; acima disto o gráfico é subamostrado. */
 export const MAX_CHART_POINTS = 1000;
 
-/** Grandeza desenhada: tensões de todas as redes, ou a tensão/corrente de um componente. */
-export type Quantity = 'nets' | `voltage:${string}` | `current:${string}`;
+/**
+ * Grandeza desenhada: tensões de todas as redes, a tensão/corrente de um componente ou os canais
+ * de um osciloscópio (tensões das redes ligadas a cada canal).
+ */
+export type Quantity = 'nets' | `voltage:${string}` | `current:${string}` | `scope:${string}`;
 
 export interface Plot {
   unit: 'V' | 'A';
   series: { key: string; label: string; values: number[] }[];
 }
 
-export function plotOf(result: TransientResult, quantity: Quantity): Plot {
+export function plotOf(
+  result: TransientResult,
+  quantity: Quantity,
+  circuit?: CircuitDocument,
+): Plot {
   if (quantity === 'nets') {
     return {
       unit: 'V',
@@ -25,6 +34,20 @@ export function plotOf(result: TransientResult, quantity: Quantity): Plot {
   const separator = quantity.indexOf(':');
   const kind = quantity.slice(0, separator);
   const id = quantity.slice(separator + 1);
+  if (kind === 'scope') {
+    const scope = circuit?.components.find((c) => c.id === id);
+    const channels = scope && circuit ? scopeChannels(circuit, scope) : [];
+    return {
+      unit: 'V',
+      series: channels
+        .filter((ch) => result.nodeVoltagesV[ch.netId])
+        .map((ch) => ({
+          key: ch.label,
+          label: `${ch.label} (${ch.netId})`,
+          values: result.nodeVoltagesV[ch.netId],
+        })),
+    };
+  }
   const component = result.components[id];
   if (kind === 'current') {
     return {

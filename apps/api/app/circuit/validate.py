@@ -39,16 +39,23 @@ GROUND_MODEL = "ground"
 CAPACITOR_MODEL = "capacitor"
 INDUCTOR_MODEL = "inductor"
 REACTIVE_MODELS = frozenset({CAPACITOR_MODEL, INDUCTOR_MODEL})
+VOLTMETER_MODEL = "voltmeter"
+AMMETER_MODEL = "ammeter"
+OSCILLOSCOPE_MODEL = "oscilloscope"
+#: Instrumentos de impedância infinita: os seus terminais não conduzem nem fixam potencial.
+PROBE_MODELS = frozenset({VOLTMETER_MODEL, OSCILLOSCOPE_MODEL})
 TWO_TERMINAL_MODELS = (
     RESISTIVE_MODELS
     | REACTIVE_MODELS
     | {
         SWITCH_MODEL,
+        VOLTMETER_MODEL,
+        AMMETER_MODEL,
         VOLTAGE_SOURCE_MODEL,
         CURRENT_SOURCE_MODEL,
     }
 )
-SUPPORTED_MODELS = TWO_TERMINAL_MODELS | {GROUND_MODEL}
+SUPPORTED_MODELS = TWO_TERMINAL_MODELS | {GROUND_MODEL, OSCILLOSCOPE_MODEL}
 
 #: Nó virtual de referência (0 V). O `\0` não é permitido em IDs, logo não colide com redes.
 REFERENCE = "\0GND"
@@ -254,13 +261,18 @@ def _check_topology(
     net_of = normalized.terminal_to_net
 
     has_ground = False
-    zero: list[Edge] = []  # impedância nula sem fonte: terra, interruptores fechados, bobinas DC
+    # Impedância nula sem fonte: terra, interruptores fechados, amperímetros, bobinas em DC.
+    zero: list[Edge] = []
     voltage_sources: list[Edge] = []
     resistive: list[Edge] = []
     current_sources: list[Edge] = []
+    probe_terminals: set[str] = set()
     for c in document.components:
         spec = specs[c.id]
         model = spec.simulation_model
+        if model in PROBE_MODELS:
+            probe_terminals.update(c.terminal(pin) for pin in spec.pins)
+            continue
         if model == GROUND_MODEL:
             has_ground = True
             zero += [(c.id, net_of[c.terminal(pin)], REFERENCE) for pin in spec.pins]
@@ -271,6 +283,8 @@ def _check_topology(
         if model == SWITCH_MODEL:
             if c.properties.get("closed") is True:
                 zero.append(edge)
+        elif model == AMMETER_MODEL:
+            zero.append(edge)
         elif model in REACTIVE_MODELS and analysis == "dc":
             if model == INDUCTOR_MODEL:
                 zero.append(edge)
@@ -299,7 +313,8 @@ def _check_topology(
     floating: dict[str, list[str]] = {}
     for net in nets:
         root = connected.find(net.id)
-        if root != reference:
+        # Redes só com pontas de instrumentos: a leitura fica indefinida, mas não é um erro.
+        if root != reference and not probe_terminals.issuperset(net.terminals):
             floating.setdefault(root, []).append(net.id)
 
     terminals_of = {n.id: n.terminals for n in nets}

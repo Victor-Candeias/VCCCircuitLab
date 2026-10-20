@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0",
+  "id": "medicoes-rc",
+  "name": "Medições num circuito RC (instrumentos)",
+  "description": "Carga de C1 (1 µF) por uma fonte de 5 V através de R1 (1 kΩ), com instrumentos ideais: o amperímetro AM1 em série mede a corrente de carga, o voltímetro VM1 em paralelo mede a tensão em C1 e o osciloscópio OSC1 mostra a tensão da fonte (CH1) e do condensador (CH2) ao longo do tempo na análise transitória.",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": { "x": 100, "y": 200 },
+      "rotation": 0,
+      "properties": { "voltageV": 5 },
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "AM1",
+      "type": "ammeter",
+      "position": { "x": 220, "y": 100 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "position": { "x": 360, "y": 100 },
+      "rotation": 0,
+      "properties": { "resistanceOhm": 1000 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "C1",
+      "type": "capacitor",
+      "position": { "x": 540, "y": 100 },
+      "rotation": 0,
+      "properties": { "capacitanceF": 1e-6, "initialVoltageV": 0 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "VM1",
+      "type": "voltmeter",
+      "position": { "x": 540, "y": 200 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "OSC1",
+      "type": "oscilloscope",
+      "position": { "x": 760, "y": 140 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["ch1", "ch2"]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": { "x": 100, "y": 340 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["gnd"]
+    }
+  ],
+  "wires": [
+    { "id": "W1", "from": "V1.positive", "to": "AM1.positive", "waypoints": [] },
+    { "id": "W2", "from": "AM1.negative", "to": "R1.a", "waypoints": [] },
+    { "id": "W3", "from": "R1.b", "to": "C1.a", "waypoints": [] },
+    { "id": "W4", "from": "C1.b", "to": "V1.negative", "waypoints": [] },
+    { "id": "W5", "from": "GND1.gnd", "to": "V1.negative", "waypoints": [] },
+    { "id": "W6", "from": "VM1.positive", "to": "C1.a", "waypoints": [] },
+    { "id": "W7", "from": "VM1.negative", "to": "C1.b", "waypoints": [] },
+    { "id": "W8", "from": "OSC1.ch1", "to": "V1.positive", "waypoints": [] },
+    { "id": "W9", "from": "OSC1.ch2", "to": "C1.a", "waypoints": [] }
+  ]
+}

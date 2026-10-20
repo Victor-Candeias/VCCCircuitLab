@@ -1,6 +1,8 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { ComponentSymbol } from '../components/symbols/ComponentSymbol';
+import { formatReading, instrumentModel, instrumentReading } from '../simulation/instruments';
+import { useSimulationStore } from '../simulation/simulationStore';
 import { useEditorStore } from '../store/editorStore';
 import type { ComponentNode } from './flowNodes';
 
@@ -10,6 +12,7 @@ import type { ComponentNode } from './flowNodes';
  */
 export function ComponentNodeView({ data, selected, width, height }: NodeProps<ComponentNode>) {
   const { component, definition, pins, highlightedPins } = data;
+  const reading = useInstrumentReading(component);
   const label = definition?.label ?? `Tipo desconhecido: ${component.type}`;
   // O ID fica acima de símbolos horizontais e à direita dos verticais, longe dos pinos.
   const horizontal = (width ?? 0) > (height ?? 0);
@@ -54,6 +57,11 @@ export function ComponentNodeView({ data, selected, width, height }: NodeProps<C
         />
       )}
       <span className="component-node__id">{component.id}</span>
+      {reading && (
+        <span className="component-node__reading" aria-label={`Leitura de ${component.id}`}>
+          {reading}
+        </span>
+      )}
       {pins.map((pin) => (
         <Handle
           key={pin.id}
@@ -77,4 +85,21 @@ export function ComponentNodeView({ data, selected, width, height }: NodeProps<C
       ))}
     </div>
   );
+}
+
+/**
+ * Texto da leitura de um instrumento virtual, se a última simulação (com sucesso) corresponder
+ * ao circuito atual; `null` para os restantes componentes (que não subscrevem o circuito).
+ */
+function useInstrumentReading(component: ComponentNode['data']['component']): string | null {
+  const instrument = instrumentModel(component.type) !== null;
+  const circuit = useEditorStore((s) => (instrument ? s.circuit : null));
+  return useSimulationStore((s) => {
+    const simulation = s.simulation;
+    if (!circuit || simulation.status !== 'success' || simulation.circuit !== circuit) return null;
+    const reading = instrumentReading(circuit, simulation.result, component);
+    if (!reading) return null;
+    const scope = reading.model === 'oscilloscope';
+    return reading.values.map((v) => (scope ? `${v.label} ` : '') + formatReading(v)).join(' · ');
+  });
 }

@@ -41,6 +41,7 @@ from app.solver.mna import (
     BranchKind,
     _numeric_error,
     circuit_branches,
+    defined_nets,
 )
 
 #: Número mínimo de passos internos de integração.
@@ -130,7 +131,7 @@ def solve_transient(
 ) -> TransientResult:
     """Resolve um circuito já validado (ver `simulate_transient`)."""
     catalog = catalog or load_catalog()
-    nets = [n.id for n in normalized.document.nets or []]
+    nets = defined_nets(normalized, catalog)
     grounded, branches = circuit_branches(normalized, catalog)
     system = _System(nets, grounded, branches)
 
@@ -342,6 +343,8 @@ def transient_result(
     points = len(times)
     components: dict[str, ComponentSeries] = {}
     for br in branches:
+        if br.kind is BranchKind.OPEN and (br.a not in voltages or br.b not in voltages):
+            continue  # voltímetro com uma ponta numa rede de potencial indefinido
         voltage = voltages[br.a] - voltages[br.b]
         if br.kind is BranchKind.VOLTAGE:
             voltage = np.full(points, br.value)

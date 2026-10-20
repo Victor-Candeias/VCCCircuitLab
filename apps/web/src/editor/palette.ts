@@ -10,6 +10,7 @@ export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   passive: 'Passivos',
   switch: 'Interruptores',
   load: 'Cargas',
+  instrument: 'Instrumentos',
   reference: 'Referência',
 };
 

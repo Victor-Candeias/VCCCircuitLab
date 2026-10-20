@@ -19,6 +19,9 @@ const CATALOG_TYPES = [
   'ground',
   'capacitor',
   'inductor',
+  'voltmeter',
+  'ammeter',
+  'oscilloscope',
 ];
 
 const byType = new Map(catalog.components.map((c) => [c.type, c]));

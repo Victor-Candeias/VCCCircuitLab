@@ -61,6 +61,7 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 - Condensadores e bobinas dependem da análise (`validate(..., analysis="dc" | "transient")`, F2-02). Em DC, o condensador é um circuito aberto e a bobina tem impedância nula, pelo que uma bobina em paralelo com uma fonte de tensão é `VOLTAGE_SOURCE_LOOP`. Na transitória, ambos são condutores: uma malha fonte de tensão–condensador é aceite (o salto em t = 0 é resolvido pelo primeiro passo).
 - `VOLTAGE_SOURCE_LOOP`: malha só de impedância nula que inclui uma fonte de tensão, como uma fonte em curto, fontes em paralelo ou uma fonte entre duas terras. Os `refs` dão a malha. As malhas só de interruptores ou de terras são aceites.
 - `FLOATING_NET`: grupo de redes sem caminho condutor até à terra, porque o potencial fica indefinido. Se o grupo toca numa fonte de corrente, o erro é `CURRENT_SOURCE_CUTSET` (fonte em aberto ou fontes em série). Sem terra, só se reporta `MISSING_GROUND`.
+- Instrumentos ideais (F2-03): o amperímetro tem impedância nula (em paralelo com uma fonte de tensão é `VOLTAGE_SOURCE_LOOP`, um curto-circuito). O voltímetro e o osciloscópio têm impedância infinita: não ligam redes nem fixam potencial. Uma rede só com pontas destes instrumentos (por exemplo, uma ponta desligada) não é `FLOATING_NET`; fica apenas o aviso `UNCONNECTED_PIN`.
 - O catálogo é lido da coleção `templates` do MongoDB (`app/circuit/catalog.py::load_catalog()`, sem cache de processo), gerida por administradores (ver [Templates de componentes](#templates-de-componentes-f2-10)).
 
 ## Solver MNA DC
@@ -81,6 +82,7 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 ```
 
 - **Modelos:** a resistência e a lâmpada são condutâncias (lâmpada: R = `ratedVoltageV`² / `ratedPowerW`). O condensador é um circuito aberto (corrente 0) e a bobina uma fonte de 0 V (`dc_branches()`). Um interruptor fechado é uma fonte de 0 V; um interruptor aberto não entra na matriz (sem R = 0 nem R = ∞). A fonte de corrente injeta `currentA` na rede de `positive`. Todas as redes com terra ficam a 0 V.
+- **Instrumentos virtuais (F2-03, ideais):** o voltímetro é um circuito aberto e a leitura é o seu `voltageV` (V(`positive`) − V(`negative`), corrente 0). O amperímetro é uma fonte de 0 V e a leitura é o seu `currentA` (entra por `positive`). O osciloscópio não tem ramo nem resultado próprio: os canais `ch1`/`ch2` medem a tensão das suas redes em relação à terra (`nodeVoltagesV`). As redes ligadas só a pontas de voltímetros/osciloscópios não têm potencial definido e ficam fora de `nodeVoltagesV`; um voltímetro com uma ponta numa dessas redes não tem resultado.
 - **Sinais (convenção passiva, pinos pela ordem do catálogo):** `voltageV = V(pino1) − V(pino2)`. `currentA` entra pelo pino 1 e atravessa o componente. `powerW = voltageV × currentA` é a potência absorvida, negativa quando o componente fornece energia. A soma das potências é 0. A terra não tem resultado próprio.
 - **Erros numéricos:** `SINGULAR_MATRIX` e `ILL_CONDITIONED_MATRIX` (número de condição > 1e12) são erros, para nunca devolver resultados falsos. Com o validador, só ocorrem com valores extremos (por exemplo, resistências de 1e-13 Ω).
 - **Avisos:** os avisos do validador (por exemplo `UNCONNECTED_PIN`) passam para `warnings`.
@@ -114,7 +116,7 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 - **t = 0:** solução consistente com as condições iniciais (condensadores como fontes de tensão, bobinas como fontes de corrente). Se for singular (por exemplo, um condensador diretamente aos terminais de uma fonte), usa-se o estado em 0⁺.
 - **Sinais e erros:** mesma convenção passiva e mesmos erros numéricos da DC; o prazo `SIMULATION_TIMEOUT_S` é verificado durante a integração.
 - **Limites:** `stopTimeS` ∈ ]0, 1000] s, `timeStepS` > 0 e no máximo 10 000 intervalos de saída. Fora disto, a resposta é `422 INVALID_PARAMETERS` com `pointer` `/stopTimeS` ou `/timeStepS`.
-- **Testes:** `tests/test_solver_transient.py` compara com as soluções analíticas (carga RC, RL, RLC subamortecido e condições iniciais).
+- **Testes:** `tests/test_solver_transient.py` compara com as soluções analíticas (carga RC, RL, RLC subamortecido e condições iniciais). `tests/test_instruments.py` cobre os instrumentos (validação, DC, transitória e netlist).
 
 ## Motor ngspice (F2-01)
 
@@ -122,7 +124,8 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 
 - **Netlist** (`app/spice/netlist.py`): o circuito validado é traduzido com as mesmas estampas do MNA (`dc_branches()`):
   - as redes com terra ficam no nó `0` e as restantes em `n1`, `n2`, …;
-  - resistências e lâmpadas → `R`; fontes de tensão → `V … DC`; interruptores fechados → `V … DC 0`; interruptores abertos → sem elemento; fontes de corrente → `I neg pos DC`;
+  - resistências e lâmpadas → `R`; fontes de tensão → `V … DC`; interruptores fechados e amperímetros → `V … DC 0`; interruptores abertos, voltímetros e osciloscópios → sem elemento; fontes de corrente → `I neg pos DC`;
+  - as redes só com pontas de instrumentos não têm nó;
   - em DC, condensadores → sem elemento e bobinas → `V … DC 0`; na transitória (`build_transient_netlist`) → `C … IC=` e `L … IC=`, com `.options method=gear` e `tran passo fim 0 passo_máx uic` seguido de `linearize` (pontos equidistantes, iguais aos do MNA).
   
   Os nomes de nós e elementos são gerados, e os valores são `float` validados. Ids, nomes e etiquetas do utilizador nunca entram na netlist, o que impede injetar diretivas (`.include`, `.control`, `shell`).
@@ -142,7 +145,7 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 
 Testes:
 - `tests/test_spice.py` cobre a netlist, o rawfile, os limites, o timeout e os erros, com um ngspice falso.
-- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6), e as transitórias RC, RL e RLC (tolerância de 0,5 % do máximo de cada série). É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
+- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6), e as transitórias RC, RL, RLC e o exemplo com instrumentos `medicoes-rc` (tolerância de 0,5 % do máximo de cada série). É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
 
 Instalação local: `sudo apt-get install ngspice`. Na imagem Docker: `--build-arg WITH_NGSPICE=true`, ou `WITH_NGSPICE=true` no `.env` do compose.
 

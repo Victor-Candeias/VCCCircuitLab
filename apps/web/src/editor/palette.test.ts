@@ -13,6 +13,7 @@ describe('paletteGroups', () => {
       'Passivos',
       'Interruptores',
       'Cargas',
+      'Instrumentos',
       'Referência',
     ]);
     expect(groups[0].items.map((d) => d.type)).toEqual(['dc_voltage_source', 'dc_current_source']);
@@ -20,7 +21,12 @@ describe('paletteGroups', () => {
   });
 
   test('pesquisa sem distinguir maiúsculas nem acentos', () => {
-    expect(types('TENSAO')).toEqual(['dc_voltage_source', 'capacitor']);
+    expect(types('TENSAO')).toEqual([
+      'dc_voltage_source',
+      'capacitor',
+      'voltmeter',
+      'oscilloscope',
+    ]);
     expect(types('lâmpada')).toEqual(['lamp']);
   });
 

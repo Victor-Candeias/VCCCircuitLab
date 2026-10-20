@@ -7,6 +7,9 @@ export const SYMBOL_IDS = [
   'inductor_iec',
   'switch_spst_iec',
   'lamp_iec',
+  'voltmeter_iec',
+  'ammeter_iec',
+  'oscilloscope_iec',
   'ground_iec',
 ] as const;
 

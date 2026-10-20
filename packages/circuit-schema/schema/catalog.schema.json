@@ -26,7 +26,7 @@
     "ComponentCategory": {
       "title": "ComponentCategory",
       "description": "Categoria usada para agrupar a paleta.",
-      "enum": ["source", "passive", "switch", "load", "reference"]
+      "enum": ["source", "passive", "switch", "load", "instrument", "reference"]
     },
     "SimulationModel": {
       "title": "SimulationModel",
@@ -39,6 +39,9 @@
         "resistive_lamp",
         "capacitor",
         "inductor",
+        "voltmeter",
+        "ammeter",
+        "oscilloscope",
         "ground",
         null
       ]

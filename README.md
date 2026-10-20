@@ -83,6 +83,8 @@ Motor de simulação (F2-01): por omissão a API usa o solver MNA interno. Com `
 
 Análises (F2-02): ponto de funcionamento DC e análise transitória (condensadores e bobinas, resposta ao degrau em t = 0), escolhidas no painel de simulação. A transitória mostra um gráfico das tensões e correntes e os valores finais (ver [`apps/api`](apps/api/README.md#análise-transitória-f2-02)). O exemplo «Carga de um condensador (RC)» do menu Projeto mostra a carga de um condensador.
 
+Instrumentos virtuais (F2-03): voltímetro, amperímetro e osciloscópio ideais, no grupo «Instrumentos» da paleta. Depois de simular, a leitura aparece junto ao instrumento no canvas e na tabela «Instrumentos» do painel (valores finais na transitória). Na transitória, o gráfico abre no osciloscópio, com um traço por canal (tensão em relação à terra). O exemplo «Instrumentos: voltímetro, amperímetro e osciloscópio (RC)» do menu Projeto usa os três.
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

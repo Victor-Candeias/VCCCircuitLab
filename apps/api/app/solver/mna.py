@@ -8,7 +8,14 @@ das fontes de tensão e dos interruptores fechados. Estampas:
 - interruptor fechado → fonte de 0 V (corrente definida, sem R = 0);
 - interruptor aberto → sem estampa (corrente 0, sem R = ∞);
 - fonte de corrente → `currentA` sai por `positive` para o circuito e entra por `negative`;
-- condensador → aberto (corrente 0); bobina → fonte de 0 V (como um interruptor fechado).
+- condensador → aberto (corrente 0); bobina → fonte de 0 V (como um interruptor fechado);
+- instrumentos ideais (F2-03): voltímetro → aberto (a leitura é `voltageV`), amperímetro →
+  fonte de 0 V (a leitura é `currentA`), osciloscópio → sem ramo (as leituras são as tensões
+  das redes dos canais).
+
+As redes ligadas apenas a pontas de instrumentos (voltímetro/osciloscópio) não têm potencial
+definido: ficam fora das incógnitas e de `nodeVoltagesV`, e os voltímetros ligados a elas não
+têm resultado.
 
 Convenção de sinais passiva para todos os componentes de dois terminais (pinos pela ordem do
 catálogo): `voltageV = V(pino1) − V(pino2)`, `currentA` entra pelo pino 1 e atravessa o
@@ -26,12 +33,16 @@ from app.circuit.catalog import ComponentCatalog, load_catalog
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
 from app.circuit.normalize import NormalizedCircuit
 from app.circuit.validate import (
+    AMMETER_MODEL,
     CAPACITOR_MODEL,
     CURRENT_SOURCE_MODEL,
     GROUND_MODEL,
     INDUCTOR_MODEL,
+    OSCILLOSCOPE_MODEL,
+    PROBE_MODELS,
     SWITCH_MODEL,
     VOLTAGE_SOURCE_MODEL,
+    VOLTMETER_MODEL,
     validate,
 )
 from app.models.circuit import CircuitDocument, Component
@@ -111,8 +122,7 @@ def solve_dc(
 ) -> DcResult:
     """Resolve um circuito já validado (ver `simulate_dc`)."""
     catalog = catalog or load_catalog()
-    document = normalized.document
-    nets = [n.id for n in document.nets or []]
+    nets = defined_nets(normalized, catalog)
     grounded, branches = dc_branches(normalized, catalog)
 
     index = {net: i for i, net in enumerate(n for n in nets if n not in grounded)}
@@ -156,6 +166,8 @@ def component_results(
     ou as correntes de ramo do SPICE — mesma orientação: entram pelo pino 1)."""
     results: dict[str, ComponentResult] = {}
     for br in branches:
+        if br.kind is BranchKind.OPEN and (br.a not in voltages or br.b not in voltages):
+            continue  # voltímetro com uma ponta numa rede de potencial indefinido
         if br.kind is BranchKind.VOLTAGE:
             voltage, current = br.value, source_currents[br.component]
         else:
@@ -169,6 +181,22 @@ def component_results(
             _clean(voltage), _clean(current), _clean(voltage * current)
         )
     return results
+
+
+def defined_nets(normalized: NormalizedCircuit, catalog: ComponentCatalog) -> list[str]:
+    """Redes com potencial definido (pela ordem do documento): todas exceto as que só ligam a
+    pontas de instrumentos de impedância infinita (voltímetro/osciloscópio)."""
+    probe_terminals = {
+        c.terminal(pin)
+        for c in normalized.document.components
+        if (spec := catalog.get(c.type)) is not None and spec.simulation_model in PROBE_MODELS
+        for pin in spec.pins
+    }
+    return [
+        net.id
+        for net in normalized.document.nets or []
+        if not probe_terminals.issuperset(net.terminals)
+    ]
 
 
 def dc_branches(
@@ -204,6 +232,8 @@ def circuit_branches(
         if spec.simulation_model == GROUND_MODEL:
             grounded.update(nodes)
             continue
+        if spec.simulation_model == OSCILLOSCOPE_MODEL:
+            continue
         kind, value, initial = _stamp(spec.simulation_model, c)
         branches.append(Branch(c.id, kind, nodes[0], nodes[1], value, initial))
     return grounded, branches
@@ -223,6 +253,10 @@ def _stamp(model: str | None, c: Component) -> tuple[BranchKind, float, float]:
     if model == SWITCH_MODEL:
         kind = BranchKind.VOLTAGE if p.get("closed") is True else BranchKind.OPEN
         return kind, 0.0, 0.0
+    if model == VOLTMETER_MODEL:
+        return BranchKind.OPEN, 0.0, 0.0
+    if model == AMMETER_MODEL:
+        return BranchKind.VOLTAGE, 0.0, 0.0
     if model == CAPACITOR_MODEL:
         return BranchKind.CAPACITOR, float(p["capacitanceF"]), float(p["initialVoltageV"])
     if model == INDUCTOR_MODEL:

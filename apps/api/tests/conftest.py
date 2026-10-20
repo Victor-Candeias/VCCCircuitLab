@@ -17,7 +17,7 @@ FAKE_USER = UserOut(
 )
 
 #: Catálogo de testes (F2-10): os 6 componentes do antigo catálogo estático (mais o
-#: condensador e a bobina da F2-02), inseridos num
+#: condensador e a bobina da F2-02 e os instrumentos da F2-03), inseridos num
 #: MongoDB falso (`mongomock`) para que `load_catalog()` (lido da coleção `templates`) não
 #: dependa de um MongoDB real nem de um ficheiro em disco durante os testes.
 CATALOG_COMPONENTS: list[dict] = [
@@ -212,6 +212,61 @@ CATALOG_COMPONENTS: list[dict] = [
             },
         },
         "simulationModel": "inductor",
+    },
+    {
+        "type": "voltmeter",
+        "label": "Voltímetro",
+        "description": (
+            "Voltímetro ideal (impedância infinita): mede a tensão do pino `positive` em relação "
+            "ao pino `negative`, sem alterar o circuito. Liga-se em paralelo."
+        ),
+        "category": "instrument",
+        "idPrefix": "VM",
+        "symbol": "voltmeter_iec",
+        "size": {"width": 80.0, "height": 40.0},
+        "pins": [
+            {"id": "positive", "kind": "positive", "position": {"x": -40.0, "y": 0.0}},
+            {"id": "negative", "kind": "negative", "position": {"x": 40.0, "y": 0.0}},
+        ],
+        "properties": {},
+        "simulationModel": "voltmeter",
+    },
+    {
+        "type": "ammeter",
+        "label": "Amperímetro",
+        "description": (
+            "Amperímetro ideal (impedância nula): mede a corrente que entra pelo pino `positive` "
+            "e sai pelo pino `negative`. Liga-se em série."
+        ),
+        "category": "instrument",
+        "idPrefix": "AM",
+        "symbol": "ammeter_iec",
+        "size": {"width": 80.0, "height": 40.0},
+        "pins": [
+            {"id": "positive", "kind": "positive", "position": {"x": -40.0, "y": 0.0}},
+            {"id": "negative", "kind": "negative", "position": {"x": 40.0, "y": 0.0}},
+        ],
+        "properties": {},
+        "simulationModel": "ammeter",
+    },
+    {
+        "type": "oscilloscope",
+        "label": "Osciloscópio",
+        "description": (
+            "Osciloscópio ideal de dois canais (impedância infinita): mostra a tensão de cada "
+            "canal em relação à terra ao longo do tempo (análise transitória). Um canal desligado"
+            " fica sem traço."
+        ),
+        "category": "instrument",
+        "idPrefix": "OSC",
+        "symbol": "oscilloscope_iec",
+        "size": {"width": 80.0, "height": 80.0},
+        "pins": [
+            {"id": "ch1", "kind": "passive", "position": {"x": -40.0, "y": -20.0}},
+            {"id": "ch2", "kind": "passive", "position": {"x": -40.0, "y": 20.0}},
+        ],
+        "properties": {},
+        "simulationModel": "oscilloscope",
     },
     {
         "type": "ground",

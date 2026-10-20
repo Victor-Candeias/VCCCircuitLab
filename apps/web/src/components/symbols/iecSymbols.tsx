@@ -14,6 +14,7 @@ interface SymbolProps {
 
 const SOURCE_RADIUS = 14;
 const LAMP_RADIUS = 14;
+const METER_RADIUS = 14;
 
 function Lead({ from, to }: { from: Point; to: Point }) {
   return <line className="symbol__lead" x1={from.x} y1={from.y} x2={to.x} y2={to.y} />;
@@ -135,6 +136,58 @@ function LampSymbol() {
   );
 }
 
+/** Letra do instrumento (`V` ou `A`) desenhada com traços, centrada e sempre na vertical. */
+function MeterLetter({ letter, rotation }: { letter: 'V' | 'A'; rotation: Rotation }) {
+  return (
+    <g
+      className="symbol__mark"
+      data-letter={letter}
+      transform={rotation ? `rotate(${-rotation})` : undefined}
+    >
+      {letter === 'V' ? (
+        <polyline points="-5,-6 0,6 5,-6" />
+      ) : (
+        <>
+          <polyline points="-5,6 0,-6 5,6" />
+          <Line from={{ x: -2.5, y: 1.5 }} to={{ x: 2.5, y: 1.5 }} />
+        </>
+      )}
+    </g>
+  );
+}
+
+/**
+ * Instrumento de medida (IEC 60617-08-01-01): círculo com a letra da grandeza (`V` voltímetro,
+ * `A` amperímetro); o terminal `positive` fica à esquerda.
+ */
+function MeterSymbol({ letter, rotation }: { letter: 'V' | 'A'; rotation: Rotation }) {
+  const r = METER_RADIUS;
+  return (
+    <>
+      <Lead from={{ x: -40, y: 0 }} to={{ x: -r, y: 0 }} />
+      <Lead from={{ x: r, y: 0 }} to={{ x: 40, y: 0 }} />
+      <circle r={r} />
+      <MeterLetter letter={letter} rotation={rotation} />
+      <PolarityMark at={{ x: -26, y: -9 }} sign="+" rotation={rotation} />
+      <PolarityMark at={{ x: 26, y: -9 }} sign="-" rotation={rotation} />
+    </>
+  );
+}
+
+/** Osciloscópio: ecrã com uma onda e duas pontas de prova (CH1 em cima, CH2 em baixo). */
+function OscilloscopeSymbol() {
+  return (
+    <>
+      <Lead from={{ x: -40, y: -20 }} to={{ x: -24, y: -20 }} />
+      <Lead from={{ x: -40, y: 20 }} to={{ x: -24, y: 20 }} />
+      <rect x={-24} y={-30} width={58} height={60} rx={4} />
+      <path d="M -18 0 q 6 -18 12 0 t 12 0 t 12 0 t 12 0" />
+      <circle className="symbol__contact" cx={-24} cy={-20} r={2.5} />
+      <circle className="symbol__contact" cx={-24} cy={20} r={2.5} />
+    </>
+  );
+}
+
 /** Terra (IEC 60617-02-15-01): três traços de comprimento decrescente. */
 function GroundSymbol() {
   return (
@@ -164,6 +217,12 @@ export function IecSymbol({ symbol, properties, rotation }: SymbolProps & { symb
       return <SwitchSpstSymbol properties={properties} />;
     case 'lamp_iec':
       return <LampSymbol />;
+    case 'voltmeter_iec':
+      return <MeterSymbol letter="V" rotation={rotation} />;
+    case 'ammeter_iec':
+      return <MeterSymbol letter="A" rotation={rotation} />;
+    case 'oscilloscope_iec':
+      return <OscilloscopeSymbol />;
     case 'ground_iec':
       return <GroundSymbol />;
   }

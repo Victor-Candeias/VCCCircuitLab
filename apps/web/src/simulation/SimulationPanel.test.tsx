@@ -1,4 +1,5 @@
 import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
+import medicoesJson from '@vcccircuitlab/circuit-schema/examples/medicoes-rc.json';
 import paraleloJson from '@vcccircuitlab/circuit-schema/examples/paralelo-juncao.json';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -235,6 +236,43 @@ describe('SimulationPanel', { timeout: 15_000 }, () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/simulate\/transient$/);
     expect(JSON.parse(String(init?.body))).toMatchObject({ stopTimeS: 0.002, timeStepS: 1e-5 });
+  });
+
+  test('instrumentos: leituras no painel e no canvas; o gráfico abre no osciloscópio', async () => {
+    useEditorStore.getState().loadCircuit(medicoesJson as unknown as CircuitDocument);
+    fetchMock.mockResolvedValue(
+      json({
+        analysis: 'transient',
+        status: 'success',
+        timeS: [0, 0.001, 0.002],
+        nodeVoltagesV: { N1: [5, 5, 5], N2: [0, 0, 0], N3: [5, 5, 5], N4: [0, 3.16, 4.32] },
+        components: {
+          AM1: { voltageV: [0, 0, 0], currentA: [0.005, 0.00184, 0.000677], powerW: [0, 0, 0] },
+          VM1: { voltageV: [0, 3.16, 4.32], currentA: [0, 0, 0], powerW: [0, 0, 0] },
+        },
+        warnings: [],
+      }),
+    );
+    const { container } = renderEditor();
+    fireEvent.change(screen.getByLabelText('Análise'), { target: { value: 'transient' } });
+    simulate();
+
+    const table = await screen.findByRole('table', { name: 'Leituras dos instrumentos' });
+    const row = (id: string) => within(table).getByRole('button', { name: id }).closest('tr');
+    expect(screen.getByText('Instrumentos (valores finais)')).toBeInTheDocument();
+    expect(row('AM1')).toHaveTextContent('AM1Amperímetro677 µA');
+    expect(row('VM1')).toHaveTextContent('VM1Voltímetro4,32 V');
+    expect(row('OSC1')).toHaveTextContent('OSC1OsciloscópioCH1: 5 V · CH2: 4,32 V');
+    expect(screen.getByLabelText('Gráfico')).toHaveValue('scope:OSC1');
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Leitura de VM1')).toHaveTextContent('4,32 V'),
+    );
+    expect(screen.getByLabelText('Leitura de OSC1')).toHaveTextContent('CH1 5 V · CH2 4,32 V');
+    expect(screen.queryByLabelText('Leitura de R1')).toBeNull();
+
+    useEditorStore.getState().moveComponent('R1', { x: 380, y: 100 });
+    await waitFor(() => expect(container.querySelector('.component-node__reading')).toBeNull());
   });
 
   test('Simular fica desativado com o circuito vazio', () => {

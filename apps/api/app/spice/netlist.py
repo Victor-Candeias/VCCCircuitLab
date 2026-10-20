@@ -13,7 +13,9 @@ Correspondência (mesmas estampas do solver MNA, `app/solver/mna.py`):
 - fonte de corrente → `I neg pos DC i`: no SPICE a corrente atravessa a fonte de `n+` para
   `n-`, logo sai pelo terminal `positive` para o circuito externo, como no MNA;
 - condensador → aberto em DC; `C a b val IC=v0` na análise transitória (corrente `@cK[i]`);
-- bobina → `V a b DC 0` em DC; `L a b val IC=i0` na análise transitória.
+- bobina → `V a b DC 0` em DC; `L a b val IC=i0` na análise transitória;
+- voltímetro → sem elemento (aberto); amperímetro → `V a b DC 0` (dá a corrente);
+  osciloscópio → sem elemento. As redes só ligadas a pontas de instrumentos não têm nó.
 
 A análise transitória (F2-02) usa `tran passo fim 0 passo_máx uic` (sem ponto de
 funcionamento inicial: as fontes ligam-se em t = 0 e os elementos reativos partem de `IC=`),
@@ -24,7 +26,7 @@ from dataclasses import dataclass
 
 from app.circuit.catalog import ComponentCatalog
 from app.circuit.normalize import NormalizedCircuit
-from app.solver.mna import Branch, BranchKind, circuit_branches, dc_branches
+from app.solver.mna import Branch, BranchKind, circuit_branches, dc_branches, defined_nets
 
 GROUND_NODE = "0"
 RAWFILE_NAME = "result.raw"
@@ -43,7 +45,7 @@ class Netlist:
 
 def build_netlist(normalized: NormalizedCircuit, catalog: ComponentCatalog) -> Netlist:
     grounded, branches = dc_branches(normalized, catalog)
-    nodes = _nodes(normalized, grounded)
+    nodes = _nodes(defined_nets(normalized, catalog), grounded)
     elements, sources = _elements(branches, nodes)
     lines = ["* VCCCircuitLab: ponto de funcionamento DC", *elements]
     lines += [".control", "set filetype=ascii", "op", f"write {RAWFILE_NAME}", ".endc", ".end", ""]
@@ -59,7 +61,7 @@ def build_transient_netlist(
     max_step_s: float,
 ) -> Netlist:
     grounded, branches = circuit_branches(normalized, catalog)
-    nodes = _nodes(normalized, grounded)
+    nodes = _nodes(defined_nets(normalized, catalog), grounded)
     elements, sources = _elements(branches, nodes)
     device_currents = [f"@{e}[i]" for e in sources.values() if e.startswith("c")]
     lines = ["* VCCCircuitLab: analise transitoria", *elements, ".options method=gear"]
@@ -77,13 +79,13 @@ def build_transient_netlist(
     return Netlist("\n".join(lines), nodes, branches, sources)
 
 
-def _nodes(normalized: NormalizedCircuit, grounded: set[str]) -> dict[str, str]:
+def _nodes(nets: list[str], grounded: set[str]) -> dict[str, str]:
     nodes: dict[str, str] = {}
-    for net in normalized.document.nets or []:
-        if net.id in grounded:
-            nodes[net.id] = GROUND_NODE
+    for net in nets:
+        if net in grounded:
+            nodes[net] = GROUND_NODE
         else:
-            nodes[net.id] = f"n{sum(n != GROUND_NODE for n in nodes.values()) + 1}"
+            nodes[net] = f"n{sum(n != GROUND_NODE for n in nodes.values()) + 1}"
     return nodes
 
 
@@ -91,6 +93,8 @@ def _elements(branches: list[Branch], nodes: dict[str, str]) -> tuple[list[str],
     lines: list[str] = []
     sources: dict[str, str] = {}
     for k, br in enumerate(branches, start=1):
+        if br.kind is BranchKind.OPEN:
+            continue  # interruptor aberto ou voltímetro: sem elemento
         a, b = nodes[br.a], nodes[br.b]
         if br.kind is BranchKind.CONDUCTANCE:
             lines.append(f"R{k} {a} {b} {_value(1 / br.value)}")
@@ -105,7 +109,6 @@ def _elements(branches: list[Branch], nodes: dict[str, str]) -> tuple[list[str],
         elif br.kind is BranchKind.INDUCTOR:
             sources[br.component] = f"l{k}"
             lines.append(f"L{k} {a} {b} {_value(br.value)} IC={_value(br.initial)}")
-        # BranchKind.OPEN (interruptor aberto): sem elemento.
     return lines, sources
 
 

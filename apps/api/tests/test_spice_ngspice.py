@@ -78,6 +78,7 @@ TRANSIENT = {
         ),
         0.01,
     ),
+    "instrumentos": (load_fixture("medicoes-rc"), 5e-3),
 }
 
 

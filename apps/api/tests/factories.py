@@ -17,6 +17,9 @@ PINS = {
     "lamp": ["a", "b"],
     "capacitor": ["a", "b"],
     "inductor": ["a", "b"],
+    "voltmeter": ["positive", "negative"],
+    "ammeter": ["positive", "negative"],
+    "oscilloscope": ["ch1", "ch2"],
     "ground": ["gnd"],
 }
 PROPERTIES: dict[str, dict[str, Any]] = {
@@ -27,6 +30,9 @@ PROPERTIES: dict[str, dict[str, Any]] = {
     "lamp": {"ratedVoltageV": 12, "ratedPowerW": 5},
     "capacitor": {"capacitanceF": 1e-4, "initialVoltageV": 0},
     "inductor": {"inductanceH": 0.1, "initialCurrentA": 0},
+    "voltmeter": {},
+    "ammeter": {},
+    "oscilloscope": {},
     "ground": {},
 }
 
