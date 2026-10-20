@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { demoCircuit } from '../editor/demoCircuit';
 import {
   ApiError,
+  exportSpice,
   createUser,
   generateCircuit,
   getComponents,
   getCurrentUser,
+  importSpice,
   login,
   logoutSession,
   normalizeBaseUrl,
@@ -138,6 +140,31 @@ describe('cliente da API', () => {
   test('generateCircuit rejeita uma resposta que não pareça um circuito', async () => {
     fetchMock.mockResolvedValue(json({ ok: true }));
     const error = await failure(generateCircuit('series_dc', { voltageV: 12 }));
+    expect(error).toMatchObject({ kind: 'invalid-response' });
+  });
+
+  test('exportSpice envia o documento canónico e devolve o texto da netlist', async () => {
+    fetchMock.mockResolvedValue(json({ netlist: '* Demo\n.op\n.end\n' }));
+
+    await expect(exportSpice(demoCircuit, { baseUrl: '' })).resolves.toBe('* Demo\n.op\n.end\n');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/v1/circuits/export/spice');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(String(init?.body))).not.toHaveProperty('nets');
+  });
+
+  test('importSpice envia a netlist e valida a resposta', async () => {
+    const body = { circuit: demoCircuit, warnings: [], issues: [] };
+    fetchMock.mockResolvedValueOnce(json(body));
+
+    await expect(importSpice('T\nR1 a 0 1k\n', { baseUrl: '' })).resolves.toEqual(body);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/v1/circuits/import/spice');
+    expect(JSON.parse(String(init?.body))).toEqual({ netlist: 'T\nR1 a 0 1k\n' });
+
+    fetchMock.mockResolvedValueOnce(json({ circuit: demoCircuit }));
+    const error = await failure(importSpice('T\n', { baseUrl: '' }));
     expect(error).toMatchObject({ kind: 'invalid-response' });
   });
 

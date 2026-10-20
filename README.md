@@ -87,6 +87,8 @@ Instrumentos virtuais (F2-03): voltímetro, amperímetro e osciloscópio ideais,
 
 Semicondutores (F2-04): díodo, LED e transístores bipolares NPN e PNP, no grupo «Semicondutores» da paleta. Os modelos são os do SPICE: o díodo e o LED passam no ponto de condução do catálogo (`forwardVoltageV` a `forwardCurrentA`) e o transístor usa `currentGain` e `saturationCurrentA`. O solver resolve-os pelo método de Newton-Raphson, em DC e na transitória (detalhes em [`apps/api/README.md`](apps/api/README.md)). O exemplo «Transístor NPN a comandar um LED» do menu Projeto liga o LED com o interruptor S1.
 
+Netlists SPICE (F2-05): no menu Projeto, «Exportar SPICE» descarrega o circuito como netlist `.cir` (legível pelo ngspice) e «Importar SPICE…» abre uma netlist com elementos R, C, L, V/I DC, D e Q. Uma netlist exportada pelo VCCCircuitLab e não editada reabre o circuito original, com o mesmo desenho. As outras são desenhadas numa grelha e mostram avisos para o que foi ignorado ou aproximado. Os elementos não suportados dão erro com o número da linha (detalhes em [`apps/api/README.md`](apps/api/README.md#importaçãoexportação-spice-f2-05)).
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

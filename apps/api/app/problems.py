@@ -24,6 +24,7 @@ from app.component_templates.errors import DuplicateTemplateTypeError, TemplateN
 from app.db.errors import DatabaseUnavailableError
 from app.generation.errors import InvalidParametersError, UnknownTemplateError
 from app.spice.errors import SimulationEngineError
+from app.spice.exchange import InvalidNetlistError
 from app.users.errors import EmailAlreadyRegisteredError
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ class ApiErrorCode(StrEnum):
     INVALID_COMPONENT = "INVALID_COMPONENT"
     UNKNOWN_TEMPLATE = "UNKNOWN_TEMPLATE"
     INVALID_PARAMETERS = "INVALID_PARAMETERS"
+    INVALID_NETLIST = "INVALID_NETLIST"
     SIMULATION_TIMEOUT = "SIMULATION_TIMEOUT"
     SIMULATION_ENGINE_ERROR = "SIMULATION_ENGINE_ERROR"
     EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
@@ -315,6 +317,18 @@ async def _invalid_parameters_handler(request: Request, exc: Exception) -> Probl
     )
 
 
+async def _invalid_netlist_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, InvalidNetlistError)
+    return problem_response(
+        request,
+        status=422,
+        kind="invalid-netlist",
+        title="Netlist SPICE inválida",
+        errors=[Issue(code=str(i.code), message=i.text()) for i in exc.issues],
+        code=ApiErrorCode.INVALID_NETLIST,
+    )
+
+
 async def _timeout_handler(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, SimulationTimeoutError)
     issue = Issue(
@@ -474,6 +488,7 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(CircuitValidationError, _circuit_error_handler)
     app.add_exception_handler(UnknownTemplateError, _unknown_template_handler)
     app.add_exception_handler(InvalidParametersError, _invalid_parameters_handler)
+    app.add_exception_handler(InvalidNetlistError, _invalid_netlist_handler)
     app.add_exception_handler(SimulationTimeoutError, _timeout_handler)
     app.add_exception_handler(SimulationEngineError, _engine_error_handler)
     app.add_exception_handler(EmailAlreadyRegisteredError, _email_registered_handler)

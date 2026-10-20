@@ -3,6 +3,7 @@ import { toCanonical } from '../project/circuitJson';
 import type {
   Problem,
   SimulationResult,
+  SpiceImportResult,
   TransientParameters,
   TransientResult,
   UserAccount,
@@ -261,6 +262,48 @@ export function generateCircuit(
     '/api/v1/circuits/generate',
     { template, parameters },
     isCircuitDocument,
+    options,
+  );
+}
+
+function isSpiceNetlist(value: unknown): value is { netlist: string } {
+  return isRecord(value) && typeof value.netlist === 'string';
+}
+
+function isSpiceImportResult(value: unknown): value is SpiceImportResult {
+  return (
+    isRecord(value) &&
+    isCircuitDocument(value.circuit) &&
+    Array.isArray(value.warnings) &&
+    Array.isArray(value.issues)
+  );
+}
+
+/** `POST /api/v1/circuits/export/spice`: netlist SPICE do circuito (texto `.cir`). */
+export async function exportSpice(
+  circuit: CircuitDocument,
+  options: RequestOptions = {},
+): Promise<string> {
+  const result = await requestJson(
+    'POST',
+    '/api/v1/circuits/export/spice',
+    toCanonical(circuit),
+    isSpiceNetlist,
+    options,
+  );
+  return result.netlist;
+}
+
+/** `POST /api/v1/circuits/import/spice`: circuito traduzido da netlist, com avisos. */
+export function importSpice(
+  netlist: string,
+  options: RequestOptions = {},
+): Promise<SpiceImportResult> {
+  return requestJson(
+    'POST',
+    '/api/v1/circuits/import/spice',
+    { netlist },
+    isSpiceImportResult,
     options,
   );
 }

@@ -1,5 +1,5 @@
-"""ngspice real vs. solvers internos (F2-01 DC, F2-02 transitória). Só corre se o `ngspice`
-estiver instalado (CI)."""
+"""ngspice real vs. solvers internos (F2-01 DC, F2-02 transitória) e netlists exportadas
+(F2-05). Só corre se o `ngspice` estiver instalado (CI)."""
 
 import shutil
 from typing import Any
@@ -7,10 +7,14 @@ from typing import Any
 import numpy as np
 import pytest
 
+from app.circuit.catalog import load_catalog
 from app.models.circuit import CircuitDocument
 from app.solver.mna import DcResult, simulate_dc
 from app.solver.transient import TransientResult, simulate_transient
 from app.spice.engine import simulate_dc_ngspice, simulate_transient_ngspice
+from app.spice.exchange import export_netlist
+from app.spice.netlist import RAWFILE_NAME
+from app.spice.runner import run_ngspice
 from tests.factories import FIXTURES, circuit, comp, load_analytic_cases, load_fixture
 
 pytestmark = pytest.mark.skipif(shutil.which("ngspice") is None, reason="ngspice não instalado")
@@ -117,3 +121,31 @@ def _assert_close(spice: TransientResult, cid: str, field: str, expected: list[f
     actual = np.array(getattr(spice.components[cid], field)[1:])
     scale = max(float(np.max(np.abs(reference))), 1e-9)
     np.testing.assert_allclose(actual, reference, atol=5e-3 * scale, err_msg=f"{cid}.{field}")
+
+
+@pytest.mark.parametrize("name", list(CIRCUITS.values()), ids=list(CIRCUITS))
+def test_exported_netlist_runs_in_ngspice(name: str) -> None:
+    """F2-05: a netlist exportada é aceite pelo ngspice e dá as mesmas tensões nas resistências."""
+    document = CircuitDocument.model_validate(load_fixture(name))
+    mna = simulate_dc(document)
+    exported = export_netlist(document, load_catalog())
+    elements = [line for line in exported.splitlines()[:-1] if not line.startswith(("*", "."))]
+    models = [line for line in exported.splitlines() if line.startswith(".model")]
+    control = [".control", "set filetype=ascii", "op", f"write {RAWFILE_NAME}", ".endc", ".end"]
+    raw = run_ngspice("\n".join(["* exportada", *elements, *models, *control, ""]), 10)
+
+    def volts(node: str) -> float:
+        return 0.0 if node == "0" else raw.voltages[node.lower()]
+
+    resistors = {c.id: c for c in document.components if c.type == "resistor"}
+    checked = 0
+    for line in elements:
+        element, a, b, *_ = line.split()
+        cid = next((r for r in resistors if element in (r.replace("-", "_"), "R" + r)), None)
+        if cid is None:
+            continue
+        assert volts(a) - volts(b) == pytest.approx(
+            mna.components[cid].voltage_v, rel=TOLERANCE, abs=1e-9
+        )
+        checked += 1
+    assert checked == len(resistors)

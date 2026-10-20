@@ -1,7 +1,16 @@
 import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
 import { useRef, useState, type ChangeEvent } from 'react';
+import { exportSpice, importSpice, toApiError } from '../api/client';
+import type { CircuitIssue } from '../api/types';
 import { useEditorStore } from '../store/editorStore';
-import { circuitFileName, emptyCircuit, readCircuitFile, serializeCircuit } from './circuitJson';
+import {
+  circuitFileName,
+  circuitSlug,
+  emptyCircuit,
+  parseCircuit,
+  readCircuitFile,
+  serializeCircuit,
+} from './circuitJson';
 import { CIRCUIT_EXAMPLES } from './examples';
 import { GenerateDialog } from './GenerateDialog';
 import { useAutosave } from './useAutosave';
@@ -9,9 +18,12 @@ import './project.css';
 
 type Notice = { kind: 'error' | 'info'; title: string; details: string[] };
 
+/** Tamanho máximo de uma netlist SPICE (o mesmo limite da API). */
+const MAX_SPICE_BYTES = 256 * 1024;
+
 /** Descarrega `text` como ficheiro (sem servidor: Blob + ligação temporária). */
-function downloadText(text: string, fileName: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+function downloadText(text: string, fileName: string, type = 'application/json') {
+  const url = URL.createObjectURL(new Blob([text], { type }));
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;
@@ -19,13 +31,18 @@ function downloadText(text: string, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+const issueMessages = (issues: CircuitIssue[]) => issues.map((issue) => issue.message);
+
 /**
  * Projeto: novo circuito, abrir um ficheiro JSON canónico (validado antes de substituir o
- * circuito atual) e guardar o circuito atual em JSON canónico.
+ * circuito atual), guardar o circuito atual em JSON canónico e importar/exportar netlists SPICE
+ * (traduzidas pela API).
  */
 export function ProjectMenu() {
   const name = useEditorStore((s) => s.circuit.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const spiceInputRef = useRef<HTMLInputElement>(null);
+  const [spiceBusy, setSpiceBusy] = useState(false);
   const generateButtonRef = useRef<HTMLButtonElement>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
@@ -84,6 +101,64 @@ export function ProjectMenu() {
     );
   };
 
+  const onExportSpice = async () => {
+    const { circuit } = useEditorStore.getState();
+    setSpiceBusy(true);
+    try {
+      const netlist = await exportSpice(circuit);
+      downloadText(netlist, `${circuitSlug(circuit)}.cir`, 'text/plain');
+      setNotice(null);
+    } catch (cause) {
+      const apiError = toApiError(cause);
+      const issues = issueMessages(apiError.problem?.errors ?? []);
+      setNotice({
+        kind: 'error',
+        title: 'Não foi possível exportar a netlist SPICE:',
+        details: issues.length > 0 ? issues : [apiError.problem?.title ?? apiError.message],
+      });
+    } finally {
+      setSpiceBusy(false);
+    }
+  };
+
+  const onSpiceFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const failed = (details: string[]) =>
+      setNotice({
+        kind: 'error',
+        title: `Não foi possível importar "${file.name}" (o circuito atual não foi alterado):`,
+        details,
+      });
+    if (file.size > MAX_SPICE_BYTES) {
+      failed([`Ficheiro demasiado grande (máximo ${MAX_SPICE_BYTES / 1024} KB).`]);
+      return;
+    }
+    setSpiceBusy(true);
+    try {
+      const result = await importSpice(await file.text());
+      const parsed = parseCircuit(JSON.stringify(result.circuit));
+      if (!parsed.ok) {
+        failed(parsed.errors);
+        return;
+      }
+      useEditorStore.getState().loadCircuit(parsed.circuit);
+      const details = [...issueMessages(result.warnings), ...issueMessages(result.issues)];
+      setNotice(
+        details.length > 0
+          ? { kind: 'info', title: `Importado "${parsed.circuit.name}" (SPICE).`, details }
+          : null,
+      );
+    } catch (cause) {
+      const apiError = toApiError(cause);
+      const issues = issueMessages(apiError.problem?.errors ?? []);
+      failed(issues.length > 0 ? issues : [apiError.problem?.title ?? apiError.message]);
+    } finally {
+      setSpiceBusy(false);
+    }
+  };
+
   return (
     <div className="project-menu">
       <span className="project-menu__name" title="Nome do circuito">
@@ -111,6 +186,12 @@ export function ProjectMenu() {
       <button type="button" ref={generateButtonRef} onClick={() => setShowGenerate(true)}>
         Gerar…
       </button>
+      <button type="button" onClick={() => void onExportSpice()} disabled={spiceBusy}>
+        Exportar SPICE
+      </button>
+      <button type="button" onClick={() => spiceInputRef.current?.click()} disabled={spiceBusy}>
+        Importar SPICE…
+      </button>
       <input
         ref={inputRef}
         type="file"
@@ -118,6 +199,14 @@ export function ProjectMenu() {
         hidden
         aria-label="Ficheiro de circuito (JSON)"
         onChange={onFile}
+      />
+      <input
+        ref={spiceInputRef}
+        type="file"
+        accept=".cir,.sp,.spice,.net,.txt,text/plain"
+        hidden
+        aria-label="Netlist SPICE"
+        onChange={(event) => void onSpiceFile(event)}
       />
       {notice && (
         <div

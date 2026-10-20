@@ -1,4 +1,5 @@
-"""Circuitos: `POST /api/v1/circuits/{generate,validate,simulate,simulate/transient}`."""
+"""Circuitos: `POST /api/v1/circuits/{generate,validate,simulate,simulate/transient}` e
+importação/exportação SPICE (`export/spice`, `import/spice`)."""
 
 import os
 from collections.abc import Callable
@@ -19,6 +20,7 @@ from app.models.circuit import CircuitDocument
 from app.problems import CircuitIssue, SimulationTimeoutError, problem_responses
 from app.solver.engine import simulate, simulate_transient
 from app.solver.transient import MAX_OUTPUT_INTERVALS, MAX_STOP_TIME_S, output_intervals
+from app.spice.exchange import MAX_NETLIST_CHARS, export_netlist, import_netlist
 
 #: Tempo máximo de uma simulação, em segundos (variável de ambiente `SIMULATION_TIMEOUT_S`).
 SIMULATION_TIMEOUT_S = float(os.environ.get("SIMULATION_TIMEOUT_S", "5"))
@@ -96,6 +98,20 @@ class TransientRequest(_AliasedModel):
         return value
 
 
+class SpiceNetlist(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: Netlist SPICE (texto); a primeira linha é o título.
+    netlist: Annotated[str, Field(min_length=1, max_length=MAX_NETLIST_CHARS)]
+
+
+class SpiceImportResponse(BaseModel):
+    circuit: CircuitDocument
+    #: Avisos da tradução (diretivas ignoradas, modelos aproximados, …).
+    warnings: list[CircuitIssue]
+    #: Erros e avisos do validador sobre o circuito importado.
+    issues: list[CircuitIssue]
+
+
 class GenerateRequest(_AliasedModel):
     model_config = ConfigDict(
         validate_by_name=True, validate_by_alias=True, serialize_by_alias=True, extra="forbid"
@@ -141,6 +157,44 @@ def validate_circuit(document: CircuitDocument) -> dict[str, Any]:
         "errors": [_issue(e) for e in report.errors],
         "warnings": [_issue(w) for w in report.warnings],
         "nets": nets,
+    }
+
+
+@router.post(
+    "/export/spice",
+    response_model=SpiceNetlist,
+    responses=problem_responses(400, 415, 422),
+    summary="Exportar o circuito como netlist SPICE",
+    description=(
+        "Netlist com `.op`, legível pelo ngspice. O documento completo vai num comentário "
+        "depois de `.end`, para a importação o recuperar sem perdas. 422 se o circuito tiver "
+        "erros."
+    ),
+)
+def export_spice(document: CircuitDocument) -> dict[str, str]:
+    return {"netlist": export_netlist(document, load_catalog())}
+
+
+@router.post(
+    "/import/spice",
+    response_model=SpiceImportResponse,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 415, 422),
+    summary="Importar uma netlist SPICE",
+    description=(
+        "Só elementos R, C, L, V/I (DC), D e Q (com `.model`). Uma netlist exportada e não "
+        "editada devolve o circuito original; as outras geram um desenho em grelha. 422 "
+        "(`invalid-netlist`) com o número da linha de cada erro."
+    ),
+)
+def import_spice(body: SpiceNetlist) -> dict[str, Any]:
+    result = import_netlist(body.netlist, load_catalog())
+    return {
+        "circuit": result.circuit,
+        "warnings": [
+            {"code": str(w.code), "message": w.text(), "refs": []} for w in result.warnings
+        ],
+        "issues": [_issue(i) for i in result.circuit_issues],
     }
 
 

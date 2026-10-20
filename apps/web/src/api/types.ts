@@ -1,5 +1,7 @@
 /** Tipos do contrato da API (`Docs/arquitetura_simulador_circuitos.md` §8). */
 
+import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
+
 /** Erro ou aviso de circuito: código estável, mensagem em português e elementos envolvidos. */
 export interface CircuitIssue {
   code: string;
@@ -67,6 +69,16 @@ export interface ValidationResult {
   errors: CircuitIssue[];
   warnings: CircuitIssue[];
   nets: { id: string; terminals: string[] }[] | null;
+}
+
+/** Resposta de `POST /api/v1/circuits/import/spice` (F2-05). */
+export interface SpiceImportResult {
+  /** Documento canónico (sem `nets`). */
+  circuit: CircuitDocument;
+  /** Avisos da tradução (diretivas ignoradas, modelos aproximados…), com o número da linha. */
+  warnings: CircuitIssue[];
+  /** Erros e avisos do validador sobre o circuito importado. */
+  issues: CircuitIssue[];
 }
 
 export type UserRole = 'USER' | 'ADMIN';

@@ -18,7 +18,8 @@ apps/api/
 │   ├── component_templates/  # CRUD da coleção `templates` (F2-10), só para admin
 │   ├── generation/    # Templates e layout
 │   ├── circuit/       # Redes, normalização, validação
-│   ├── solver/        # MNA DC
+│   ├── solver/        # MNA DC, transitória e semicondutores
+│   ├── spice/         # Motor ngspice e importação/exportação de netlists SPICE
 │   └── export/        # Schemdraw e SVG
 └── tests/
 ```
@@ -154,9 +155,49 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 
 Testes:
 - `tests/test_spice.py` cobre a netlist, o rawfile, os limites, o timeout e os erros, com um ngspice falso.
-- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6), e as transitórias RC, RL, RLC, RC com díodo, o exemplo com instrumentos `medicoes-rc` e o exemplo `transistor-led` (tolerância de 0,5 % do máximo de cada série). É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
+- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6), e as transitórias RC, RL, RLC, RC com díodo, o exemplo com instrumentos `medicoes-rc` e o exemplo `transistor-led` (tolerância de 0,5 % do máximo de cada série). Também corre as netlists exportadas (F2-05) de todas as fixtures e compara as tensões das resistências com o MNA. É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
 
 Instalação local: `sudo apt-get install ngspice`. Na imagem Docker: `--build-arg WITH_NGSPICE=true`, ou `WITH_NGSPICE=true` no `.env` do compose.
+
+## Importação/exportação SPICE (F2-05)
+
+`app/spice/exchange.py` traduz entre o documento canónico e netlists SPICE (texto, `.cir`). A netlist só é lida, nunca executada.
+
+**Exportação** (`POST /api/v1/circuits/export/spice`): o circuito é validado com as regras da análise transitória (422 `invalid-circuit` se tiver erros) e dá uma netlist com `.op`, legível pelo ngspice:
+
+| Componente | Elemento SPICE |
+|---|---|
+| Resistência / lâmpada | `R a b R` (lâmpada: `V²/P`) |
+| Condensador / bobina | `C a b C IC=V0` / `L a b L IC=I0` |
+| Fonte de tensão | `V + - DC V` |
+| Fonte de corrente | `I - + DC I` (no SPICE a corrente sai por `n-`) |
+| Interruptor fechado, amperímetro | `V a b DC 0` |
+| Díodo, LED | `D a k modelo` com `.model … D(IS=… N=2)` (o nome do modelo dos LEDs começa por `LED_`) |
+| Transístor NPN/PNP | `Q c b e modelo` com `.model … NPN\|PNP(IS=… BF=… BR=1)` |
+| Interruptor aberto, voltímetro, osciloscópio | Nenhum (listados num comentário) |
+
+Os nomes são a letra do elemento + o id (`-` → `_`, únicos sem distinguir maiúsculas); os nós são os ids das redes e a terra é o nó `0`. Depois de `.end` vai o documento completo numa linha de comentário (`*@vcccircuitlab {…}`).
+
+**Importação** (`POST /api/v1/circuits/import/spice`, corpo `{ "netlist": "…" }`, até 256 KiB): devolve `{ circuit, warnings[], issues[] }`. Se a netlist trouxer o documento embutido e os elementos e modelos forem os que ele exporta (espaços, maiúsculas e `CRLF` não contam), devolve o documento original sem perdas. Caso contrário, traduz os elementos e indica nos avisos que o documento embutido foi ignorado:
+
+- A primeira linha é o título (nome do circuito). `*` são comentários, e `;` ou ` $ ` iniciam comentários no fim da linha. `+` continua a linha anterior. Valores com sufixos `f p n u m k meg g t mil` (e unidades a seguir, ex.: `100nF`).
+- `R`, `C`, `L` (`IC=`), `V`/`I` DC (`DC` opcional). Uma fonte negativa troca os pinos, `V … 0` dá um amperímetro e `I … 0` é omitida.
+- `D` precisa de `.model D`. Se o nome do modelo contiver `led`, dá um LED a 20 mA; senão, um díodo a 10 mA. A tensão direta é `N·Vt·ln(1 + IF/IS)`. Com `N ≠ 2` há um aviso, porque o simulador usa N = 2 e a curva só coincide nesse ponto.
+- `Q` precisa de `.model NPN|PNP` (`BF` → ganho, `IS` → corrente de saturação). O substrato é ignorado.
+- Nó `0` ou `gnd` → componente de terra.
+- Os parâmetros não suportados (ex.: `RS`, `VAF`) e as diretivas de análise/saída (`.tran`, `.dc`, `.ac`, `.options`, `.print`, `.control` … `.endc`, …) são ignorados com aviso; `.op` é ignorado sem aviso.
+- O desenho é uma grelha de 4 colunas, com a terra por baixo e um fio em cadeia por nó. `issues` traz os erros e avisos do validador sobre o circuito importado (ex.: pinos por ligar).
+
+Erros (422 `invalid-netlist`, `code: INVALID_NETLIST`). Cada entrada de `errors` começa por `Linha N:` e tem um destes códigos:
+
+| Código | Quando |
+|---|---|
+| `UNSUPPORTED_ELEMENT` | Elementos `X`, `E`, `F`, `G`, `H`, `B`, `M`, `J`, `S`, `W`, `T`, `K`, … |
+| `UNSUPPORTED_DIRECTIVE` | `.include`, `.lib`, `.subckt`, `.param`, `.func`, `.global`, … |
+| `UNSUPPORTED_SOURCE` | Fontes `PULSE`, `SIN`, `PWL`, `EXP`, `SFFM`, … |
+| `UNKNOWN_MODEL` | Modelo de `D`/`Q` sem `.model` do tipo certo |
+| `INVALID_VALUE` | Valor ou parâmetro que não é um número |
+| `INVALID_NETLIST` | Elemento incompleto, netlist sem elementos ou demasiado grande |
 
 ## Endpoints `/api/v1/circuits`
 
@@ -170,6 +211,8 @@ O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `appli
 | `POST` | `/api/v1/circuits/validate` | `{ valid, errors[], warnings[], nets[] \| null }`. Os erros de circuito fazem parte do relatório e não são erros HTTP. `nets` traz a partição em redes quando a normalização foi possível. |
 | `POST` | `/api/v1/circuits/simulate` | Resultado DC (ver [Solver MNA DC](#solver-mna-dc)). |
 | `POST` | `/api/v1/circuits/simulate/transient` | Séries no tempo. Corpo: `{ circuit, stopTimeS, timeStepS }` (ver [Análise transitória](#análise-transitória-f2-02)). |
+| `POST` | `/api/v1/circuits/export/spice` | `{ netlist }` (ver [Importação/exportação SPICE](#importaçãoexportação-spice-f2-05)). |
+| `POST` | `/api/v1/circuits/import/spice` | `{ circuit, warnings[], issues[] }`. Corpo: `{ netlist }` (ver [Importação/exportação SPICE](#importaçãoexportação-spice-f2-05)). |
 | `GET` | `/api/v1/components` | Catálogo de componentes (E2-06): `{ catalogVersion, gridSize, components[] }`. Cada componente traz o schema completo de propriedades (`NumberPropertyDefinition`/`BooleanPropertyDefinition`, com `unit`, `default` e limites) e `supported` (`simulationModel !== null`), para clientes assinalarem componentes desenháveis mas não simuláveis. Fonte: coleção `templates` do MongoDB (ver [Templates de componentes](#templates-de-componentes-f2-10)); `catalogVersion`/`gridSize` são constantes (`app/circuit/catalog.py`). |
 
 ### Geração por templates
@@ -242,6 +285,7 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `about:blank` | 415 | `UNSUPPORTED_MEDIA_TYPE` (corpo que não é JSON) |
 | `…:invalid-document` | 422 | `INVALID_COMPONENT` (erro de esquema em `components[i]`, com `refs: [id]`; na transitória o `pointer` começa em `/circuit`), `INVALID_DOCUMENT` (restantes, incluindo `NaN` e `Infinity`) |
 | `…:unknown-template` | 422 | `UNKNOWN_TEMPLATE` (nome de `template` não existe no registo) |
+| `…:invalid-netlist` | 422 | `INVALID_NETLIST` (netlist SPICE não traduzível; os códigos de cada erro estão em [Importação/exportação SPICE](#importaçãoexportação-spice-f2-05)) |
 | `…:invalid-parameters` | 422 | `INVALID_PARAMETERS` (campo em falta, extra ou fora dos limites, com `pointer` em `/parameters/…`; na transitória, `/stopTimeS` ou `/timeStepS`) |
 | `…:invalid-circuit` | 422 | Códigos do validador: `UNKNOWN_TERMINAL`, `FLOATING_NET`, `MISSING_GROUND`, `UNSUPPORTED_MODEL`, `INVALID_VALUE`, … |
 | `…:simulation-failed` | 422 | `SINGULAR_MATRIX`, `ILL_CONDITIONED_MATRIX`, `NO_CONVERGENCE` (método de Newton com semicondutores) |
