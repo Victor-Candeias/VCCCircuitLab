@@ -234,6 +234,142 @@
       "simulationModel": "oscilloscope"
     },
     {
+      "type": "diode",
+      "label": "Díodo",
+      "description": "Díodo de junção (modelo de Shockley, coeficiente de emissão 2): conduz do ânodo para o cátodo. Definido pela tensão direta a uma corrente de referência (por omissão 0,7 V a 10 mA, como um 1N4148). Sem rutura inversa.",
+      "category": "semiconductor",
+      "idPrefix": "D",
+      "symbol": "diode_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "anode", "kind": "positive", "position": { "x": -40, "y": 0 } },
+        { "id": "cathode", "kind": "negative", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "forwardVoltageV": {
+          "type": "number",
+          "title": "Tensão direta",
+          "description": "Tensão aos terminais (ânodo − cátodo) à corrente direta de referência.",
+          "unit": "V",
+          "default": 0.7,
+          "exclusiveMinimum": 0,
+          "maximum": 5
+        },
+        "forwardCurrentA": {
+          "type": "number",
+          "title": "Corrente direta",
+          "description": "Corrente direta de referência à qual a tensão é `forwardVoltageV`.",
+          "unit": "A",
+          "default": 0.01,
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        }
+      },
+      "simulationModel": "diode"
+    },
+    {
+      "type": "led",
+      "label": "LED",
+      "description": "Díodo emissor de luz (mesmo modelo do díodo): por omissão 2 V a 20 mA (LED vermelho). Usar em série com uma resistência que limite a corrente.",
+      "category": "semiconductor",
+      "idPrefix": "LED",
+      "symbol": "led_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "anode", "kind": "positive", "position": { "x": -40, "y": 0 } },
+        { "id": "cathode", "kind": "negative", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "forwardVoltageV": {
+          "type": "number",
+          "title": "Tensão direta",
+          "description": "Tensão aos terminais (ânodo − cátodo) à corrente direta de referência.",
+          "unit": "V",
+          "default": 2.0,
+          "exclusiveMinimum": 0,
+          "maximum": 5
+        },
+        "forwardCurrentA": {
+          "type": "number",
+          "title": "Corrente direta",
+          "description": "Corrente direta de referência à qual a tensão é `forwardVoltageV`.",
+          "unit": "A",
+          "default": 0.02,
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        }
+      },
+      "simulationModel": "diode"
+    },
+    {
+      "type": "npn_transistor",
+      "label": "Transístor NPN",
+      "description": "Transístor bipolar NPN (modelo de Ebers-Moll de transporte, ganho inverso 1): a corrente de base controla a corrente do coletor para o emissor.",
+      "category": "semiconductor",
+      "idPrefix": "Q",
+      "symbol": "npn_iec",
+      "size": { "width": 80, "height": 80 },
+      "pins": [
+        { "id": "collector", "kind": "passive", "position": { "x": 20, "y": -40 } },
+        { "id": "base", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "emitter", "kind": "passive", "position": { "x": 20, "y": 40 } }
+      ],
+      "properties": {
+        "currentGain": {
+          "type": "number",
+          "title": "Ganho de corrente (β)",
+          "description": "Ganho de corrente direto em emissor comum (BF do SPICE).",
+          "default": 100,
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "saturationCurrentA": {
+          "type": "number",
+          "title": "Corrente de saturação",
+          "description": "Corrente de saturação de transporte (IS do SPICE).",
+          "unit": "A",
+          "default": 1e-14,
+          "exclusiveMinimum": 0,
+          "maximum": 1e-6
+        }
+      },
+      "simulationModel": "bjt_npn"
+    },
+    {
+      "type": "pnp_transistor",
+      "label": "Transístor PNP",
+      "description": "Transístor bipolar PNP (modelo de Ebers-Moll de transporte, ganho inverso 1): a corrente que sai da base controla a corrente do emissor para o coletor.",
+      "category": "semiconductor",
+      "idPrefix": "QP",
+      "symbol": "pnp_iec",
+      "size": { "width": 80, "height": 80 },
+      "pins": [
+        { "id": "collector", "kind": "passive", "position": { "x": 20, "y": 40 } },
+        { "id": "base", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "emitter", "kind": "passive", "position": { "x": 20, "y": -40 } }
+      ],
+      "properties": {
+        "currentGain": {
+          "type": "number",
+          "title": "Ganho de corrente (β)",
+          "description": "Ganho de corrente direto em emissor comum (BF do SPICE).",
+          "default": 100,
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "saturationCurrentA": {
+          "type": "number",
+          "title": "Corrente de saturação",
+          "description": "Corrente de saturação de transporte (IS do SPICE).",
+          "unit": "A",
+          "default": 1e-14,
+          "exclusiveMinimum": 0,
+          "maximum": 1e-6
+        }
+      },
+      "simulationModel": "bjt_pnp"
+    },
+    {
       "type": "ground",
       "label": "Terra",
       "description": "Referência de potencial (0 V) do circuito.",

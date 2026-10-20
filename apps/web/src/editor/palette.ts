@@ -11,6 +11,7 @@ export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   switch: 'Interruptores',
   load: 'Cargas',
   instrument: 'Instrumentos',
+  semiconductor: 'Semicondutores',
   reference: 'Referência',
 };
 

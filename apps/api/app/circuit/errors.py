@@ -30,6 +30,7 @@ class CircuitErrorCode(StrEnum):
     # Solver
     SINGULAR_MATRIX = "SINGULAR_MATRIX"
     ILL_CONDITIONED_MATRIX = "ILL_CONDITIONED_MATRIX"
+    NO_CONVERGENCE = "NO_CONVERGENCE"
 
 
 @dataclass(frozen=True)

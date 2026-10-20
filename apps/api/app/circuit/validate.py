@@ -18,6 +18,9 @@ Os condensadores e as bobinas (F2-02) dependem da análise (`analysis`): em DC o
 um circuito aberto e a bobina tem impedância nula (como um interruptor fechado); na análise
 transitória ambos são condutores (modelos companheiros), pelo que malhas fonte de
 tensão–condensador e cortes fonte de corrente–bobina são permitidos.
+
+Os semicondutores (F2-04) são condutores entre os terminais de cada junção (díodo:
+ânodo–cátodo; transístor: base–emissor e base–coletor), mesmo em inversa (condutância `GMIN`).
 """
 
 from collections import defaultdict, deque
@@ -44,6 +47,11 @@ AMMETER_MODEL = "ammeter"
 OSCILLOSCOPE_MODEL = "oscilloscope"
 #: Instrumentos de impedância infinita: os seus terminais não conduzem nem fixam potencial.
 PROBE_MODELS = frozenset({VOLTMETER_MODEL, OSCILLOSCOPE_MODEL})
+DIODE_MODEL = "diode"
+BJT_NPN_MODEL = "bjt_npn"
+BJT_PNP_MODEL = "bjt_pnp"
+#: Semicondutores (F2-04): resolvidos pelo método de Newton (`app/solver/semiconductors.py`).
+SEMICONDUCTOR_MODELS = frozenset({DIODE_MODEL, BJT_NPN_MODEL, BJT_PNP_MODEL})
 TWO_TERMINAL_MODELS = (
     RESISTIVE_MODELS
     | REACTIVE_MODELS
@@ -55,7 +63,14 @@ TWO_TERMINAL_MODELS = (
         CURRENT_SOURCE_MODEL,
     }
 )
-SUPPORTED_MODELS = TWO_TERMINAL_MODELS | {GROUND_MODEL, OSCILLOSCOPE_MODEL}
+SUPPORTED_MODELS = TWO_TERMINAL_MODELS | SEMICONDUCTOR_MODELS | {GROUND_MODEL, OSCILLOSCOPE_MODEL}
+
+#: Pares de pinos de cada junção dos semicondutores.
+_JUNCTIONS = {
+    DIODE_MODEL: (("anode", "cathode"),),
+    BJT_NPN_MODEL: (("base", "emitter"), ("base", "collector")),
+    BJT_PNP_MODEL: (("base", "emitter"), ("base", "collector")),
+}
 
 #: Nó virtual de referência (0 V). O `\0` não é permitido em IDs, logo não colide com redes.
 REFERENCE = "\0GND"
@@ -276,6 +291,11 @@ def _check_topology(
         if model == GROUND_MODEL:
             has_ground = True
             zero += [(c.id, net_of[c.terminal(pin)], REFERENCE) for pin in spec.pins]
+            continue
+        if model in SEMICONDUCTOR_MODELS:
+            resistive += [
+                (c.id, net_of[c.terminal(a)], net_of[c.terminal(b)]) for a, b in _JUNCTIONS[model]
+            ]
             continue
         if model not in TWO_TERMINAL_MODELS or len(spec.pins) != 2:
             continue

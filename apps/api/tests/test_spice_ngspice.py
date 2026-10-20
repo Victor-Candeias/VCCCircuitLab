@@ -79,6 +79,21 @@ TRANSIENT = {
         0.01,
     ),
     "instrumentos": (load_fixture("medicoes-rc"), 5e-3),
+    "rc-diodo": (
+        circuit(
+            [comp("V1", "dc_voltage_source", voltageV=10), comp("R1", "resistor")]
+            + [comp("C1", "capacitor", capacitanceF=1e-5), comp("D1", "diode")]
+            + [comp("GND1", "ground")],
+            ("V1.positive", "R1.a"),
+            ("R1.b", "C1.a"),
+            ("C1.a", "D1.anode"),
+            ("C1.b", "GND1.gnd"),
+            ("D1.cathode", "GND1.gnd"),
+            ("V1.negative", "GND1.gnd"),
+        ),
+        5e-3,
+    ),
+    "transistor-led": (load_fixture("transistor-led"), 1e-3),
 }
 
 

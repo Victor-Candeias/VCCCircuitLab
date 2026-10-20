@@ -62,6 +62,7 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 - `VOLTAGE_SOURCE_LOOP`: malha só de impedância nula que inclui uma fonte de tensão, como uma fonte em curto, fontes em paralelo ou uma fonte entre duas terras. Os `refs` dão a malha. As malhas só de interruptores ou de terras são aceites.
 - `FLOATING_NET`: grupo de redes sem caminho condutor até à terra, porque o potencial fica indefinido. Se o grupo toca numa fonte de corrente, o erro é `CURRENT_SOURCE_CUTSET` (fonte em aberto ou fontes em série). Sem terra, só se reporta `MISSING_GROUND`.
 - Instrumentos ideais (F2-03): o amperímetro tem impedância nula (em paralelo com uma fonte de tensão é `VOLTAGE_SOURCE_LOOP`, um curto-circuito). O voltímetro e o osciloscópio têm impedância infinita: não ligam redes nem fixam potencial. Uma rede só com pontas destes instrumentos (por exemplo, uma ponta desligada) não é `FLOATING_NET`; fica apenas o aviso `UNCONNECTED_PIN`.
+- Semicondutores (F2-04): as junções do díodo/LED (ânodo–cátodo) e do transístor (base–emissor e base–coletor) são condutoras na topologia, porque o modelo tem `GMIN` em paralelo com cada junção. Um nó ligado à terra só através de junções (por exemplo, entre dois díodos em série) não é `FLOATING_NET`.
 - O catálogo é lido da coleção `templates` do MongoDB (`app/circuit/catalog.py::load_catalog()`, sem cache de processo), gerida por administradores (ver [Templates de componentes](#templates-de-componentes-f2-10)).
 
 ## Solver MNA DC
@@ -83,8 +84,14 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 
 - **Modelos:** a resistência e a lâmpada são condutâncias (lâmpada: R = `ratedVoltageV`² / `ratedPowerW`). O condensador é um circuito aberto (corrente 0) e a bobina uma fonte de 0 V (`dc_branches()`). Um interruptor fechado é uma fonte de 0 V; um interruptor aberto não entra na matriz (sem R = 0 nem R = ∞). A fonte de corrente injeta `currentA` na rede de `positive`. Todas as redes com terra ficam a 0 V.
 - **Instrumentos virtuais (F2-03, ideais):** o voltímetro é um circuito aberto e a leitura é o seu `voltageV` (V(`positive`) − V(`negative`), corrente 0). O amperímetro é uma fonte de 0 V e a leitura é o seu `currentA` (entra por `positive`). O osciloscópio não tem ramo nem resultado próprio: os canais `ch1`/`ch2` medem a tensão das suas redes em relação à terra (`nodeVoltagesV`). As redes ligadas só a pontas de voltímetros/osciloscópios não têm potencial definido e ficam fora de `nodeVoltagesV`; um voltímetro com uma ponta numa dessas redes não tem resultado.
+- **Semicondutores (F2-04, `app/solver/semiconductors.py`):** modelos SPICE a 27 °C (Vt = kT/q ≈ 25,9 mV), cada junção com `GMIN` = 1e-12 S em paralelo.
+  - Díodo e LED (`simulationModel` `diode`): equação de Shockley com N = 2 e IS calculado para passar no ponto do catálogo, IS = `forwardCurrentA` / (exp(`forwardVoltageV` / (N·Vt)) − 1). Abaixo de −3·N·Vt usa a extensão cúbica do SPICE (corrente ≈ −IS). Resultado: `voltageV` = V(ânodo) − V(cátodo) e `currentA` entra pelo ânodo.
+  - Transístores NPN/PNP (`bjt_npn`/`bjt_pnp`): Ebers–Moll de transporte (Gummel–Poon sem efeitos de 2.ª ordem) com IS = `saturationCurrentA`, BF = `currentGain` e BR = 1. Resultado: `voltageV` = Vce, `currentA` = Ic (entra pelo coletor; negativo no PNP) e `powerW` = Vce·Ic + Vbe·Ib.
+  - Os semicondutores não são ramos lineares. O sistema `A·x + i(x) = b` é resolvido pelo método de Newton-Raphson, com limitação das tensões das junções entre iterações (`pnjlim` do SPICE). Converge quando todas as incógnitas variam menos de 1e-9 (relativo) + 1e-12 em duas iterações. Se não convergir em 150 iterações a partir de x = 0, as fontes sobem em rampa (*source stepping*). Se mesmo assim falhar, o erro é `NO_CONVERGENCE`.
+  - Em cada iteração só a matriz singular é erro. O número de condição é calculado depois de equilibrar linhas e colunas, porque as condutâncias das junções vão de 1e-12 a ~1e8 S.
 - **Sinais (convenção passiva, pinos pela ordem do catálogo):** `voltageV = V(pino1) − V(pino2)`. `currentA` entra pelo pino 1 e atravessa o componente. `powerW = voltageV × currentA` é a potência absorvida, negativa quando o componente fornece energia. A soma das potências é 0. A terra não tem resultado próprio.
 - **Erros numéricos:** `SINGULAR_MATRIX` e `ILL_CONDITIONED_MATRIX` (número de condição > 1e12) são erros, para nunca devolver resultados falsos. Com o validador, só ocorrem com valores extremos (por exemplo, resistências de 1e-13 Ω).
+- **Erros numéricos (semicondutores):** `NO_CONVERGENCE` quando o método de Newton não converge (ver acima).
 - **Avisos:** os avisos do validador (por exemplo `UNCONNECTED_PIN`) passam para `warnings`.
 
 ### Testes com resultados analíticos
@@ -114,9 +121,10 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 
 - **Integração:** BDF2 (Gear de 2.ª ordem, L-estável, sem oscilações numéricas) com modelos companheiros e passo fixo. O primeiro passo é de Euler implícito. Há subpassos internos para ter pelo menos 2000 passos, e a saída fica nos instantes `k · stopTimeS / n`, com n = ⌈`stopTimeS` / `timeStepS`⌉.
 - **t = 0:** solução consistente com as condições iniciais (condensadores como fontes de tensão, bobinas como fontes de corrente). Se for singular (por exemplo, um condensador diretamente aos terminais de uma fonte), usa-se o estado em 0⁺.
+- **Semicondutores (F2-04):** com díodos ou transístores, cada passo BDF2 é resolvido pelo método de Newton, partindo da solução do passo anterior; o estado inicial usa o mesmo método do ponto de funcionamento DC.
 - **Sinais e erros:** mesma convenção passiva e mesmos erros numéricos da DC; o prazo `SIMULATION_TIMEOUT_S` é verificado durante a integração.
 - **Limites:** `stopTimeS` ∈ ]0, 1000] s, `timeStepS` > 0 e no máximo 10 000 intervalos de saída. Fora disto, a resposta é `422 INVALID_PARAMETERS` com `pointer` `/stopTimeS` ou `/timeStepS`.
-- **Testes:** `tests/test_solver_transient.py` compara com as soluções analíticas (carga RC, RL, RLC subamortecido e condições iniciais). `tests/test_instruments.py` cobre os instrumentos (validação, DC, transitória e netlist).
+- **Testes:** `tests/test_solver_transient.py` compara com as soluções analíticas (carga RC, RL, RLC subamortecido e condições iniciais). `tests/test_instruments.py` cobre os instrumentos e `tests/test_semiconductors.py` os semicondutores (validação, DC, transitória e netlist).
 
 ## Motor ngspice (F2-01)
 
@@ -126,6 +134,7 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
   - as redes com terra ficam no nó `0` e as restantes em `n1`, `n2`, …;
   - resistências e lâmpadas → `R`; fontes de tensão → `V … DC`; interruptores fechados e amperímetros → `V … DC 0`; interruptores abertos, voltímetros e osciloscópios → sem elemento; fontes de corrente → `I neg pos DC`;
   - as redes só com pontas de instrumentos não têm nó;
+  - díodos e LEDs → `D` com `.model DMj D(IS=… N=2)`; transístores → `Q` com `.model QMj NPN|PNP(IS=… BF=… BR=1)`, os mesmos parâmetros do MNA. Cada terminal medido tem em série uma fonte de 0 V (`VDj` no ânodo; `VQCj` e `VQBj` no coletor e na base) cuja corrente de ramo dá a corrente do terminal, em `op` e em `tran`;
   - em DC, condensadores → sem elemento e bobinas → `V … DC 0`; na transitória (`build_transient_netlist`) → `C … IC=` e `L … IC=`, com `.options method=gear` e `tran passo fim 0 passo_máx uic` seguido de `linearize` (pontos equidistantes, iguais aos do MNA).
   
   Os nomes de nós e elementos são gerados, e os valores são `float` validados. Ids, nomes e etiquetas do utilizador nunca entram na netlist, o que impede injetar diretivas (`.include`, `.control`, `shell`).
@@ -145,7 +154,7 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 
 Testes:
 - `tests/test_spice.py` cobre a netlist, o rawfile, os limites, o timeout e os erros, com um ngspice falso.
-- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6), e as transitórias RC, RL, RLC e o exemplo com instrumentos `medicoes-rc` (tolerância de 0,5 % do máximo de cada série). É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
+- `tests/test_spice_ngspice.py` compara o ngspice real com o MNA em todas as fixtures válidas e casos analíticos (tolerância relativa de 1e-6), e as transitórias RC, RL, RLC, RC com díodo, o exemplo com instrumentos `medicoes-rc` e o exemplo `transistor-led` (tolerância de 0,5 % do máximo de cada série). É ignorado se o `ngspice` não estiver instalado; a CI instala-o.
 
 Instalação local: `sudo apt-get install ngspice`. Na imagem Docker: `--build-arg WITH_NGSPICE=true`, ou `WITH_NGSPICE=true` no `.env` do compose.
 
@@ -235,7 +244,7 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `…:unknown-template` | 422 | `UNKNOWN_TEMPLATE` (nome de `template` não existe no registo) |
 | `…:invalid-parameters` | 422 | `INVALID_PARAMETERS` (campo em falta, extra ou fora dos limites, com `pointer` em `/parameters/…`; na transitória, `/stopTimeS` ou `/timeStepS`) |
 | `…:invalid-circuit` | 422 | Códigos do validador: `UNKNOWN_TERMINAL`, `FLOATING_NET`, `MISSING_GROUND`, `UNSUPPORTED_MODEL`, `INVALID_VALUE`, … |
-| `…:simulation-failed` | 422 | `SINGULAR_MATRIX`, `ILL_CONDITIONED_MATRIX` |
+| `…:simulation-failed` | 422 | `SINGULAR_MATRIX`, `ILL_CONDITIONED_MATRIX`, `NO_CONVERGENCE` (método de Newton com semicondutores) |
 | `…:invalid-credentials` | 401 | `INVALID_CREDENTIALS` (login com email ou password errados) |
 | `…:not-authenticated` | 401 | `NOT_AUTHENTICATED` (sem token, ou token inválido, expirado ou terminado; com `WWW-Authenticate: Bearer`) |
 | `…:forbidden` | 403 | `FORBIDDEN` (sessão válida sem o role necessário, ex.: não `ADMIN`) |

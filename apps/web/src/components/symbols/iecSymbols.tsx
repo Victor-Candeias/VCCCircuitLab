@@ -24,6 +24,22 @@ function Line({ from, to }: { from: Point; to: Point }) {
   return <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} />;
 }
 
+/** Ponta de seta cheia em `to`, no sentido `from` → `to`. */
+function ArrowHead({ from, to, size = 6 }: { from: Point; to: Point; size?: number }) {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  const ux = (to.x - from.x) / length;
+  const uy = (to.y - from.y) / length;
+  const bx = to.x - ux * size;
+  const by = to.y - uy * size;
+  const w = size / 2;
+  const points = [
+    [to.x, to.y],
+    [bx - uy * w, by + ux * w],
+    [bx + uy * w, by - ux * w],
+  ];
+  return <polygon className="symbol__fill" points={points.map((p) => p.join(',')).join(' ')} />;
+}
+
 /** Sinal de polaridade (`+` ou `−`) centrado em `at`, sempre na vertical. */
 function PolarityMark({ at, sign, rotation }: { at: Point; sign: '+' | '-'; rotation: Rotation }) {
   const h = 3.5;
@@ -188,6 +204,57 @@ function OscilloscopeSymbol() {
   );
 }
 
+/** Díodo (IEC 60617-05-03-01): triângulo no sentido ânodo (esquerda) → cátodo (barra). */
+function DiodeSymbol({ light = false }: { light?: boolean }) {
+  return (
+    <>
+      <Lead from={{ x: -40, y: 0 }} to={{ x: -10, y: 0 }} />
+      <Lead from={{ x: 10, y: 0 }} to={{ x: 40, y: 0 }} />
+      <polygon className="symbol__fill" points="-10,-11 -10,11 10,0" />
+      <Line from={{ x: 10, y: -11 }} to={{ x: 10, y: 11 }} />
+      {light && (
+        <g data-testid="led-arrows">
+          <Line from={{ x: -2, y: -14 }} to={{ x: 6, y: -24 }} />
+          <ArrowHead from={{ x: -2, y: -14 }} to={{ x: 6, y: -24 }} size={5} />
+          <Line from={{ x: 6, y: -12 }} to={{ x: 14, y: -22 }} />
+          <ArrowHead from={{ x: 6, y: -12 }} to={{ x: 14, y: -22 }} size={5} />
+        </g>
+      )}
+    </>
+  );
+}
+
+/**
+ * Transístor bipolar (IEC 60617-05-05-01/02): base à esquerda, coletor e emissor à direita.
+ * A seta no emissor aponta para fora (NPN) ou para a base (PNP); no PNP o emissor fica em cima.
+ */
+function BjtSymbol({ type }: { type: 'npn' | 'pnp' }) {
+  const emitterY = type === 'npn' ? 1 : -1;
+  const collector = { x: 20, y: -22 * emitterY };
+  const emitter = { x: 20, y: 22 * emitterY };
+  const emitterBase = { x: -6, y: 7 * emitterY };
+  const along = (t: number) => ({
+    x: emitterBase.x + t * (emitter.x - emitterBase.x),
+    y: emitterBase.y + t * (emitter.y - emitterBase.y),
+  });
+  return (
+    <>
+      <circle cx={4} cy={0} r={26} />
+      <Lead from={{ x: -40, y: 0 }} to={{ x: -6, y: 0 }} />
+      <Lead from={collector} to={{ x: 20, y: -40 * emitterY }} />
+      <Lead from={emitter} to={{ x: 20, y: 40 * emitterY }} />
+      <Line from={{ x: -6, y: -14 }} to={{ x: -6, y: 14 }} />
+      <Line from={{ x: -6, y: -7 * emitterY }} to={collector} />
+      <Line from={emitterBase} to={emitter} />
+      {type === 'npn' ? (
+        <ArrowHead from={emitterBase} to={along(0.75)} />
+      ) : (
+        <ArrowHead from={emitter} to={along(0.3)} />
+      )}
+    </>
+  );
+}
+
 /** Terra (IEC 60617-02-15-01): três traços de comprimento decrescente. */
 function GroundSymbol() {
   return (
@@ -223,6 +290,14 @@ export function IecSymbol({ symbol, properties, rotation }: SymbolProps & { symb
       return <MeterSymbol letter="A" rotation={rotation} />;
     case 'oscilloscope_iec':
       return <OscilloscopeSymbol />;
+    case 'diode_iec':
+      return <DiodeSymbol />;
+    case 'led_iec':
+      return <DiodeSymbol light />;
+    case 'npn_iec':
+      return <BjtSymbol type="npn" />;
+    case 'pnp_iec':
+      return <BjtSymbol type="pnp" />;
     case 'ground_iec':
       return <GroundSymbol />;
   }

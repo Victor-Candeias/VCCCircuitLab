@@ -53,7 +53,11 @@ class ApiErrorCode(StrEnum):
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
-NUMERIC_CODES = {CircuitErrorCode.SINGULAR_MATRIX, CircuitErrorCode.ILL_CONDITIONED_MATRIX}
+NUMERIC_CODES = {
+    CircuitErrorCode.SINGULAR_MATRIX,
+    CircuitErrorCode.ILL_CONDITIONED_MATRIX,
+    CircuitErrorCode.NO_CONVERGENCE,
+}
 
 
 class CircuitIssue(BaseModel):

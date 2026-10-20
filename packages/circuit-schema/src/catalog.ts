@@ -9,7 +9,7 @@
  * This interface was referenced by `ComponentCatalog`'s JSON-Schema
  * via the `definition` "ComponentCategory".
  */
-export type ComponentCategory = 'source' | 'passive' | 'switch' | 'load' | 'instrument' | 'reference';
+export type ComponentCategory = 'source' | 'passive' | 'switch' | 'load' | 'semiconductor' | 'instrument' | 'reference';
 /**
  * Natureza elétrica do pino: `passive` (sem polaridade), `positive`/`negative` (polaridade de fontes) ou `reference` (terra).
  *
@@ -39,6 +39,9 @@ export type SimulationModel =
   | 'voltmeter'
   | 'ammeter'
   | 'oscilloscope'
+  | 'diode'
+  | 'bjt_npn'
+  | 'bjt_pnp'
   | 'ground'
   | null;
 
@@ -132,9 +135,9 @@ export interface NumberPropertyDefinition {
   title: string;
   description?: string;
   /**
-   * Símbolo da unidade SI apresentado na interface (ex.: `V`, `A`, `Ω`, `W`).
+   * Símbolo da unidade SI apresentado na interface (ex.: `V`, `A`, `Ω`, `W`). Omitido nas grandezas adimensionais (ex.: ganho de corrente).
    */
-  unit: string;
+  unit?: string;
   default: number;
   minimum?: number;
   maximum?: number;

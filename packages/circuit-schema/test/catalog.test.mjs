@@ -22,6 +22,10 @@ const CATALOG_TYPES = [
   'voltmeter',
   'ammeter',
   'oscilloscope',
+  'diode',
+  'led',
+  'npn_transistor',
+  'pnp_transistor',
 ];
 
 const byType = new Map(catalog.components.map((c) => [c.type, c]));

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1.0",
+  "id": "transistor-led",
+  "name": "Transístor NPN a comandar um LED",
+  "description": "Com S1 fechado, a corrente de base por RB satura o transístor Q1, que liga o LED D1 (limitado por RL a cerca de 20 mA); com S1 aberto o LED apaga.",
+  "units": "SI",
+  "components": [
+    {
+      "id": "V1",
+      "type": "dc_voltage_source",
+      "position": { "x": 100, "y": 240 },
+      "rotation": 0,
+      "properties": { "voltageV": 9 },
+      "pins": ["positive", "negative"]
+    },
+    {
+      "id": "S1",
+      "type": "switch",
+      "position": { "x": 200, "y": 120 },
+      "rotation": 0,
+      "properties": { "closed": true },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "RB",
+      "type": "resistor",
+      "position": { "x": 320, "y": 240 },
+      "rotation": 0,
+      "properties": { "resistanceOhm": 10000 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "Q1",
+      "type": "npn_transistor",
+      "position": { "x": 420, "y": 240 },
+      "rotation": 0,
+      "properties": { "currentGain": 100, "saturationCurrentA": 1e-14 },
+      "pins": ["collector", "base", "emitter"]
+    },
+    {
+      "id": "RL",
+      "type": "resistor",
+      "position": { "x": 200, "y": 40 },
+      "rotation": 0,
+      "properties": { "resistanceOhm": 330 },
+      "pins": ["a", "b"]
+    },
+    {
+      "id": "D1",
+      "type": "led",
+      "position": { "x": 340, "y": 40 },
+      "rotation": 0,
+      "properties": { "forwardVoltageV": 2, "forwardCurrentA": 0.02 },
+      "pins": ["anode", "cathode"]
+    },
+    {
+      "id": "GND1",
+      "type": "ground",
+      "position": { "x": 440, "y": 340 },
+      "rotation": 0,
+      "properties": {},
+      "pins": ["gnd"]
+    }
+  ],
+  "wires": [
+    { "id": "W1", "from": "V1.positive", "to": "S1.a", "waypoints": [{ "x": 100, "y": 120 }] },
+    { "id": "W2", "from": "S1.b", "to": "RB.a", "waypoints": [{ "x": 280, "y": 120 }] },
+    { "id": "W3", "from": "RB.b", "to": "Q1.base", "waypoints": [] },
+    { "id": "W4", "from": "S1.a", "to": "RL.a", "waypoints": [] },
+    { "id": "W5", "from": "RL.b", "to": "D1.anode", "waypoints": [] },
+    {
+      "id": "W6",
+      "from": "D1.cathode",
+      "to": "Q1.collector",
+      "waypoints": [{ "x": 440, "y": 40 }]
+    },
+    { "id": "W7", "from": "Q1.emitter", "to": "GND1.gnd", "waypoints": [] },
+    { "id": "W8", "from": "V1.negative", "to": "GND1.gnd", "waypoints": [{ "x": 100, "y": 320 }] }
+  ]
+}

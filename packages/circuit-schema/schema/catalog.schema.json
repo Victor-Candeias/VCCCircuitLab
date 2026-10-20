@@ -26,7 +26,7 @@
     "ComponentCategory": {
       "title": "ComponentCategory",
       "description": "Categoria usada para agrupar a paleta.",
-      "enum": ["source", "passive", "switch", "load", "instrument", "reference"]
+      "enum": ["source", "passive", "switch", "load", "semiconductor", "instrument", "reference"]
     },
     "SimulationModel": {
       "title": "SimulationModel",
@@ -42,6 +42,9 @@
         "voltmeter",
         "ammeter",
         "oscilloscope",
+        "diode",
+        "bjt_npn",
+        "bjt_pnp",
         "ground",
         null
       ]
@@ -94,13 +97,13 @@
       "description": "Propriedade numérica. Os campos de validação seguem as palavras-chave do JSON Schema.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "title", "unit", "default"],
+      "required": ["type", "title", "default"],
       "properties": {
         "type": { "const": "number" },
         "title": { "type": "string", "minLength": 1 },
         "description": { "type": "string" },
         "unit": {
-          "description": "Símbolo da unidade SI apresentado na interface (ex.: `V`, `A`, `Ω`, `W`).",
+          "description": "Símbolo da unidade SI apresentado na interface (ex.: `V`, `A`, `Ω`, `W`). Omitido nas grandezas adimensionais (ex.: ganho de corrente).",
           "type": "string",
           "minLength": 1
         },

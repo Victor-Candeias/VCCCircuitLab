@@ -10,7 +10,9 @@ from pydantic import BaseModel, Field
 
 from app.models.circuit import ComponentType, PropertyName
 
-ComponentCategory = Literal["source", "passive", "switch", "load", "instrument", "reference"]
+ComponentCategory = Literal[
+    "source", "passive", "switch", "load", "semiconductor", "instrument", "reference"
+]
 PinKind = Literal["passive", "positive", "negative", "reference"]
 SimulationModel = (
     Literal[
@@ -24,6 +26,9 @@ SimulationModel = (
         "voltmeter",
         "ammeter",
         "oscilloscope",
+        "diode",
+        "bjt_npn",
+        "bjt_pnp",
         "ground",
     ]
     | None
@@ -50,7 +55,8 @@ class NumberPropertyDefinition(BaseModel):
     type: Literal["number"]
     title: str
     description: str | None = None
-    unit: str
+    unit: str | None = None
+    """Omitida nas grandezas adimensionais (ex.: ganho de corrente)."""
     default: float
     minimum: float | None = None
     maximum: float | None = None

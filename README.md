@@ -85,6 +85,8 @@ Análises (F2-02): ponto de funcionamento DC e análise transitória (condensado
 
 Instrumentos virtuais (F2-03): voltímetro, amperímetro e osciloscópio ideais, no grupo «Instrumentos» da paleta. Depois de simular, a leitura aparece junto ao instrumento no canvas e na tabela «Instrumentos» do painel (valores finais na transitória). Na transitória, o gráfico abre no osciloscópio, com um traço por canal (tensão em relação à terra). O exemplo «Instrumentos: voltímetro, amperímetro e osciloscópio (RC)» do menu Projeto usa os três.
 
+Semicondutores (F2-04): díodo, LED e transístores bipolares NPN e PNP, no grupo «Semicondutores» da paleta. Os modelos são os do SPICE: o díodo e o LED passam no ponto de condução do catálogo (`forwardVoltageV` a `forwardCurrentA`) e o transístor usa `currentGain` e `saturationCurrentA`. O solver resolve-os pelo método de Newton-Raphson, em DC e na transitória (detalhes em [`apps/api/README.md`](apps/api/README.md)). O exemplo «Transístor NPN a comandar um LED» do menu Projeto liga o LED com o interruptor S1.
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

@@ -19,11 +19,17 @@ paralelo com uma fonte de tensão, ou bobina em série com uma fonte de corrente
 salta: o ponto t = 0 passa a ser o estado logo após o salto (0⁺), obtido com um passo de Euler
 implícito muito curto (`h · INITIAL_STEP_FRACTION`).
 
+Com semicondutores (F2-04) o sistema deixa de ser linear: em vez da recorrência linear, cada
+passo interno (mesmos coeficientes e passos) é resolvido pelo método de Newton
+(`app.solver.semiconductors`), partindo da solução do passo anterior. Os semicondutores não têm
+capacidades, logo não acrescentam estado.
+
 Convenção de sinais igual à da análise DC (`app.solver.mna`).
 """
 
 import math
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -40,8 +46,15 @@ from app.solver.mna import (
     Branch,
     BranchKind,
     _numeric_error,
+    _solve_nonlinear_step,
     circuit_branches,
     defined_nets,
+)
+from app.solver.semiconductors import (
+    NewtonSolver,
+    Semiconductor,
+    semiconductor_devices,
+    semiconductor_results,
 )
 
 #: Número mínimo de passos internos de integração.
@@ -133,11 +146,18 @@ def solve_transient(
     catalog = catalog or load_catalog()
     nets = defined_nets(normalized, catalog)
     grounded, branches = circuit_branches(normalized, catalog)
-    system = _System(nets, grounded, branches)
+    devices = semiconductor_devices(normalized, catalog)
+    order = [c.id for c in normalized.document.components]
+    system = _System(nets, grounded, branches, devices, order)
 
     intervals = output_intervals(stop_time_s, time_step_s)
     substeps = math.ceil(MIN_INTERNAL_STEPS / intervals)
     h = stop_time_s / (intervals * substeps)
+    times = np.arange(intervals + 1) * (stop_time_s / intervals)
+    times[-1] = stop_time_s
+    if devices:
+        xs, ics = _integrate_nonlinear(system, intervals, substeps, h, deadline)
+        return system.results(times, xs, ics, warnings)
 
     total = intervals * substeps
     x0, cap_currents0 = system.initial_state(h * INITIAL_STEP_FRACTION)
@@ -171,10 +191,31 @@ def solve_transient(
         ics.append(first.cap_currents(system, x1, states[0], states[0])[None, :])
     xs.append(rest.solve(states[later - 1], states[later - 2]))
     ics.append(rest.cap_currents(system, xs[-1], states[later - 1], states[later - 2]))
-
-    times = np.arange(intervals + 1) * (stop_time_s / intervals)
-    times[-1] = stop_time_s
     return system.results(times, np.concatenate(xs), np.concatenate(ics), warnings)
+
+
+def _integrate_nonlinear(
+    system: "_System", intervals: int, substeps: int, h: float, deadline: float | None
+) -> tuple[np.ndarray, np.ndarray]:
+    """Incógnitas e correntes dos condensadores nos instantes de saída, passo a passo, com o
+    método de Newton em cada passo interno."""
+    newton = system.newton(system.size)
+    x, cap_currents = system.initial_state(h * INITIAL_STEP_FRACTION)
+    junctions = newton.junctions(x)
+    xs, ics = [x], [cap_currents]
+    matrices = {alphas: system.matrix(alphas[0], h) for alphas in (_BACKWARD_EULER, _BDF2)}
+    z1 = z2 = system.state(x)
+    for n in range(1, intervals * substeps + 1):
+        alphas = _BACKWARD_EULER if n == 1 else _BDF2
+        rhs = system.step_rhs(alphas, h, z1, z2)
+        x, junctions = newton.solve(matrices[alphas], rhs, x, junctions)
+        if n % substeps == 0:
+            xs.append(x)
+            ics.append(system.cap_currents(alphas, h, x, z1, z2))
+        z1, z2 = system.state(x), z1
+        if deadline is not None and n % 256 == 0 and time.monotonic() > deadline:
+            raise TimeoutError("simulação transitória excedeu o tempo máximo")
+    return np.array(xs), np.array(ics)
 
 
 @dataclass(frozen=True)
@@ -193,21 +234,26 @@ class _Update:
     def cap_currents(
         self, system: "_System", x: np.ndarray, z1: np.ndarray, z2: np.ndarray
     ) -> np.ndarray:
-        alpha0, alpha1, alpha2 = self.alphas
-        n = len(system.capacitors)
-        scale = system.capacitance / self.h
-        return scale * (
-            alpha0 * (x @ system.incidence) + alpha1 * z1[..., :n] + alpha2 * z2[..., :n]
-        )
+        return system.cap_currents(self.alphas, self.h, x, z1, z2)
 
 
 class _System:
     """Sistema MNA: tensões das redes sem terra, depois correntes das fontes de tensão (e
-    interruptores fechados) e das bobinas."""
+    interruptores fechados) e das bobinas. Os semicondutores (`devices`) ficam fora da parte
+    linear e entram em cada iteração de Newton."""
 
-    def __init__(self, nets: list[str], grounded: set[str], branches: list[Branch]) -> None:
+    def __init__(
+        self,
+        nets: list[str],
+        grounded: set[str],
+        branches: list[Branch],
+        devices: Sequence[Semiconductor] = (),
+        order: Sequence[str] = (),
+    ) -> None:
         self.nets = nets
         self.branches = branches
+        self.devices = list(devices)
+        self.order = list(order)
         self.index = {net: i for i, net in enumerate(n for n in nets if n not in grounded)}
         by_kind = {kind: [br for br in branches if br.kind is kind] for kind in BranchKind}
         self.capacitors = by_kind[BranchKind.CAPACITOR]
@@ -276,15 +322,48 @@ class _System:
     def state(self, x: np.ndarray) -> np.ndarray:
         return self.selector @ x
 
-    def update(self, alphas: tuple[float, float, float], h: float) -> _Update:
-        alpha0, alpha1, alpha2 = alphas
-        inverse = _inverse(self.matrix(alpha0, h))
+    def history(self, h: float) -> np.ndarray:
+        """Matriz que leva o estado reativo de um instante anterior ao lado direito."""
         n_ind = len(self.ind_rows)
         ind_columns = np.zeros((self.size, n_ind))
         ind_columns[self.ind_rows, np.arange(n_ind)] = 1.0
-        history = np.hstack(
+        return np.hstack(
             [-self.incidence * (self.capacitance / h), ind_columns * (self.inductance / h)]
         )
+
+    def step_rhs(
+        self, alphas: tuple[float, float, float], h: float, z1: np.ndarray, z2: np.ndarray
+    ) -> np.ndarray:
+        """Lado direito do passo n, a partir dos estados z_{n−1} e z_{n−2}."""
+        _, alpha1, alpha2 = alphas
+        return self.rhs + self.history(h) @ (alpha1 * z1 + alpha2 * z2)
+
+    def cap_currents(
+        self,
+        alphas: tuple[float, float, float],
+        h: float,
+        x: np.ndarray,
+        z1: np.ndarray,
+        z2: np.ndarray,
+    ) -> np.ndarray:
+        alpha0, alpha1, alpha2 = alphas
+        n = len(self.capacitors)
+        scale = self.capacitance / h
+        return scale * (alpha0 * (x @ self.incidence) + alpha1 * z1[..., :n] + alpha2 * z2[..., :n])
+
+    def newton(self, size: int) -> NewtonSolver:
+        """Método de Newton para um sistema com as primeiras incógnitas iguais às do MNA."""
+        return NewtonSolver(self.devices, self.index, size, _solve_nonlinear_step)
+
+    def _solve(self, matrix: np.ndarray, rhs: np.ndarray) -> np.ndarray:
+        if not self.devices:
+            return _inverse(matrix) @ rhs
+        return self.newton(len(rhs)).solve_with_source_stepping(matrix, rhs)[0]
+
+    def update(self, alphas: tuple[float, float, float], h: float) -> _Update:
+        alpha0, alpha1, alpha2 = alphas
+        inverse = _inverse(self.matrix(alpha0, h))
+        history = self.history(h)
         gain = inverse @ np.hstack([alpha1 * history, alpha2 * history])
         return _Update(alphas, h, inverse @ self.rhs, gain)
 
@@ -305,12 +384,12 @@ class _System:
         matrix[self.ind_rows, self.ind_rows] = 1.0
         rhs[self.ind_rows] = self.i0
         try:
-            solution = _inverse(matrix) @ rhs
+            solution = self._solve(matrix, rhs)
         except CircuitValidationError:
-            jump = self.update(_BACKWARD_EULER, jump_step)
             z0 = np.concatenate([self.v0, self.i0])
-            x = jump.solve(z0, z0)
-            return x, jump.cap_currents(self, x, z0, z0)
+            jump = self.matrix(_BACKWARD_EULER[0], jump_step)
+            x = self._solve(jump, self.step_rhs(_BACKWARD_EULER, jump_step, z0, z0))
+            return x, self.cap_currents(_BACKWARD_EULER, jump_step, x, z0, z0)
         return solution[: self.size], solution[self.size :]
 
     def results(
@@ -327,7 +406,9 @@ class _System:
         }
         currents = {c: xs[:, k] for c, k in self.extra.items()}
         currents |= {c: cap_currents[:, k] for c, k in self.cap_column.items()}
-        return transient_result(times, voltages, self.branches, currents, warnings)
+        return transient_result(
+            times, voltages, self.branches, currents, warnings, self.devices, order=self.order
+        )
 
 
 def transient_result(
@@ -336,10 +417,17 @@ def transient_result(
     branches: list[Branch],
     currents: dict[str, np.ndarray],
     warnings: tuple[CircuitError, ...],
+    devices: Sequence[Semiconductor] = (),
+    device_currents: dict[str, list[np.ndarray]] | None = None,
+    order: Sequence[str] = (),
 ) -> TransientResult:
     """Séries por componente (convenção passiva) a partir das tensões das redes e das correntes
     das fontes de tensão, interruptores fechados, bobinas e condensadores (incógnitas do MNA ou
-    vetores do rawfile do ngspice — mesma orientação: entram pelo pino 1)."""
+    vetores do rawfile do ngspice — mesma orientação: entram pelo pino 1).
+
+    Nos semicondutores, as correntes que entram nos terminais vêm de `device_currents` (fontes
+    de medida do ngspice) ou, se omitido, do modelo. Com `order`, os componentes ficam por essa
+    ordem (a do documento)."""
     points = len(times)
     components: dict[str, ComponentSeries] = {}
     for br in branches:
@@ -360,6 +448,19 @@ def transient_result(
         components[br.component] = ComponentSeries(
             _series(voltage), _series(current), _series(voltage * current)
         )
+    for device in devices:
+        terminals = [voltages[net] for net in device.nets]
+        if device_currents is None:
+            sensed = device.terminal_currents(terminals)
+        else:
+            sensed = device_currents[device.component]
+        voltage, current, power = semiconductor_results(device, terminals, sensed)
+        components[device.component] = ComponentSeries(
+            _series(voltage), _series(current), _series(power)
+        )
+    if order:
+        positions = {cid: k for k, cid in enumerate(order)}
+        components = dict(sorted(components.items(), key=lambda item: positions[item[0]]))
     return TransientResult(
         time_s=_series(times),
         node_voltages_v={net: _series(v) for net, v in voltages.items()},

@@ -20,6 +20,10 @@ PINS = {
     "voltmeter": ["positive", "negative"],
     "ammeter": ["positive", "negative"],
     "oscilloscope": ["ch1", "ch2"],
+    "diode": ["anode", "cathode"],
+    "led": ["anode", "cathode"],
+    "npn_transistor": ["collector", "base", "emitter"],
+    "pnp_transistor": ["collector", "base", "emitter"],
     "ground": ["gnd"],
 }
 PROPERTIES: dict[str, dict[str, Any]] = {
@@ -33,6 +37,10 @@ PROPERTIES: dict[str, dict[str, Any]] = {
     "voltmeter": {},
     "ammeter": {},
     "oscilloscope": {},
+    "diode": {"forwardVoltageV": 0.7, "forwardCurrentA": 0.01},
+    "led": {"forwardVoltageV": 2.0, "forwardCurrentA": 0.02},
+    "npn_transistor": {"currentGain": 100, "saturationCurrentA": 1e-14},
+    "pnp_transistor": {"currentGain": 100, "saturationCurrentA": 1e-14},
     "ground": {},
 }
 

@@ -8,7 +8,7 @@ import numpy as np
 from app.circuit.catalog import ComponentCatalog, load_catalog
 from app.circuit.validate import validate
 from app.models.circuit import CircuitDocument
-from app.solver.mna import DcResult, component_results
+from app.solver.mna import DcResult, component_results, device_result, in_document_order
 from app.solver.transient import (
     MIN_INTERNAL_STEPS,
     TransientResult,
@@ -50,10 +50,20 @@ def simulate_dc_ngspice(
             raise singular_matrix_error()
     try:
         currents = {c: raw.currents[element] for c, element in netlist.sources.items()}
+        sensed = {
+            c: [np.array(raw.currents[e]) for e in elements]
+            for c, elements in netlist.device_sources.items()
+        }
     except KeyError as exc:
         raise SimulationEngineError(f"rawfile sem a corrente de {exc}") from None
     results = component_results(netlist.branches, voltages, currents)
-    return DcResult(node_voltages_v=voltages, components=results, warnings=report.warnings)
+    for device in netlist.devices:
+        results[device.component] = device_result(device, voltages, sensed[device.component])
+    return DcResult(
+        node_voltages_v=voltages,
+        components=in_document_order(results, normalized),
+        warnings=report.warnings,
+    )
 
 
 def simulate_transient_ngspice(
@@ -92,6 +102,19 @@ def simulate_transient_ngspice(
             raise singular_matrix_error()
     try:
         currents = {c: np.array(raw.current_series[e]) for c, e in netlist.sources.items()}
+        sensed = {
+            c: [np.array(raw.current_series[e]) for e in elements]
+            for c, elements in netlist.device_sources.items()
+        }
     except KeyError as exc:
         raise SimulationEngineError(f"rawfile sem a corrente de {exc}") from None
-    return transient_result(times, voltages, netlist.branches, currents, report.warnings)
+    return transient_result(
+        times,
+        voltages,
+        netlist.branches,
+        currents,
+        report.warnings,
+        netlist.devices,
+        sensed,
+        order=[c.id for c in normalized.document.components],
+    )

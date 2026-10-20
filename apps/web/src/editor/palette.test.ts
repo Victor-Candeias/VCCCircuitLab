@@ -14,6 +14,7 @@ describe('paletteGroups', () => {
       'Interruptores',
       'Cargas',
       'Instrumentos',
+      'Semicondutores',
       'Referência',
     ]);
     expect(groups[0].items.map((d) => d.type)).toEqual(['dc_voltage_source', 'dc_current_source']);
@@ -26,8 +27,10 @@ describe('paletteGroups', () => {
       'capacitor',
       'voltmeter',
       'oscilloscope',
+      'diode',
     ]);
     expect(types('lâmpada')).toEqual(['lamp']);
+    expect(types('transistor')).toEqual(['npn_transistor', 'pnp_transistor']);
   });
 
   test('todas as palavras têm de ocorrer (nome, tipo, prefixo, descrição ou categoria)', () => {

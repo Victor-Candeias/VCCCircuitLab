@@ -210,11 +210,19 @@ describe('EditorCanvas — paleta e rotação', () => {
   test('a paleta agrupa o catálogo por categoria, com o símbolo de cada componente', () => {
     renderCanvas();
     const palette = screen.getByRole('complementary', { name: 'Componentes' });
-    const groups = ['Fontes', 'Passivos', 'Interruptores', 'Cargas', 'Instrumentos', 'Referência'];
+    const groups = [
+      'Fontes',
+      'Passivos',
+      'Interruptores',
+      'Cargas',
+      'Instrumentos',
+      'Semicondutores',
+      'Referência',
+    ];
     for (const group of groups) {
       expect(screen.getByRole('region', { name: group })).toBeInTheDocument();
     }
-    expect(palette.querySelectorAll('.palette-item')).toHaveLength(11);
+    expect(palette.querySelectorAll('.palette-item')).toHaveLength(15);
     expect(paletteItem('Resistência').querySelector('svg')).toHaveAttribute(
       'data-symbol',
       'resistor_iec',

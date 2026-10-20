@@ -17,9 +17,9 @@ FAKE_USER = UserOut(
 )
 
 #: Catálogo de testes (F2-10): os 6 componentes do antigo catálogo estático (mais o
-#: condensador e a bobina da F2-02 e os instrumentos da F2-03), inseridos num
-#: MongoDB falso (`mongomock`) para que `load_catalog()` (lido da coleção `templates`) não
-#: dependa de um MongoDB real nem de um ficheiro em disco durante os testes.
+#: condensador e a bobina da F2-02, os instrumentos da F2-03 e os semicondutores da F2-04),
+#: inseridos num MongoDB falso (`mongomock`) para que `load_catalog()` (lido da coleção
+#: `templates`) não dependa de um MongoDB real nem de um ficheiro em disco durante os testes.
 CATALOG_COMPONENTS: list[dict] = [
     {
         "type": "dc_voltage_source",
@@ -267,6 +267,142 @@ CATALOG_COMPONENTS: list[dict] = [
         ],
         "properties": {},
         "simulationModel": "oscilloscope",
+    },
+    {
+        "type": "diode",
+        "label": "Díodo",
+        "description": "Díodo de junção.",
+        "category": "semiconductor",
+        "idPrefix": "D",
+        "symbol": "diode_iec",
+        "size": {"width": 80.0, "height": 40.0},
+        "pins": [
+            {"id": "anode", "kind": "positive", "position": {"x": -40.0, "y": 0.0}},
+            {"id": "cathode", "kind": "negative", "position": {"x": 40.0, "y": 0.0}},
+        ],
+        "properties": {
+            "forwardVoltageV": {
+                "type": "number",
+                "title": "Tensão direta",
+                "description": "Tensão aos terminais à corrente direta de referência.",
+                "unit": "V",
+                "default": 0.7,
+                "exclusiveMinimum": 0,
+                "maximum": 5,
+            },
+            "forwardCurrentA": {
+                "type": "number",
+                "title": "Corrente direta",
+                "description": "Corrente direta de referência à qual a tensão é `forwardVoltageV`.",
+                "unit": "A",
+                "default": 0.01,
+                "exclusiveMinimum": 0,
+                "maximum": 10,
+            },
+        },
+        "simulationModel": "diode",
+    },
+    {
+        "type": "led",
+        "label": "LED",
+        "description": "Díodo emissor de luz.",
+        "category": "semiconductor",
+        "idPrefix": "LED",
+        "symbol": "led_iec",
+        "size": {"width": 80.0, "height": 40.0},
+        "pins": [
+            {"id": "anode", "kind": "positive", "position": {"x": -40.0, "y": 0.0}},
+            {"id": "cathode", "kind": "negative", "position": {"x": 40.0, "y": 0.0}},
+        ],
+        "properties": {
+            "forwardVoltageV": {
+                "type": "number",
+                "title": "Tensão direta",
+                "description": "Tensão aos terminais à corrente direta de referência.",
+                "unit": "V",
+                "default": 2.0,
+                "exclusiveMinimum": 0,
+                "maximum": 5,
+            },
+            "forwardCurrentA": {
+                "type": "number",
+                "title": "Corrente direta",
+                "description": "Corrente direta de referência à qual a tensão é `forwardVoltageV`.",
+                "unit": "A",
+                "default": 0.02,
+                "exclusiveMinimum": 0,
+                "maximum": 10,
+            },
+        },
+        "simulationModel": "diode",
+    },
+    {
+        "type": "npn_transistor",
+        "label": "Transístor NPN",
+        "description": "Transístor bipolar NPN.",
+        "category": "semiconductor",
+        "idPrefix": "Q",
+        "symbol": "npn_iec",
+        "size": {"width": 80.0, "height": 80.0},
+        "pins": [
+            {"id": "collector", "kind": "passive", "position": {"x": 20.0, "y": -40.0}},
+            {"id": "base", "kind": "passive", "position": {"x": -40.0, "y": 0.0}},
+            {"id": "emitter", "kind": "passive", "position": {"x": 20.0, "y": 40.0}},
+        ],
+        "properties": {
+            "currentGain": {
+                "type": "number",
+                "title": "Ganho de corrente (β)",
+                "description": "Ganho de corrente direto em emissor comum (BF do SPICE).",
+                "default": 100,
+                "minimum": 1,
+                "maximum": 10000,
+            },
+            "saturationCurrentA": {
+                "type": "number",
+                "title": "Corrente de saturação",
+                "description": "Corrente de saturação de transporte (IS do SPICE).",
+                "unit": "A",
+                "default": 1e-14,
+                "exclusiveMinimum": 0,
+                "maximum": 1e-06,
+            },
+        },
+        "simulationModel": "bjt_npn",
+    },
+    {
+        "type": "pnp_transistor",
+        "label": "Transístor PNP",
+        "description": "Transístor bipolar PNP.",
+        "category": "semiconductor",
+        "idPrefix": "QP",
+        "symbol": "pnp_iec",
+        "size": {"width": 80.0, "height": 80.0},
+        "pins": [
+            {"id": "collector", "kind": "passive", "position": {"x": 20.0, "y": 40.0}},
+            {"id": "base", "kind": "passive", "position": {"x": -40.0, "y": 0.0}},
+            {"id": "emitter", "kind": "passive", "position": {"x": 20.0, "y": -40.0}},
+        ],
+        "properties": {
+            "currentGain": {
+                "type": "number",
+                "title": "Ganho de corrente (β)",
+                "description": "Ganho de corrente direto em emissor comum (BF do SPICE).",
+                "default": 100,
+                "minimum": 1,
+                "maximum": 10000,
+            },
+            "saturationCurrentA": {
+                "type": "number",
+                "title": "Corrente de saturação",
+                "description": "Corrente de saturação de transporte (IS do SPICE).",
+                "unit": "A",
+                "default": 1e-14,
+                "exclusiveMinimum": 0,
+                "maximum": 1e-06,
+            },
+        },
+        "simulationModel": "bjt_pnp",
     },
     {
         "type": "ground",

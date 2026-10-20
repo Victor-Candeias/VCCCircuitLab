@@ -11,7 +11,9 @@ das fontes de tensão e dos interruptores fechados. Estampas:
 - condensador → aberto (corrente 0); bobina → fonte de 0 V (como um interruptor fechado);
 - instrumentos ideais (F2-03): voltímetro → aberto (a leitura é `voltageV`), amperímetro →
   fonte de 0 V (a leitura é `currentA`), osciloscópio → sem ramo (as leituras são as tensões
-  das redes dos canais).
+  das redes dos canais);
+- semicondutores (F2-04) → não lineares: díodos, LEDs e transístores (`app.solver.semiconductors`)
+  linearizados em cada iteração do método de Newton, com rampa das fontes se não convergir.
 
 As redes ligadas apenas a pontas de instrumentos (voltímetro/osciloscópio) não têm potencial
 definido: ficam fora das incógnitas e de `nodeVoltagesV`, e os voltímetros ligados a elas não
@@ -40,12 +42,19 @@ from app.circuit.validate import (
     INDUCTOR_MODEL,
     OSCILLOSCOPE_MODEL,
     PROBE_MODELS,
+    SEMICONDUCTOR_MODELS,
     SWITCH_MODEL,
     VOLTAGE_SOURCE_MODEL,
     VOLTMETER_MODEL,
     validate,
 )
 from app.models.circuit import CircuitDocument, Component
+from app.solver.semiconductors import (
+    NewtonSolver,
+    Semiconductor,
+    semiconductor_devices,
+    semiconductor_results,
+)
 
 #: Acima deste número de condição os resultados deixam de ser fiáveis.
 MAX_CONDITION_NUMBER = 1e12
@@ -151,11 +160,41 @@ def solve_dc(
                     matrix[k, p] += sign
             rhs[k] = br.value
 
-    solution = _solve(matrix, rhs)
+    devices = semiconductor_devices(normalized, catalog)
+    if devices:
+        newton = NewtonSolver(devices, index, size, _solve_nonlinear_step)
+        solution, _ = newton.solve_with_source_stepping(matrix, rhs)
+    else:
+        solution = _solve(matrix, rhs)
     voltages = {net: _clean(solution[index[net]]) if net in index else 0.0 for net in nets}
     source_currents = {c: float(solution[k]) for c, k in extra.items()}
     results = component_results(branches, voltages, source_currents)
-    return DcResult(node_voltages_v=voltages, components=results, warnings=tuple(warnings))
+    for device in devices:
+        terminals = [np.array(voltages[net]) for net in device.nets]
+        results[device.component] = device_result(
+            device, voltages, device.terminal_currents(terminals)
+        )
+    return DcResult(
+        node_voltages_v=voltages,
+        components=in_document_order(results, normalized),
+        warnings=tuple(warnings),
+    )
+
+
+def device_result(
+    device: Semiconductor, voltages: dict[str, float], currents: list[np.ndarray]
+) -> ComponentResult:
+    """Resultado de um semicondutor a partir das tensões das redes e das correntes que entram
+    nos terminais (do modelo, ou das fontes de medida do SPICE)."""
+    voltage, current, power = semiconductor_results(
+        device, [voltages[net] for net in device.nets], currents
+    )
+    return ComponentResult(_clean(voltage), _clean(current), _clean(power))
+
+
+def in_document_order(results: dict[str, Any], normalized: NormalizedCircuit) -> dict[str, Any]:
+    """Resultados por componente pela ordem do documento."""
+    return {c.id: results[c.id] for c in normalized.document.components if c.id in results}
 
 
 def component_results(
@@ -233,7 +272,9 @@ def circuit_branches(
             grounded.update(nodes)
             continue
         if spec.simulation_model == OSCILLOSCOPE_MODEL:
-            continue
+            continue  # sem ramo: as leituras são as tensões das redes
+        if spec.simulation_model in SEMICONDUCTOR_MODELS:
+            continue  # não lineares: `semiconductor_devices`
         kind, value, initial = _stamp(spec.simulation_model, c)
         branches.append(Branch(c.id, kind, nodes[0], nodes[1], value, initial))
     return grounded, branches
@@ -279,6 +320,28 @@ def _solve(matrix: np.ndarray, rhs: np.ndarray) -> np.ndarray:
     if not np.all(np.isfinite(solution)):
         raise _numeric_error(CircuitErrorCode.SINGULAR_MATRIX, condition)
     return solution
+
+
+def _solve_nonlinear_step(matrix: np.ndarray, rhs: np.ndarray) -> np.ndarray:
+    """Iteração de Newton: só a matriz singular é erro. As condutâncias das junções vão de
+    `GMIN` a ~1e8 S, por isso o número de condição é calculado depois de equilibrar linhas e
+    colunas (escala pelo máximo absoluto), que não altera a solução."""
+    if not matrix.size:
+        return rhs
+    with np.errstate(divide="ignore"):
+        rows = 1.0 / np.max(np.abs(matrix), axis=1)
+        scaled = rows[:, None] * matrix
+        columns = 1.0 / np.max(np.abs(scaled), axis=0)
+    if not (np.all(np.isfinite(rows)) and np.all(np.isfinite(columns))):
+        raise _numeric_error(CircuitErrorCode.SINGULAR_MATRIX, float("inf"))
+    scaled *= columns[None, :]
+    condition = float(np.linalg.cond(scaled))
+    if not np.isfinite(condition) or condition > SINGULAR_CONDITION_NUMBER:
+        raise _numeric_error(CircuitErrorCode.SINGULAR_MATRIX, condition)
+    try:
+        return columns * np.linalg.solve(scaled, rows * rhs)
+    except np.linalg.LinAlgError as exc:
+        raise _numeric_error(CircuitErrorCode.SINGULAR_MATRIX, condition) from exc
 
 
 def _numeric_error(code: CircuitErrorCode, condition: float) -> CircuitValidationError:
