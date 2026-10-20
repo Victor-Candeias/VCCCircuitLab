@@ -9,7 +9,8 @@
  * This interface was referenced by `ComponentCatalog`'s JSON-Schema
  * via the `definition` "ComponentCategory".
  */
-export type ComponentCategory = 'source' | 'passive' | 'switch' | 'load' | 'semiconductor' | 'instrument' | 'reference';
+export type ComponentCategory =
+  'source' | 'passive' | 'switch' | 'protection' | 'load' | 'semiconductor' | 'instrument' | 'reference';
 /**
  * Natureza elétrica do pino: `passive` (sem polaridade), `positive`/`negative` (polaridade de fontes) ou `reference` (terra).
  *
@@ -31,8 +32,12 @@ export type PropertyDefinition = NumberPropertyDefinition | BooleanPropertyDefin
 export type SimulationModel =
   | 'dc_voltage_source'
   | 'dc_current_source'
+  | 'ac_voltage_source'
   | 'resistor'
   | 'ideal_switch'
+  | 'changeover_switch'
+  | 'circuit_breaker'
+  | 'rcd'
   | 'resistive_lamp'
   | 'capacitor'
   | 'inductor'

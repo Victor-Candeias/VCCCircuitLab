@@ -57,6 +57,7 @@ Requer Python ≥ 3.12. Ferramentas de desenvolvimento em `requirements-dev.txt`
 | Componentes vs catálogo | `UNKNOWN_COMPONENT_TYPE`, `UNSUPPORTED_MODEL`, `UNKNOWN_PIN`, `MISSING_PIN`, `UNKNOWN_PROPERTY`, `MISSING_PROPERTY`, `INVALID_PROPERTY_TYPE`, `INVALID_VALUE` (fora dos limites do catálogo: zero, negativos, acima do máximo, não finitos) |
 | Normalização (sem IDs duplicados) | `UNKNOWN_TERMINAL`, `UNKNOWN_JUNCTION`, `NET_INCONSISTENT` |
 | Topologia (com componentes interpretáveis) | `UNCONNECTED_PIN` (aviso), `MISSING_GROUND`, `VOLTAGE_SOURCE_LOOP`, `FLOATING_NET`, `CURRENT_SOURCE_CUTSET` |
+| Rede elétrica (F2-07) | `UNSUPPORTED_ANALYSIS`, `MAINS_VOLTAGE` (aviso), `MISSING_PROTECTION` (aviso) |
 
 - Na topologia, cada rede é um nó e a terra liga a sua rede a um nó de referência. Resistências e lâmpadas são condutoras. Interruptores fechados, fontes de tensão e terra têm impedância nula. Interruptores abertos e fontes de corrente não fixam potencial.
 - Condensadores e bobinas dependem da análise (`validate(..., analysis="dc" | "transient")`, F2-02). Em DC, o condensador é um circuito aberto e a bobina tem impedância nula, pelo que uma bobina em paralelo com uma fonte de tensão é `VOLTAGE_SOURCE_LOOP`. Na transitória, ambos são condutores: uma malha fonte de tensão–condensador é aceite (o salto em t = 0 é resolvido pelo primeiro passo).
@@ -127,6 +128,24 @@ Para acrescentar um caso, basta criar um novo ficheiro JSON. `load_analytic_case
 - **Limites:** `stopTimeS` ∈ ]0, 1000] s, `timeStepS` > 0 e no máximo 10 000 intervalos de saída. Fora disto, a resposta é `422 INVALID_PARAMETERS` com `pointer` `/stopTimeS` ou `/timeStepS`.
 - **Testes:** `tests/test_solver_transient.py` compara com as soluções analíticas (carga RC, RL, RLC subamortecido e condições iniciais). `tests/test_instruments.py` cobre os instrumentos e `tests/test_semiconductors.py` os semicondutores (validação, DC, transitória e netlist).
 
+## Rede elétrica 230/400 V e proteções (F2-07)
+
+Componentes de instalações domésticas (catálogo, grupo «Proteção» da paleta para o disjuntor e o diferencial):
+
+| Tipo | Prefixo | Pinos | Modelo |
+|---|---|---|---|
+| `mains_source` | `AC` | `line`, `neutral` | `ac_voltage_source`: `voltageV` RMS (230, até 400 V), `frequencyHz` 50–60 |
+| `changeover_switch` | `SC` | `common`, `l1`, `l2` | `changeover_switch`: liga `common` a `l1` ou, com `toL2`, a `l2` (comutador de escada) |
+| `circuit_breaker` | `QF` | `a`, `b` | `circuit_breaker`: interruptor (`closed` = armado) com corrente estipulada `ratedCurrentA` |
+| `rcd` | `ID` | `line_in`, `line_out`, `neutral_in`, `neutral_out` | `rcd`: dois polos manobrados em conjunto, `ratedCurrentA` e `residualCurrentA` (IΔn) |
+| `mains_lamp` | `HR` | `a`, `b` | `resistive_lamp` a 230 V |
+| `relay` | `K` | `coil_a`, `coil_b`, `com`, `no` | `null`: só símbolo (`UNSUPPORTED_MODEL` na validação) |
+
+- **Análise**: a rede é resolvida em **regime RMS equivalente**: o solver DC trata a fonte como uma fonte de tensão de `voltageV` e as tensões, correntes e potências são valores eficazes. Só é válido com cargas resistivas: em DC, uma fonte DC, condensador, bobina, díodo, LED, transístor ou osciloscópio no mesmo circuito dá `UNSUPPORTED_ANALYSIS`. A análise transitória rejeita a rede (`UNSUPPORTED_ANALYSIS`); a exportação SPICE aceita-a.
+- **Avisos de segurança**: qualquer circuito com rede dá `MAINS_VOLTAGE` (é uma simulação didática, não substitui o projeto nem a verificação por um técnico qualificado, RTIEBT), e `MISSING_PROTECTION` se não houver disjuntor.
+- **Contactos**: o comutador é um contacto do comum ao terminal ativo; o terminal inativo é tratado como uma ponta de instrumento (não é `FLOATING_NET`, só `UNCONNECTED_PIN` se estiver por ligar). O diferencial tem um contacto por polo (`ID1:L`, `ID1:N`). Contactos fechados são fontes de 0 V no MNA/ngspice; um disjuntor ou diferencial aberto isola o circuito a jusante como um interruptor aberto (`FLOATING_NET` se ficar sem caminho para a terra).
+- **Disparo** (`app/solver/protection.py`, avisos no resultado, em DC e na transitória): `OVERCURRENT` se a corrente (máximo do módulo) num disjuntor ou num polo do diferencial exceder `In`; `RESIDUAL_CURRENT` se `|iL + iN|` no diferencial exceder `IΔn` (fuga à terra a jusante). O resultado do diferencial junta os polos: tensão e corrente do polo de fase, potência somada. O simulador não abre a proteção sozinho: o utilizador vê o aviso e pode abrir o contacto.
+
 ## Motor ngspice (F2-01)
 
 `SIMULATION_ENGINE` escolhe o motor de `POST /simulate` e `POST /simulate/transient`: `mna` (por omissão, os solvers acima) ou `ngspice`. A escolha é feita em `app/solver/engine.py`. A resposta tem o mesmo formato com os dois motores.
@@ -163,7 +182,7 @@ Instalação local: `sudo apt-get install ngspice`. Na imagem Docker: `--build-a
 
 `app/spice/exchange.py` traduz entre o documento canónico e netlists SPICE (texto, `.cir`). A netlist só é lida, nunca executada.
 
-**Exportação** (`POST /api/v1/circuits/export/spice`): o circuito é validado com as regras da análise transitória (422 `invalid-circuit` se tiver erros) e dá uma netlist com `.op`, legível pelo ngspice:
+**Exportação** (`POST /api/v1/circuits/export/spice`): o circuito é validado com as regras da análise transitória, mas aceita a rede elétrica (422 `invalid-circuit` se tiver erros) e dá uma netlist com `.op`, legível pelo ngspice:
 
 | Componente | Elemento SPICE |
 |---|---|
@@ -171,14 +190,15 @@ Instalação local: `sudo apt-get install ngspice`. Na imagem Docker: `--build-a
 | Condensador / bobina | `C a b C IC=V0` / `L a b L IC=I0` |
 | Fonte de tensão | `V + - DC V` |
 | Fonte de corrente | `I - + DC I` (no SPICE a corrente sai por `n-`) |
-| Interruptor fechado, amperímetro | `V a b DC 0` |
+| Fonte de rede (F2-07) | `V l n SIN(0 Vpico f)` (Vpico = `voltageV`·√2) |
+| Interruptor fechado, amperímetro, disjuntor armado, comutador (comum–ativo), polos fechados do diferencial | `V a b DC 0` (diferencial: `VID1_L`, `VID1_N`) |
 | Díodo, LED | `D a k modelo` com `.model … D(IS=… N=2)` (o nome do modelo dos LEDs começa por `LED_`) |
 | Transístor NPN/PNP | `Q c b e modelo` com `.model … NPN\|PNP(IS=… BF=… BR=1)` |
-| Interruptor aberto, voltímetro, osciloscópio | Nenhum (listados num comentário) |
+| Interruptor/disjuntor/diferencial aberto, voltímetro, osciloscópio | Nenhum (listados num comentário) |
 
 Os nomes são a letra do elemento + o id (`-` → `_`, únicos sem distinguir maiúsculas); os nós são os ids das redes e a terra é o nó `0`. Depois de `.end` vai o documento completo numa linha de comentário (`*@vcccircuitlab {…}`).
 
-**Importação** (`POST /api/v1/circuits/import/spice`, corpo `{ "netlist": "…" }`, até 256 KiB): devolve `{ circuit, warnings[], issues[] }`. Se a netlist trouxer o documento embutido e os elementos e modelos forem os que ele exporta (espaços, maiúsculas e `CRLF` não contam), devolve o documento original sem perdas. Caso contrário, traduz os elementos e indica nos avisos que o documento embutido foi ignorado:
+**Importação** (`POST /api/v1/circuits/import/spice`, corpo `{ "netlist": "…" }`, até 256 KiB): devolve `{ circuit, warnings[], issues[] }`. Se a netlist trouxer o documento embutido e os elementos e modelos forem os que ele exporta (espaços, maiúsculas e `CRLF` não contam), devolve o documento original sem perdas, mesmo com elementos que a importação não traduz (ex.: a fonte `SIN` da rede). Caso contrário, traduz os elementos e indica nos avisos que o documento embutido foi ignorado:
 
 - A primeira linha é o título (nome do circuito). `*` são comentários, e `;` ou ` $ ` iniciam comentários no fim da linha. `+` continua a linha anterior. Valores com sufixos `f p n u m k meg g t mil` (e unidades a seguir, ex.: `100nF`).
 - `R`, `C`, `L` (`IC=`), `V`/`I` DC (`DC` opcional). Uma fonte negativa troca os pinos, `V … 0` dá um amperímetro e `I … 0` é omitida.

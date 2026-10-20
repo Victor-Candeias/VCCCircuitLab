@@ -26,7 +26,16 @@
     "ComponentCategory": {
       "title": "ComponentCategory",
       "description": "Categoria usada para agrupar a paleta.",
-      "enum": ["source", "passive", "switch", "load", "semiconductor", "instrument", "reference"]
+      "enum": [
+        "source",
+        "passive",
+        "switch",
+        "protection",
+        "load",
+        "semiconductor",
+        "instrument",
+        "reference"
+      ]
     },
     "SimulationModel": {
       "title": "SimulationModel",
@@ -34,8 +43,12 @@
       "enum": [
         "dc_voltage_source",
         "dc_current_source",
+        "ac_voltage_source",
         "resistor",
         "ideal_switch",
+        "changeover_switch",
+        "circuit_breaker",
+        "rcd",
         "resistive_lamp",
         "capacitor",
         "inductor",

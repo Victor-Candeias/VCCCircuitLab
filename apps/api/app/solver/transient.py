@@ -30,7 +30,7 @@ Convenção de sinais igual à da análise DC (`app.solver.mna`).
 import math
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -38,7 +38,7 @@ import numpy as np
 from app.circuit.catalog import ComponentCatalog, load_catalog
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
 from app.circuit.normalize import NormalizedCircuit
-from app.circuit.validate import validate
+from app.circuit.validate import component_of, validate
 from app.models.circuit import CircuitDocument
 from app.solver.mna import (
     MAX_CONDITION_NUMBER,
@@ -50,6 +50,7 @@ from app.solver.mna import (
     circuit_branches,
     defined_nets,
 )
+from app.solver.protection import finish_components
 from app.solver.semiconductors import (
     NewtonSolver,
     Semiconductor,
@@ -157,7 +158,7 @@ def solve_transient(
     times[-1] = stop_time_s
     if devices:
         xs, ics = _integrate_nonlinear(system, intervals, substeps, h, deadline)
-        return system.results(times, xs, ics, warnings)
+        return finish_transient(system.results(times, xs, ics, warnings), normalized, catalog)
 
     total = intervals * substeps
     x0, cap_currents0 = system.initial_state(h * INITIAL_STEP_FRACTION)
@@ -191,7 +192,27 @@ def solve_transient(
         ics.append(first.cap_currents(system, x1, states[0], states[0])[None, :])
     xs.append(rest.solve(states[later - 1], states[later - 2]))
     ics.append(rest.cap_currents(system, xs[-1], states[later - 1], states[later - 2]))
-    return system.results(times, np.concatenate(xs), np.concatenate(ics), warnings)
+    result = system.results(times, np.concatenate(xs), np.concatenate(ics), warnings)
+    return finish_transient(result, normalized, catalog)
+
+
+def finish_transient(
+    result: TransientResult, normalized: NormalizedCircuit, catalog: ComponentCatalog
+) -> TransientResult:
+    """Avisos das proteções (F2-07, pelo máximo ao longo do tempo) e séries por componente,
+    com os polos juntos (ver `app.solver.protection`)."""
+    components, protection = finish_components(
+        result.components,
+        normalized.document,
+        catalog,
+        current=lambda s: s.current_a,
+        merge=lambda a, b: ComponentSeries(
+            a.voltage_v,
+            a.current_a,
+            [x + y for x, y in zip(a.power_w, b.power_w, strict=True)],
+        ),
+    )
+    return replace(result, components=components, warnings=(*result.warnings, *protection))
 
 
 def _integrate_nonlinear(
@@ -460,7 +481,9 @@ def transient_result(
         )
     if order:
         positions = {cid: k for k, cid in enumerate(order)}
-        components = dict(sorted(components.items(), key=lambda item: positions[item[0]]))
+        components = dict(
+            sorted(components.items(), key=lambda item: positions[component_of(item[0])])
+        )
     return TransientResult(
         time_s=_series(times),
         node_voltages_v={net: _series(v) for net, v in voltages.items()},

@@ -13,7 +13,11 @@ das fontes de tensão e dos interruptores fechados. Estampas:
   fonte de 0 V (a leitura é `currentA`), osciloscópio → sem ramo (as leituras são as tensões
   das redes dos canais);
 - semicondutores (F2-04) → não lineares: díodos, LEDs e transístores (`app.solver.semiconductors`)
-  linearizados em cada iteração do método de Newton, com rampa das fontes se não convergir.
+  linearizados em cada iteração do método de Newton, com rampa das fontes se não convergir;
+- rede CA (F2-07) → fonte de tensão com o valor eficaz (resultados RMS com cargas resistivas);
+  disjuntor → interruptor; comutador → fonte de 0 V entre o comum e o contacto ativo;
+  diferencial → um ramo por polo (`ID:L`, `ID:N`), juntos num só resultado por
+  `app.solver.protection`, que também avisa quando uma proteção dispararia.
 
 As redes ligadas apenas a pontas de instrumentos (voltímetro/osciloscópio) não têm potencial
 definido: ficam fora das incógnitas e de `nodeVoltagesV`, e os voltímetros ligados a elas não
@@ -35,20 +39,25 @@ from app.circuit.catalog import ComponentCatalog, load_catalog
 from app.circuit.errors import CircuitError, CircuitErrorCode, CircuitValidationError
 from app.circuit.normalize import NormalizedCircuit
 from app.circuit.validate import (
+    AC_SOURCE_MODEL,
     AMMETER_MODEL,
     CAPACITOR_MODEL,
     CURRENT_SOURCE_MODEL,
     GROUND_MODEL,
     INDUCTOR_MODEL,
+    MULTI_CONTACT_MODELS,
     OSCILLOSCOPE_MODEL,
     PROBE_MODELS,
     SEMICONDUCTOR_MODELS,
-    SWITCH_MODEL,
+    SWITCH_MODELS,
     VOLTAGE_SOURCE_MODEL,
     VOLTMETER_MODEL,
+    contacts,
+    open_terminals,
     validate,
 )
 from app.models.circuit import CircuitDocument, Component
+from app.solver.protection import finish_components
 from app.solver.semiconductors import (
     NewtonSolver,
     Semiconductor,
@@ -174,10 +183,25 @@ def solve_dc(
         results[device.component] = device_result(
             device, voltages, device.terminal_currents(terminals)
         )
+    components, protection = finish_dc(results, normalized, catalog)
     return DcResult(
         node_voltages_v=voltages,
-        components=in_document_order(results, normalized),
-        warnings=tuple(warnings),
+        components=components,
+        warnings=(*warnings, *protection),
+    )
+
+
+def finish_dc(
+    results: dict[str, ComponentResult], normalized: NormalizedCircuit, catalog: ComponentCatalog
+) -> tuple[dict[str, ComponentResult], list[CircuitError]]:
+    """Avisos das proteções e resultados por componente (polos juntos), pela ordem do
+    documento."""
+    return finish_components(
+        results,
+        normalized.document,
+        catalog,
+        current=lambda r: [r.current_a],
+        merge=lambda a, b: ComponentResult(a.voltage_v, a.current_a, _clean(a.power_w + b.power_w)),
     )
 
 
@@ -190,11 +214,6 @@ def device_result(
         device, [voltages[net] for net in device.nets], currents
     )
     return ComponentResult(_clean(voltage), _clean(current), _clean(power))
-
-
-def in_document_order(results: dict[str, Any], normalized: NormalizedCircuit) -> dict[str, Any]:
-    """Resultados por componente pela ordem do documento."""
-    return {c.id: results[c.id] for c in normalized.document.components if c.id in results}
 
 
 def component_results(
@@ -225,12 +244,13 @@ def component_results(
 def defined_nets(normalized: NormalizedCircuit, catalog: ComponentCatalog) -> list[str]:
     """Redes com potencial definido (pela ordem do documento): todas exceto as que só ligam a
     pontas de instrumentos de impedância infinita (voltímetro/osciloscópio)."""
-    probe_terminals = {
-        c.terminal(pin)
-        for c in normalized.document.components
-        if (spec := catalog.get(c.type)) is not None and spec.simulation_model in PROBE_MODELS
-        for pin in spec.pins
-    }
+    probe_terminals: set[str] = set()
+    for c in normalized.document.components:
+        if (spec := catalog.get(c.type)) is None:
+            continue
+        if spec.simulation_model in PROBE_MODELS:
+            probe_terminals.update(c.terminal(pin) for pin in spec.pins)
+        probe_terminals.update(open_terminals(spec.simulation_model, c))
     return [
         net.id
         for net in normalized.document.nets or []
@@ -275,6 +295,12 @@ def circuit_branches(
             continue  # sem ramo: as leituras são as tensões das redes
         if spec.simulation_model in SEMICONDUCTOR_MODELS:
             continue  # não lineares: `semiconductor_devices`
+        if spec.simulation_model in MULTI_CONTACT_MODELS:
+            for k in contacts(spec.simulation_model, c):
+                kind = BranchKind.VOLTAGE if k.closed else BranchKind.OPEN
+                a, b = net_of[c.terminal(k.a)], net_of[c.terminal(k.b)]
+                branches.append(Branch(k.key, kind, a, b, 0.0))
+            continue
         kind, value, initial = _stamp(spec.simulation_model, c)
         branches.append(Branch(c.id, kind, nodes[0], nodes[1], value, initial))
     return grounded, branches
@@ -287,11 +313,11 @@ def _stamp(model: str | None, c: Component) -> tuple[BranchKind, float, float]:
     if model == "resistive_lamp":
         conductance = float(p["ratedPowerW"]) / float(p["ratedVoltageV"]) ** 2
         return BranchKind.CONDUCTANCE, conductance, 0.0
-    if model == VOLTAGE_SOURCE_MODEL:
+    if model in (VOLTAGE_SOURCE_MODEL, AC_SOURCE_MODEL):
         return BranchKind.VOLTAGE, float(p["voltageV"]), 0.0
     if model == CURRENT_SOURCE_MODEL:
         return BranchKind.CURRENT, float(p["currentA"]), 0.0
-    if model == SWITCH_MODEL:
+    if model in SWITCH_MODELS:
         kind = BranchKind.VOLTAGE if p.get("closed") is True else BranchKind.OPEN
         return kind, 0.0, 0.0
     if model == VOLTMETER_MODEL:

@@ -8,10 +8,11 @@ import numpy as np
 from app.circuit.catalog import ComponentCatalog, load_catalog
 from app.circuit.validate import validate
 from app.models.circuit import CircuitDocument
-from app.solver.mna import DcResult, component_results, device_result, in_document_order
+from app.solver.mna import DcResult, component_results, device_result, finish_dc
 from app.solver.transient import (
     MIN_INTERNAL_STEPS,
     TransientResult,
+    finish_transient,
     output_intervals,
     transient_result,
 )
@@ -59,10 +60,11 @@ def simulate_dc_ngspice(
     results = component_results(netlist.branches, voltages, currents)
     for device in netlist.devices:
         results[device.component] = device_result(device, voltages, sensed[device.component])
+    components, protection = finish_dc(results, normalized, catalog)
     return DcResult(
         node_voltages_v=voltages,
-        components=in_document_order(results, normalized),
-        warnings=report.warnings,
+        components=components,
+        warnings=(*report.warnings, *protection),
     )
 
 
@@ -108,7 +110,7 @@ def simulate_transient_ngspice(
         }
     except KeyError as exc:
         raise SimulationEngineError(f"rawfile sem a corrente de {exc}") from None
-    return transient_result(
+    result = transient_result(
         times,
         voltages,
         netlist.branches,
@@ -118,3 +120,4 @@ def simulate_transient_ngspice(
         sensed,
         order=[c.id for c in normalized.document.components],
     )
+    return finish_transient(result, normalized, catalog)

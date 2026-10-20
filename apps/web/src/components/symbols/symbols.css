@@ -25,3 +25,8 @@
   stroke: var(--danger);
   stroke-dasharray: 4 3;
 }
+
+.component-symbol .symbol__link {
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}

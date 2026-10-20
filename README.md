@@ -91,6 +91,8 @@ Netlists SPICE (F2-05): no menu Projeto, «Exportar SPICE» descarrega o circuit
 
 Geração por texto livre (F2-06): em «Gerar…», o modo «Texto livre» aceita uma descrição em português, por exemplo «divisor de tensão de 9 V com 10k e 4,7k». A API interpreta-a com um parser de intenções determinístico (sem LLM nem serviços externos) e valida o resultado com o schema do template e as regras elétricas. Antes de abrir o circuito no editor, o diálogo mostra o resumo, os valores assumidos e uma pré-visualização (detalhes em [`apps/api/README.md`](apps/api/README.md#geração-por-linguagem-natural-f2-06)).
 
+Rede elétrica e proteções (F2-07): o catálogo inclui a rede CA 230/400 V, a lâmpada de rede, o comutador de escada, o disjuntor, o interruptor diferencial (grupo «Proteção») e o relé (só símbolo, ainda não simulado). A rede é simulada em regime RMS equivalente, só com cargas resistivas. O resultado avisa sempre que é uma simulação didática a tensões perigosas, e também quando falta o disjuntor ou quando uma proteção dispararia (sobrecorrente ou corrente diferencial). Detalhes em [`apps/api/README.md`](apps/api/README.md#rede-elétrica-230400-v-e-proteções-f2-07).
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

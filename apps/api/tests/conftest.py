@@ -1,5 +1,7 @@
+import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from pathlib import Path
 
 import mongomock
 import pytest
@@ -8,6 +10,10 @@ from app.auth.dependencies import require_user
 from app.circuit import catalog as catalog_module
 from app.main import app
 from app.models.user import UserOut
+
+SHARED_CATALOG = (
+    Path(__file__).resolve().parents[3] / "packages/circuit-schema/test/fixtures/catalog.json"
+)
 
 FAKE_USER = UserOut(
     id="000000000000000000000001",
@@ -416,6 +422,14 @@ CATALOG_COMPONENTS: list[dict] = [
         "properties": {},
         "simulationModel": "ground",
     },
+]
+
+#: Componentes da rede 230/400 V e das proteções (F2-07), lidos do catálogo partilhado.
+F2_07_TYPES = ("mains_source", "mains_lamp", "changeover_switch", "relay", "circuit_breaker", "rcd")
+CATALOG_COMPONENTS += [
+    c
+    for c in json.loads(SHARED_CATALOG.read_text(encoding="utf-8"))["components"]
+    if c["type"] in F2_07_TYPES
 ]
 
 

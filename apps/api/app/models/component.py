@@ -11,15 +11,26 @@ from pydantic import BaseModel, Field
 from app.models.circuit import ComponentType, PropertyName
 
 ComponentCategory = Literal[
-    "source", "passive", "switch", "load", "semiconductor", "instrument", "reference"
+    "source",
+    "passive",
+    "switch",
+    "protection",
+    "load",
+    "semiconductor",
+    "instrument",
+    "reference",
 ]
 PinKind = Literal["passive", "positive", "negative", "reference"]
 SimulationModel = (
     Literal[
         "dc_voltage_source",
         "dc_current_source",
+        "ac_voltage_source",
         "resistor",
         "ideal_switch",
+        "changeover_switch",
+        "circuit_breaker",
+        "rcd",
         "resistive_lamp",
         "capacitor",
         "inductor",

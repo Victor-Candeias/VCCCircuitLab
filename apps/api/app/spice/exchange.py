@@ -3,8 +3,10 @@
 **Exportação** (`export_netlist`): o circuito validado (regras da análise transitória, as mais
 permissivas) dá uma netlist legível, com os elementos nomeados a partir dos ids e `.op`. Os
 componentes sem elemento SPICE (interruptor aberto, voltímetro, osciloscópio) só aparecem num
-comentário. Depois de `.end` vai o documento canónico completo numa linha de comentário
-(`*@vcccircuitlab {json}`, com as redes se existirem), que permite reimportar sem perdas.
+comentário. A rede CA (F2-07) é exportada como fonte sinusoidal (`SIN`, amplitude = valor eficaz
+× √2); o disjuntor, o comutador (contacto ativo) e o diferencial (um elemento por polo)
+fechados são fontes de 0 V. Depois de `.end` vai o documento canónico completo numa linha de
+comentário (`*@vcccircuitlab {json}`, com as redes se existirem), que permite reimportar sem perdas.
 
 **Importação** (`import_netlist`): se a netlist trouxer o documento embutido e os seus elementos
 forem os que esse documento exporta (não foi editada), devolve-se o documento tal como estava.
@@ -38,6 +40,7 @@ from pydantic import ValidationError
 from app.circuit.catalog import ComponentCatalog
 from app.circuit.errors import CircuitError, CircuitValidationError
 from app.circuit.validate import (
+    AC_SOURCE_MODEL,
     AMMETER_MODEL,
     BJT_NPN_MODEL,
     BJT_PNP_MODEL,
@@ -46,8 +49,10 @@ from app.circuit.validate import (
     DIODE_MODEL,
     GROUND_MODEL,
     INDUCTOR_MODEL,
-    SWITCH_MODEL,
+    MULTI_CONTACT_MODELS,
+    SWITCH_MODELS,
     VOLTAGE_SOURCE_MODEL,
+    contacts,
     validate,
 )
 from app.models.circuit import CircuitDocument, Component, Point, Wire
@@ -161,7 +166,7 @@ class ImportResult:
 
 def export_netlist(document: CircuitDocument, catalog: ComponentCatalog) -> str:
     """Netlist SPICE do circuito; lança `CircuitValidationError` se não for válido."""
-    report = validate(document, catalog, analysis="transient")
+    report = validate(document, catalog, analysis="export")
     normalized = report.raise_for_errors()
     net_of = normalized.terminal_to_net
     grounded = {
@@ -181,9 +186,16 @@ def export_netlist(document: CircuitDocument, catalog: ComponentCatalog) -> str:
         model = spec.simulation_model
         if model == GROUND_MODEL:
             continue
-        n = [nodes[net_of[c.terminal(pin)]] for pin in spec.pins]
-        line = _element_line(c, model, n, names, models)
-        if line is None:
+        node = {pin: nodes[net_of[c.terminal(pin)]] for pin in spec.pins}
+        if model in MULTI_CONTACT_MODELS:
+            line = "\n".join(
+                f"{names.get('V', k.key.replace(':', '_'))} {node[k.a]} {node[k.b]} DC 0"
+                for k in contacts(model, c)
+                if k.closed
+            )
+        else:
+            line = _element_line(c, model, list(node.values()), names, models)
+        if not line:
             omitted.append(f"{c.id} ({spec.label})")
         else:
             elements.append(line)
@@ -217,9 +229,15 @@ def _element_line(
         )
     if model == VOLTAGE_SOURCE_MODEL:
         return f"{names.get('V', c.id)} {n[0]} {n[1]} DC {_value(p['voltageV'])}"
+    if model == AC_SOURCE_MODEL:
+        amplitude = float(p["voltageV"]) * math.sqrt(2)
+        return (
+            f"{names.get('V', c.id)} {n[0]} {n[1]} "
+            f"SIN(0 {_value(amplitude)} {_value(p['frequencyHz'])})"
+        )
     if model == CURRENT_SOURCE_MODEL:
         return f"{names.get('I', c.id)} {n[1]} {n[0]} DC {_value(p['currentA'])}"
-    if model == AMMETER_MODEL or (model == SWITCH_MODEL and p.get("closed") is True):
+    if model == AMMETER_MODEL or (model in SWITCH_MODELS and p.get("closed") is True):
         return f"{names.get('V', c.id)} {n[0]} {n[1]} DC 0"
     if model == DIODE_MODEL:
         name = names.get("D", c.id)
@@ -239,7 +257,7 @@ def _element_line(
             f"BF={_value(p['currentGain'])} BR={_value(BJT_REVERSE_GAIN)})"
         )
         return f"{name} {n[0]} {n[1]} {n[2]} QM_{name}"
-    return None  # interruptor aberto, voltímetro, osciloscópio
+    return None  # interruptor/disjuntor aberto, voltímetro, osciloscópio
 
 
 class _ElementNames:
@@ -316,16 +334,18 @@ def import_netlist(text: str, catalog: ComponentCatalog) -> ImportResult:
             [_issue(NetlistIssueCode.INVALID_NETLIST, "a netlist é demasiado grande.")]
         )
     parsed = _parse(text)
+    warnings = list(parsed.warnings)
+    # O documento embutido vem primeiro: os elementos que não se traduzem (ex.: a rede CA, `SIN`)
+    # não impedem reimportar uma netlist exportada e não editada.
+    if parsed.embedded is not None and not parsed.errors:
+        document = _embedded_document(parsed, catalog, warnings)
+        if document is not None:
+            return _result(document, [], catalog)
     builder = _Builder(catalog, parsed)
     builder.translate()
     errors = sorted([*parsed.errors, *builder.errors], key=lambda i: i.line or 0)
     if errors:
         raise InvalidNetlistError(errors[:MAX_ERRORS])
-    warnings = list(parsed.warnings)
-    if parsed.embedded is not None:
-        document = _embedded_document(parsed, catalog, warnings)
-        if document is not None:
-            return _result(document, [], catalog)
     document = builder.build()
     return _result(document, warnings + builder.warnings, catalog)
 
@@ -333,7 +353,7 @@ def import_netlist(text: str, catalog: ComponentCatalog) -> ImportResult:
 def _result(
     document: CircuitDocument, warnings: list[NetlistIssue], catalog: ComponentCatalog
 ) -> ImportResult:
-    report = validate(document, catalog, analysis="transient")
+    report = validate(document, catalog, analysis="export")
     return ImportResult(document, warnings, [*report.errors, *report.warnings])
 
 

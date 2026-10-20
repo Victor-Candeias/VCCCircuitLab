@@ -86,6 +86,19 @@ function DcCurrentSourceSymbol() {
   );
 }
 
+/** Fonte de tensão alternada (IEC 60617-02-06-01 + 02-02-04): círculo com uma sinusoide. */
+function AcVoltageSourceSymbol() {
+  const r = SOURCE_RADIUS;
+  return (
+    <>
+      <Lead from={{ x: 0, y: -40 }} to={{ x: 0, y: -r }} />
+      <Lead from={{ x: 0, y: r }} to={{ x: 0, y: 40 }} />
+      <circle r={r} />
+      <path d="M -9 0 q 4.5 -10 9 0 t 9 0" />
+    </>
+  );
+}
+
 /** Resistência (IEC 60617-04-01-01): retângulo. */
 function ResistorSymbol() {
   return (
@@ -133,6 +146,93 @@ function SwitchSpstSymbol({ properties }: Pick<SymbolProps, 'properties'>) {
       <Line from={{ x: -16, y: 0 }} to={closed ? { x: 16, y: 0 } : { x: 14, y: -16 }} />
       <circle className="symbol__contact" cx={-16} cy={0} r={3} />
       <circle className="symbol__contact" cx={16} cy={0} r={3} />
+    </g>
+  );
+}
+
+/**
+ * Comutador de lustre/escada (IEC 60617-07-02-03): a lâmina liga o comum (esquerda) a `l1`
+ * (cima) ou, com `toL2`, a `l2` (baixo).
+ */
+function SwitchSpdtSymbol({ properties }: Pick<SymbolProps, 'properties'>) {
+  const toL2 = properties.toL2 === true;
+  return (
+    <g data-state={toL2 ? 'l2' : 'l1'}>
+      <Lead from={{ x: -40, y: 0 }} to={{ x: -16, y: 0 }} />
+      <Lead from={{ x: 16, y: -12 }} to={{ x: 30, y: -12 }} />
+      <Lead from={{ x: 30, y: -12 }} to={{ x: 40, y: -20 }} />
+      <Lead from={{ x: 16, y: 12 }} to={{ x: 30, y: 12 }} />
+      <Lead from={{ x: 30, y: 12 }} to={{ x: 40, y: 20 }} />
+      <Line from={{ x: -16, y: 0 }} to={{ x: 16, y: toL2 ? 12 : -12 }} />
+      <circle className="symbol__contact" cx={-16} cy={0} r={3} />
+      <circle className="symbol__contact" cx={16} cy={-12} r={3} />
+      <circle className="symbol__contact" cx={16} cy={12} r={3} />
+    </g>
+  );
+}
+
+/**
+ * Relé (IEC 60617-07-15-01 + 07-02-01): bobina (retângulo, à esquerda) e contacto de fecho
+ * (à direita) ligados por um traço tracejado. Só símbolo: o solver ainda não o simula.
+ */
+function RelaySymbol() {
+  return (
+    <>
+      <Lead from={{ x: -40, y: -20 }} to={{ x: -28, y: -20 }} />
+      <Lead from={{ x: -28, y: -20 }} to={{ x: -28, y: -10 }} />
+      <Lead from={{ x: -40, y: 20 }} to={{ x: -28, y: 20 }} />
+      <Lead from={{ x: -28, y: 20 }} to={{ x: -28, y: 10 }} />
+      <rect x={-36} y={-10} width={16} height={20} />
+      <Line from={{ x: -20, y: 0 }} to={{ x: 10, y: 0 }} />
+      <Lead from={{ x: 24, y: -20 }} to={{ x: 40, y: -20 }} />
+      <Lead from={{ x: 24, y: 20 }} to={{ x: 40, y: 20 }} />
+      <Lead from={{ x: 24, y: -20 }} to={{ x: 24, y: -10 }} />
+      <Line from={{ x: 24, y: 20 }} to={{ x: 12, y: -8 }} />
+      <circle className="symbol__contact" cx={24} cy={-10} r={2.5} />
+      <line className="symbol__link" x1={-20} y1={0} x2={18} y2={6} />
+    </>
+  );
+}
+
+/**
+ * Disjuntor (IEC 60617-07-13-05): contacto de fecho com uma cruz no contacto fixo; desenha o
+ * estado `closed` (armado) ou disparado/aberto.
+ */
+function CircuitBreakerSymbol({ properties }: Pick<SymbolProps, 'properties'>) {
+  const closed = properties.closed !== false;
+  return (
+    <g data-state={closed ? 'closed' : 'open'}>
+      <Lead from={{ x: -40, y: 0 }} to={{ x: -16, y: 0 }} />
+      <Lead from={{ x: 16, y: 0 }} to={{ x: 40, y: 0 }} />
+      <Line from={{ x: -16, y: 0 }} to={closed ? { x: 16, y: 0 } : { x: 14, y: -16 }} />
+      <Line from={{ x: 12, y: -4 }} to={{ x: 20, y: 4 }} />
+      <Line from={{ x: 12, y: 4 }} to={{ x: 20, y: -4 }} />
+      <circle className="symbol__contact" cx={-16} cy={0} r={3} />
+    </g>
+  );
+}
+
+/**
+ * Interruptor diferencial (IEC 60617-07-13-05 + 07-20-02): dois polos (fase em cima, neutro em
+ * baixo) manobrados em conjunto e um toro de deteção da corrente residual.
+ */
+function RcdSymbol({ properties }: Pick<SymbolProps, 'properties'>) {
+  const closed = properties.closed !== false;
+  const blade = (y: number) => (
+    <Line from={{ x: 4, y }} to={closed ? { x: 22, y } : { x: 20, y: y - 12 }} />
+  );
+  return (
+    <g data-state={closed ? 'closed' : 'open'}>
+      <Lead from={{ x: -40, y: -20 }} to={{ x: 4, y: -20 }} />
+      <Lead from={{ x: -40, y: 20 }} to={{ x: 4, y: 20 }} />
+      <Lead from={{ x: 22, y: -20 }} to={{ x: 40, y: -20 }} />
+      <Lead from={{ x: 22, y: 20 }} to={{ x: 40, y: 20 }} />
+      {blade(-20)}
+      {blade(20)}
+      <ellipse cx={-18} cy={0} rx={6} ry={26} />
+      <line className="symbol__link" x1={12} y1={-24} x2={12} y2={16} />
+      <circle className="symbol__contact" cx={4} cy={-20} r={2.5} />
+      <circle className="symbol__contact" cx={4} cy={20} r={2.5} />
     </g>
   );
 }
@@ -274,6 +374,8 @@ export function IecSymbol({ symbol, properties, rotation }: SymbolProps & { symb
       return <DcVoltageSourceSymbol rotation={rotation} />;
     case 'dc_current_source_iec':
       return <DcCurrentSourceSymbol />;
+    case 'ac_voltage_source_iec':
+      return <AcVoltageSourceSymbol />;
     case 'resistor_iec':
       return <ResistorSymbol />;
     case 'capacitor_iec':
@@ -282,6 +384,14 @@ export function IecSymbol({ symbol, properties, rotation }: SymbolProps & { symb
       return <InductorSymbol />;
     case 'switch_spst_iec':
       return <SwitchSpstSymbol properties={properties} />;
+    case 'switch_spdt_iec':
+      return <SwitchSpdtSymbol properties={properties} />;
+    case 'relay_iec':
+      return <RelaySymbol />;
+    case 'circuit_breaker_iec':
+      return <CircuitBreakerSymbol properties={properties} />;
+    case 'rcd_iec':
+      return <RcdSymbol properties={properties} />;
     case 'lamp_iec':
       return <LampSymbol />;
     case 'voltmeter_iec':

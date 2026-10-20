@@ -25,6 +25,12 @@ PINS = {
     "npn_transistor": ["collector", "base", "emitter"],
     "pnp_transistor": ["collector", "base", "emitter"],
     "ground": ["gnd"],
+    "mains_source": ["line", "neutral"],
+    "mains_lamp": ["a", "b"],
+    "changeover_switch": ["common", "l1", "l2"],
+    "relay": ["coil_a", "coil_b", "com", "no"],
+    "circuit_breaker": ["a", "b"],
+    "rcd": ["line_in", "line_out", "neutral_in", "neutral_out"],
 }
 PROPERTIES: dict[str, dict[str, Any]] = {
     "dc_voltage_source": {"voltageV": 12},
@@ -42,6 +48,12 @@ PROPERTIES: dict[str, dict[str, Any]] = {
     "npn_transistor": {"currentGain": 100, "saturationCurrentA": 1e-14},
     "pnp_transistor": {"currentGain": 100, "saturationCurrentA": 1e-14},
     "ground": {},
+    "mains_source": {"voltageV": 230, "frequencyHz": 50},
+    "mains_lamp": {"ratedVoltageV": 230, "ratedPowerW": 60},
+    "changeover_switch": {"toL2": False},
+    "relay": {"coilVoltageV": 12},
+    "circuit_breaker": {"closed": True, "ratedCurrentA": 10},
+    "rcd": {"closed": True, "ratedCurrentA": 40, "residualCurrentA": 0.03},
 }
 
 

@@ -21,7 +21,9 @@ describe('SYMBOL_IDS', () => {
     for (const def of catalog.components) {
       expect(isSymbolId(def.symbol), def.symbol).toBe(true);
     }
-    expect([...SYMBOL_IDS].sort()).toEqual(catalog.components.map((def) => def.symbol).sort());
+    // Componentes diferentes podem partilhar o desenho (ex.: `lamp` e `mains_lamp`).
+    const symbols = [...new Set(catalog.components.map((def) => def.symbol))];
+    expect([...SYMBOL_IDS].sort()).toEqual(symbols.sort());
   });
 
   test('identificadores desconhecidos não são símbolos', () => {
@@ -101,6 +103,26 @@ describe('ComponentSymbol', () => {
     expect(open.querySelector('[data-state]')).toHaveAttribute('data-state', 'open');
     const closed = renderSymbol({ symbol: sw.symbol, size: sw.size, properties: { closed: true } });
     expect(closed.querySelector('[data-state]')).toHaveAttribute('data-state', 'closed');
+  });
+
+  test.each(['circuit_breaker', 'rcd'])('%s desenha o estado armado/aberto', (type) => {
+    const def = catalog.components.find((d) => d.type === type)!;
+    const armed = renderSymbol({ symbol: def.symbol, size: def.size, properties: {} });
+    expect(armed.querySelector('[data-state]')).toHaveAttribute('data-state', 'closed');
+    const open = renderSymbol({
+      symbol: def.symbol,
+      size: def.size,
+      properties: { closed: false },
+    });
+    expect(open.querySelector('[data-state]')).toHaveAttribute('data-state', 'open');
+  });
+
+  test('o comutador desenha a posição da lâmina', () => {
+    const sw = catalog.components.find((def) => def.type === 'changeover_switch')!;
+    const l1 = renderSymbol({ symbol: sw.symbol, size: sw.size, properties: { toL2: false } });
+    expect(l1.querySelector('[data-state]')).toHaveAttribute('data-state', 'l1');
+    const l2 = renderSymbol({ symbol: sw.symbol, size: sw.size, properties: { toL2: true } });
+    expect(l2.querySelector('[data-state]')).toHaveAttribute('data-state', 'l2');
   });
 
   test('os sinais de polaridade ficam na vertical com qualquer rotação', () => {

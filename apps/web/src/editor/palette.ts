@@ -9,6 +9,7 @@ export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   source: 'Fontes',
   passive: 'Passivos',
   switch: 'Interruptores',
+  protection: 'Proteção',
   load: 'Cargas',
   instrument: 'Instrumentos',
   semiconductor: 'Semicondutores',

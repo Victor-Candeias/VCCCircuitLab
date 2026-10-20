@@ -51,6 +51,38 @@
       "simulationModel": "dc_current_source"
     },
     {
+      "type": "mains_source",
+      "label": "Rede elétrica CA (230/400 V)",
+      "description": "Alimentação da rede (fase `line`, neutro `neutral`) em valores eficazes (RMS): 230 V entre fase e neutro ou 400 V entre fases (monofásico equivalente). Só na análise DC e com cargas resistivas, o resultado é o valor eficaz equivalente; não é suportada na análise transitória. Simulação didática: não substitui o projeto nem a verificação de uma instalação por técnico certificado.",
+      "category": "source",
+      "idPrefix": "AC",
+      "symbol": "ac_voltage_source_iec",
+      "size": { "width": 40, "height": 80 },
+      "pins": [
+        { "id": "line", "kind": "positive", "position": { "x": 0, "y": -40 } },
+        { "id": "neutral", "kind": "negative", "position": { "x": 0, "y": 40 } }
+      ],
+      "properties": {
+        "voltageV": {
+          "type": "number",
+          "title": "Tensão eficaz (RMS)",
+          "unit": "V",
+          "default": 230,
+          "exclusiveMinimum": 0,
+          "maximum": 400
+        },
+        "frequencyHz": {
+          "type": "number",
+          "title": "Frequência",
+          "unit": "Hz",
+          "default": 50,
+          "minimum": 50,
+          "maximum": 60
+        }
+      },
+      "simulationModel": "ac_voltage_source"
+    },
+    {
       "type": "resistor",
       "label": "Resistência",
       "category": "passive",
@@ -94,6 +126,122 @@
       "simulationModel": "ideal_switch"
     },
     {
+      "type": "changeover_switch",
+      "label": "Comutador (escada)",
+      "description": "Comutador unipolar de duas posições (inversor de escada): o terminal comum `common` liga a `l1` ou, com `toL2`, a `l2`; o contacto inativo fica em aberto.",
+      "category": "switch",
+      "idPrefix": "SC",
+      "symbol": "switch_spdt_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "common", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "l1", "kind": "passive", "position": { "x": 40, "y": -20 } },
+        { "id": "l2", "kind": "passive", "position": { "x": 40, "y": 20 } }
+      ],
+      "properties": {
+        "toL2": {
+          "type": "boolean",
+          "title": "Na posição L2",
+          "default": false
+        }
+      },
+      "simulationModel": "changeover_switch"
+    },
+    {
+      "type": "relay",
+      "label": "Relé",
+      "description": "Relé com bobina (`coil_a`/`coil_b`) e contacto de fecho (`com`/`no`). Só símbolo: ainda não é suportado pelo solver (não é simulado).",
+      "category": "switch",
+      "idPrefix": "K",
+      "symbol": "relay_iec",
+      "size": { "width": 80, "height": 60 },
+      "pins": [
+        { "id": "coil_a", "kind": "passive", "position": { "x": -40, "y": -20 } },
+        { "id": "coil_b", "kind": "passive", "position": { "x": -40, "y": 20 } },
+        { "id": "com", "kind": "passive", "position": { "x": 40, "y": 20 } },
+        { "id": "no", "kind": "passive", "position": { "x": 40, "y": -20 } }
+      ],
+      "properties": {
+        "coilVoltageV": {
+          "type": "number",
+          "title": "Tensão da bobina",
+          "unit": "V",
+          "default": 12,
+          "exclusiveMinimum": 0,
+          "maximum": 400
+        }
+      },
+      "simulationModel": null
+    },
+    {
+      "type": "circuit_breaker",
+      "label": "Disjuntor",
+      "description": "Disjuntor magnetotérmico modelado como interruptor ideal (fechado quando armado). Se a corrente ultrapassar a corrente estipulada `ratedCurrentA` (In), a simulação avisa que dispararia; o disparo e a curva de atuação não são simulados.",
+      "category": "protection",
+      "idPrefix": "QF",
+      "symbol": "circuit_breaker_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "a", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "b", "kind": "passive", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "closed": {
+          "type": "boolean",
+          "title": "Armado (fechado)",
+          "default": true
+        },
+        "ratedCurrentA": {
+          "type": "number",
+          "title": "Corrente estipulada (In)",
+          "unit": "A",
+          "default": 10,
+          "exclusiveMinimum": 0,
+          "maximum": 125
+        }
+      },
+      "simulationModel": "circuit_breaker"
+    },
+    {
+      "type": "rcd",
+      "label": "Interruptor diferencial",
+      "description": "Interruptor diferencial bipolar: dois contactos ideais (fase `line_in`→`line_out`, neutro `neutral_in`→`neutral_out`). Se a corrente diferencial (fase + neutro) ultrapassar a sensibilidade `residualCurrentA` (IΔn), a simulação avisa que dispararia; o disparo não é simulado.",
+      "category": "protection",
+      "idPrefix": "ID",
+      "symbol": "rcd_iec",
+      "size": { "width": 80, "height": 60 },
+      "pins": [
+        { "id": "line_in", "kind": "passive", "position": { "x": -40, "y": -20 } },
+        { "id": "line_out", "kind": "passive", "position": { "x": 40, "y": -20 } },
+        { "id": "neutral_in", "kind": "passive", "position": { "x": -40, "y": 20 } },
+        { "id": "neutral_out", "kind": "passive", "position": { "x": 40, "y": 20 } }
+      ],
+      "properties": {
+        "closed": {
+          "type": "boolean",
+          "title": "Armado (fechado)",
+          "default": true
+        },
+        "ratedCurrentA": {
+          "type": "number",
+          "title": "Corrente estipulada (In)",
+          "unit": "A",
+          "default": 40,
+          "exclusiveMinimum": 0,
+          "maximum": 125
+        },
+        "residualCurrentA": {
+          "type": "number",
+          "title": "Sensibilidade (IΔn)",
+          "unit": "A",
+          "default": 0.03,
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      },
+      "simulationModel": "rcd"
+    },
+    {
       "type": "lamp",
       "label": "Lâmpada",
       "description": "Lâmpada modelada como resistência equivalente R = ratedVoltageV² / ratedPowerW (sem aquecimento nem corrente de arranque).",
@@ -120,6 +268,38 @@
           "unit": "W",
           "default": 5,
           "exclusiveMinimum": 0
+        }
+      },
+      "simulationModel": "resistive_lamp"
+    },
+    {
+      "type": "mains_lamp",
+      "label": "Lâmpada de rede (230 V)",
+      "description": "Lâmpada para a rede, modelada como resistência equivalente R = ratedVoltageV² / ratedPowerW (valores eficazes; sem aquecimento nem corrente de arranque).",
+      "category": "load",
+      "idPrefix": "HR",
+      "symbol": "lamp_iec",
+      "size": { "width": 80, "height": 40 },
+      "pins": [
+        { "id": "a", "kind": "passive", "position": { "x": -40, "y": 0 } },
+        { "id": "b", "kind": "passive", "position": { "x": 40, "y": 0 } }
+      ],
+      "properties": {
+        "ratedVoltageV": {
+          "type": "number",
+          "title": "Tensão nominal",
+          "unit": "V",
+          "default": 230,
+          "exclusiveMinimum": 0,
+          "maximum": 400
+        },
+        "ratedPowerW": {
+          "type": "number",
+          "title": "Potência nominal",
+          "unit": "W",
+          "default": 60,
+          "exclusiveMinimum": 0,
+          "maximum": 5000
         }
       },
       "simulationModel": "resistive_lamp"

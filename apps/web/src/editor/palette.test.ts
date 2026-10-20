@@ -12,12 +12,17 @@ describe('paletteGroups', () => {
       'Fontes',
       'Passivos',
       'Interruptores',
+      'Proteção',
       'Cargas',
       'Instrumentos',
       'Semicondutores',
       'Referência',
     ]);
-    expect(groups[0].items.map((d) => d.type)).toEqual(['dc_voltage_source', 'dc_current_source']);
+    expect(groups[0].items.map((d) => d.type)).toEqual([
+      'dc_voltage_source',
+      'dc_current_source',
+      'mains_source',
+    ]);
     expect(types().sort()).toEqual(catalog.components.map((d) => d.type).sort());
   });
 
@@ -29,7 +34,8 @@ describe('paletteGroups', () => {
       'oscilloscope',
       'diode',
     ]);
-    expect(types('lâmpada')).toEqual(['lamp']);
+    expect(types('lâmpada')).toEqual(['lamp', 'mains_lamp']);
+    expect(types('proteção')).toEqual(['circuit_breaker', 'rcd']);
     expect(types('transistor')).toEqual(['npn_transistor', 'pnp_transistor']);
   });
 
@@ -37,11 +43,11 @@ describe('paletteGroups', () => {
     expect(types('fonte corrente')).toEqual(['dc_current_source']);
     expect(types('resistor')).toEqual(['resistor']);
     expect(types('gnd')).toEqual(['ground']);
-    expect(types('fontes')).toEqual(['dc_voltage_source', 'dc_current_source']);
+    expect(types('fontes')).toEqual(['dc_voltage_source', 'dc_current_source', 'mains_source']);
   });
 
   test('grupos sem resultados são omitidos', () => {
-    expect(paletteGroups('interruptor').map((g) => g.category)).toEqual(['switch']);
+    expect(paletteGroups('interruptor').map((g) => g.category)).toEqual(['switch', 'protection']);
     expect(paletteGroups('xyz')).toEqual([]);
   });
 });

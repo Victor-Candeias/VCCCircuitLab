@@ -26,6 +26,12 @@ const CATALOG_TYPES = [
   'led',
   'npn_transistor',
   'pnp_transistor',
+  'mains_source',
+  'mains_lamp',
+  'changeover_switch',
+  'relay',
+  'circuit_breaker',
+  'rcd',
 ];
 
 const byType = new Map(catalog.components.map((c) => [c.type, c]));

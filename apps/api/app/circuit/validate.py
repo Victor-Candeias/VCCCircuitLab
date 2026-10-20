@@ -21,6 +21,12 @@ tensão–condensador e cortes fonte de corrente–bobina são permitidos.
 
 Os semicondutores (F2-04) são condutores entre os terminais de cada junção (díodo:
 ânodo–cátodo; transístor: base–emissor e base–coletor), mesmo em inversa (condutância `GMIN`).
+
+Rede 230/400 V e proteções (F2-07): a rede CA é uma fonte de tensão ideal com o valor eficaz,
+só na análise DC e só com cargas resistivas (erro `UNSUPPORTED_ANALYSIS` caso contrário), e
+gera sempre o aviso de segurança `MAINS_VOLTAGE` (mais `MISSING_PROTECTION` sem disjuntor). O
+disjuntor é um interruptor; o comutador liga o comum ao contacto ativo (o inativo é um terminal
+em aberto, como uma ponta de voltímetro); o diferencial tem um contacto por polo (`contacts`).
 """
 
 from collections import defaultdict, deque
@@ -36,7 +42,16 @@ Code = CircuitErrorCode
 
 RESISTIVE_MODELS = frozenset({"resistor", "resistive_lamp"})
 SWITCH_MODEL = "ideal_switch"
+BREAKER_MODEL = "circuit_breaker"
+#: Interruptores de dois terminais com estado `closed`.
+SWITCH_MODELS = frozenset({SWITCH_MODEL, BREAKER_MODEL})
+#: Componentes com vários contactos (F2-07): um ramo por contacto fechado (`contacts`).
+CHANGEOVER_MODEL = "changeover_switch"
+RCD_MODEL = "rcd"
+MULTI_CONTACT_MODELS = frozenset({CHANGEOVER_MODEL, RCD_MODEL})
 VOLTAGE_SOURCE_MODEL = "dc_voltage_source"
+#: Rede CA (F2-07): fonte de tensão ideal com o valor eficaz (RMS), só na análise DC.
+AC_SOURCE_MODEL = "ac_voltage_source"
 CURRENT_SOURCE_MODEL = "dc_current_source"
 GROUND_MODEL = "ground"
 CAPACITOR_MODEL = "capacitor"
@@ -55,15 +70,31 @@ SEMICONDUCTOR_MODELS = frozenset({DIODE_MODEL, BJT_NPN_MODEL, BJT_PNP_MODEL})
 TWO_TERMINAL_MODELS = (
     RESISTIVE_MODELS
     | REACTIVE_MODELS
+    | SWITCH_MODELS
     | {
-        SWITCH_MODEL,
         VOLTMETER_MODEL,
         AMMETER_MODEL,
         VOLTAGE_SOURCE_MODEL,
+        AC_SOURCE_MODEL,
         CURRENT_SOURCE_MODEL,
     }
 )
-SUPPORTED_MODELS = TWO_TERMINAL_MODELS | SEMICONDUCTOR_MODELS | {GROUND_MODEL, OSCILLOSCOPE_MODEL}
+SUPPORTED_MODELS = (
+    TWO_TERMINAL_MODELS
+    | SEMICONDUCTOR_MODELS
+    | MULTI_CONTACT_MODELS
+    | {GROUND_MODEL, OSCILLOSCOPE_MODEL}
+)
+#: Modelos que, com a rede CA, invalidam a equivalência em valores eficazes da análise DC.
+NON_RESISTIVE_MODELS = (
+    REACTIVE_MODELS
+    | SEMICONDUCTOR_MODELS
+    | {VOLTAGE_SOURCE_MODEL, CURRENT_SOURCE_MODEL, OSCILLOSCOPE_MODEL}
+)
+
+#: Separador entre o ID do componente e o polo (`ID1:L`) nos ramos dos componentes com vários
+#: contactos. Não é permitido em IDs, logo não colide com outros componentes.
+POLE_SEPARATOR = ":"
 
 #: Pares de pinos de cada junção dos semicondutores.
 _JUNCTIONS = {
@@ -78,8 +109,54 @@ REFERENCE = "\0GND"
 #: (componente, nó, nó)
 Edge = tuple[str, str, str]
 
-#: Análise para a qual o circuito é validado.
-Analysis = Literal["dc", "transient"]
+#: Análise para a qual o circuito é validado (`export`: netlist SPICE, regras da transitória
+#: mas aceita a rede CA).
+Analysis = Literal["dc", "transient", "export"]
+
+
+def pole_key(component_id: str, pole: str) -> str:
+    return f"{component_id}{POLE_SEPARATOR}{pole}"
+
+
+def component_of(key: str) -> str:
+    """ID do componente de um ramo (sem o polo)."""
+    return key.split(POLE_SEPARATOR, 1)[0]
+
+
+@dataclass(frozen=True)
+class Contact:
+    """Contacto de um componente com vários contactos (F2-07), entre os pinos `a` e `b`."""
+
+    key: str
+    """Chave do ramo/resultado: o ID do componente ou `pole_key(ID, polo)`."""
+    a: str
+    b: str
+    closed: bool
+
+
+def contacts(model: str | None, c: Component) -> list[Contact]:
+    """Contactos do comutador (só o ativo, sempre fechado) e do diferencial (fase e neutro)."""
+    if model == CHANGEOVER_MODEL:
+        return [Contact(c.id, "common", _active_contact(c), True)]
+    if model == RCD_MODEL:
+        closed = c.properties.get("closed") is True
+        return [
+            Contact(pole_key(c.id, "L"), "line_in", "line_out", closed),
+            Contact(pole_key(c.id, "N"), "neutral_in", "neutral_out", closed),
+        ]
+    return []
+
+
+def open_terminals(model: str | None, c: Component) -> list[str]:
+    """Terminais em aberto que não fixam potencial: o contacto inativo do comutador."""
+    if model == CHANGEOVER_MODEL:
+        inactive = "l1" if _active_contact(c) == "l2" else "l2"
+        return [c.terminal(inactive)]
+    return []
+
+
+def _active_contact(c: Component) -> str:
+    return "l2" if c.properties.get("toL2") is True else "l1"
 
 
 @dataclass(frozen=True)
@@ -111,6 +188,8 @@ def validate(
     errors = [*_check_ids(document), *_check_wires(document)]
     component_errors, specs = _check_components(document, catalog)
     errors += component_errors
+    mains_errors, mains_warnings = _check_mains(document, specs, analysis)
+    errors += mains_errors
 
     if any(e.code is Code.DUPLICATE_ID for e in errors):
         return ValidationReport(errors=tuple(errors))
@@ -119,7 +198,7 @@ def validate(
     except CircuitValidationError as exc:
         return ValidationReport(errors=(*errors, *exc.errors))
 
-    warnings = _check_unconnected_pins(normalized)
+    warnings = [*_check_unconnected_pins(normalized), *mains_warnings]
     if len(specs) == len(document.components):
         errors += _check_topology(normalized, specs, analysis)
     return ValidationReport(errors=tuple(errors), warnings=tuple(warnings), normalized=normalized)
@@ -256,6 +335,71 @@ def _check_properties(c: Component, spec: ComponentSpec) -> list[CircuitError]:
     return errors
 
 
+def _check_mains(
+    document: CircuitDocument, specs: dict[str, ComponentSpec], analysis: Analysis
+) -> tuple[list[CircuitError], list[CircuitError]]:
+    """Rede CA (F2-07): análise e componentes suportados (erros) e avisos de segurança."""
+    sources = [c for c in document.components if _model(specs, c) == AC_SOURCE_MODEL]
+    if not sources:
+        return [], []
+    ids = tuple(c.id for c in sources)
+    names = ", ".join(f"{c.id}: {_format(specs[c.id], c, 'voltageV')}" for c in sources)
+    errors: list[CircuitError] = []
+    if analysis == "transient":
+        errors.append(
+            CircuitError(
+                Code.UNSUPPORTED_ANALYSIS,
+                f"A rede CA ({', '.join(ids)}) não é suportada na análise transitória: use a "
+                "análise DC, que dá os valores eficazes (RMS) equivalentes com cargas resistivas.",
+                ids,
+            )
+        )
+    elif analysis == "dc":
+        others = tuple(
+            c.id for c in document.components if _model(specs, c) in NON_RESISTIVE_MODELS
+        )
+        if others:
+            errors.append(
+                CircuitError(
+                    Code.UNSUPPORTED_ANALYSIS,
+                    "Com a rede CA, a análise DC só dá valores eficazes corretos com cargas "
+                    "resistivas: condensadores, bobinas, semicondutores, fontes DC e "
+                    f"osciloscópios não são suportados ({', '.join(others)}).",
+                    (*ids, *others),
+                )
+            )
+    warnings = [
+        CircuitError(
+            Code.MAINS_VOLTAGE,
+            f"Tensão da rede ({names}): perigo de morte numa instalação real. Simulação "
+            "didática em valores eficazes, sem certificação: não substitui o projeto nem a "
+            "verificação por um técnico qualificado (RTIEBT). Nunca trabalhe com tensão.",
+            ids,
+        )
+    ]
+    if not any(_model(specs, c) == BREAKER_MODEL for c in document.components):
+        warnings.append(
+            CircuitError(
+                Code.MISSING_PROTECTION,
+                "O circuito de rede não tem disjuntor: numa instalação real cada circuito tem "
+                "proteção contra sobreintensidades (e diferencial de 30 mA onde é obrigatório).",
+                ids,
+            )
+        )
+    return errors, warnings
+
+
+def _format(spec: ComponentSpec, c: Component, name: str) -> str:
+    value = c.properties.get(name)
+    prop = spec.properties.get(name)
+    return prop.format(value) if prop is not None else str(value)
+
+
+def _model(specs: dict[str, ComponentSpec], c: Component) -> str | None:
+    spec = specs.get(c.id)
+    return spec.simulation_model if spec is not None else None
+
+
 def _check_unconnected_pins(normalized: NormalizedCircuit) -> list[CircuitError]:
     return [
         CircuitError(
@@ -297,10 +441,18 @@ def _check_topology(
                 (c.id, net_of[c.terminal(a)], net_of[c.terminal(b)]) for a, b in _JUNCTIONS[model]
             ]
             continue
+        if model in MULTI_CONTACT_MODELS:
+            zero += [
+                (c.id, net_of[c.terminal(k.a)], net_of[c.terminal(k.b)])
+                for k in contacts(model, c)
+                if k.closed
+            ]
+            probe_terminals.update(open_terminals(model, c))
+            continue
         if model not in TWO_TERMINAL_MODELS or len(spec.pins) != 2:
             continue
         edge = (c.id, net_of[c.terminal(spec.pins[0])], net_of[c.terminal(spec.pins[1])])
-        if model == SWITCH_MODEL:
+        if model in SWITCH_MODELS:
             if c.properties.get("closed") is True:
                 zero.append(edge)
         elif model == AMMETER_MODEL:
@@ -308,7 +460,7 @@ def _check_topology(
         elif model in REACTIVE_MODELS and analysis == "dc":
             if model == INDUCTOR_MODEL:
                 zero.append(edge)
-        elif model == VOLTAGE_SOURCE_MODEL:
+        elif model in (VOLTAGE_SOURCE_MODEL, AC_SOURCE_MODEL):
             voltage_sources.append(edge)
         elif model == CURRENT_SOURCE_MODEL:
             current_sources.append(edge)
