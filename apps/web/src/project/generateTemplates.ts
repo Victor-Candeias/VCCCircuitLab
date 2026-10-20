@@ -78,6 +78,18 @@ export const GENERATE_TEMPLATES: readonly GenerateTemplate[] = [
       { key: 'closed', label: 'Fechado', type: 'boolean', default: 'true' },
     ],
   },
+  {
+    id: 'staircase_lighting',
+    label: 'Iluminação de escada (rede 230 V)',
+    fields: [
+      { key: 'voltageV', label: 'Tensão da rede (V, RMS)', type: 'number', default: '230' },
+      { key: 'frequencyHz', label: 'Frequência (Hz)', type: 'number', default: '50' },
+      { key: 'lampPowerW', label: 'Potência da lâmpada (W)', type: 'number', default: '60' },
+      { key: 'breakerRatedA', label: 'Disjuntor (A)', type: 'number', default: '10' },
+      { key: 'switch1ToL2', label: 'Comutador SC1 em L2', type: 'boolean', default: 'false' },
+      { key: 'switch2ToL2', label: 'Comutador SC2 em L2', type: 'boolean', default: 'false' },
+    ],
+  },
 ] as const;
 
 export type GenerateFormValues = Record<string, string>;

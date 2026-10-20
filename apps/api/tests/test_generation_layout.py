@@ -5,6 +5,8 @@ cantos desnecessários — só a malha fechada à direita (`chain_loop`) precisa
 
 from app.circuit.catalog import load_catalog
 from app.generation.layout import chain_loop, parallel_ladder
+from app.generation.params import StaircaseLightingParams
+from app.generation.templates import build_staircase_lighting
 from app.models.circuit import CircuitDocument, Component, Point
 
 
@@ -143,3 +145,39 @@ class TestParallelLadder:
         document = self._build(3)
         xs = [c.position.x for c in document.components if c.type == "resistor"]
         assert xs == sorted(set(xs))
+
+
+class TestStaircaseLoop:
+    def _build(self) -> CircuitDocument:
+        return build_staircase_lighting(StaircaseLightingParams())
+
+    def _endpoints(self, document: CircuitDocument) -> dict[str, list[tuple[float, float]]]:
+        pins = {
+            f"{c.id}.{pin}": point
+            for c in document.components
+            for pin, point in _pin_positions(c).items()
+        }
+        return {
+            wire.id: [pins[wire.from_], *((p.x, p.y) for p in wire.waypoints), pins[wire.to]]
+            for wire in document.wires
+        }
+
+    def test_pins_are_grid_aligned(self) -> None:
+        for component in self._build().components:
+            for x, y in _pin_positions(component).values():
+                assert _on_grid(x)
+                assert _on_grid(y)
+
+    def test_wire_segments_are_orthogonal(self) -> None:
+        for wire_id, points in self._endpoints(self._build()).items():
+            for (x1, y1), (x2, y2) in zip(points, points[1:], strict=False):
+                assert x1 == x2 or y1 == y2, wire_id
+
+    def test_travellers_are_parallel_horizontal_wires(self) -> None:
+        points = self._endpoints(self._build())
+
+        (_, y_top), (_, y_top_end) = points["W3"]
+        (_, y_bottom), (_, y_bottom_end) = points["W4"]
+        assert y_top == y_top_end
+        assert y_bottom == y_bottom_end
+        assert y_top != y_bottom

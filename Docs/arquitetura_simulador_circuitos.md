@@ -164,7 +164,7 @@ React Flow fornece nós, arestas e interações, mas **não é um CAD elétrico 
 
 ### 6.1 Fluxo
 
-1. Utilizador escolhe template (`serie`, `paralelo`, `divisor_tensao`, `circuito_interruptor` etc.). O template `iluminacao_escada` (circuito de 230 V com comutadores de escada) fica para uma **segunda fase**, fora do âmbito DC do MVP.
+1. Utilizador escolhe template (`serie`, `paralelo`, `divisor_tensao`, `circuito_interruptor` etc.). O template `iluminacao_escada` (circuito de 230 V com comutadores de escada) fica para uma **segunda fase**, fora do âmbito DC do MVP. Implementado na F2-08 como `staircase_lighting`, simulado em regime RMS equivalente com os componentes de rede da F2-07.
 2. Define parâmetros e componentes predefinidos.
 3. Frontend envia pedido validado à API.
 4. Python constrói componentes e conexões em JSON canónico.

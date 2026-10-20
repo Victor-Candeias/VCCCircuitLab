@@ -11,6 +11,7 @@ Exemplos aceites:
 - «divisor de tensão de 9V com 10k e 4,7k»
 - «três resistências de 1 kΩ em paralelo com uma bateria de 5 V»
 - «interruptor aberto com uma lâmpada de 50 ohm a 24 V»
+- «iluminação de escada com lâmpada de 100 W e disjuntor de 16 A» (F2-08, rede de 230 V)
 
 O que não é dito explicitamente (tensão, resistências, estado do interruptor, topologia) recebe
 um valor por omissão e fica registado em `Interpretation.assumptions`, para o utilizador o
@@ -96,6 +97,17 @@ _OPEN = re.compile(r"\b(?:aberto|aberta|desligado|desligada|off)\b")
 _CLOSED = re.compile(r"\b(?:fechado|fechada|on)\b")
 _LAMP = re.compile(r"\blampadas?\b")
 _AC = re.compile(r"\b(?:ac|alternada|sinusoidal|sinusoide)\b")
+_STAIRCASE = re.compile(r"\b(?:escadas?|lustre)\b")
+_LIT = re.compile(r"\b(?:acesa|acesas|ligada|ligadas)\b")
+_UNLIT = re.compile(r"\b(?:apagada|apagadas|desligada|desligadas)\b")
+
+#: Parâmetros de `staircase_lighting` por unidade, com o valor por omissão e a descrição.
+_STAIRCASE_UNITS: dict[str, tuple[str, float, str]] = {
+    "V": ("voltageV", 230.0, "tensão da rede"),
+    "Hz": ("frequencyHz", 50.0, "frequência da rede"),
+    "W": ("lampPowerW", 60.0, "potência da lâmpada"),
+    "A": ("breakerRatedA", 10.0, "corrente estipulada do disjuntor"),
+}
 
 _UNSUPPORTED_UNITS = {
     "A": "corrente (A)",
@@ -160,12 +172,14 @@ def _unit(token: str | None) -> str | None:
     return token
 
 
-def _quantities(text: str, reasons: list[str]) -> list[_Quantity]:
+def _quantities(
+    text: str, reasons: list[str], allowed: frozenset[str] = frozenset()
+) -> list[_Quantity]:
     found: list[_Quantity] = []
     for match in _QUANTITY.finditer(text):
         prefix = match.group("prefix")
         unit = _unit(match.group("unit"))
-        if unit in _UNSUPPORTED_UNITS:
+        if unit in _UNSUPPORTED_UNITS and unit not in allowed:
             reasons.append(
                 f"«{match.group(0).strip()}»: só se indicam tensão (V) e resistências (Ω); "
                 f"{_UNSUPPORTED_UNITS[unit]} não é suportada."
@@ -260,6 +274,8 @@ def interpret(text: str) -> Interpretation:
     text = unicodedata.normalize("NFC", text).replace("\u2126", "Ω")
     text = _DECIMAL_COMMA.sub(".", text)
     folded = _fold(text)
+    if _STAIRCASE.search(folded):
+        return _interpret_staircase(text, folded)
     reasons: list[str] = []
     assumptions: list[str] = []
 
@@ -282,8 +298,8 @@ def interpret(text: str) -> Interpretation:
         if not quantities and count is None and not reasons:
             reasons.append(
                 "Não foi possível reconhecer um circuito. Descreva a topologia (série, paralelo, "
-                "divisor de tensão ou interruptor) e os valores, por exemplo «circuito em série "
-                "com fonte de 12 V e resistências de 100 e 220 Ω»."
+                "divisor de tensão, interruptor ou iluminação de escada) e os valores, por "
+                "exemplo «circuito em série com fonte de 12 V e resistências de 100 e 220 Ω»."
             )
         else:
             template = "series_dc"
@@ -352,6 +368,50 @@ def interpret(text: str) -> Interpretation:
         assumptions=assumptions,
         params=params,
     )
+
+
+def _interpret_staircase(text: str, folded: str) -> Interpretation:
+    """`staircase_lighting`: só aceita V (rede), Hz, W (lâmpada) e A (disjuntor)."""
+    reasons: list[str] = []
+    assumptions: list[str] = []
+    parameters: dict[str, Any] = {}
+    for quantity in _quantities(text, reasons, frozenset(_STAIRCASE_UNITS)):
+        if quantity.unit not in _STAIRCASE_UNITS:
+            reasons.append(
+                f"«{quantity.raw}»: na iluminação de escada indique a tensão da rede (V), a "
+                "frequência (Hz), a potência da lâmpada (W) ou o disjuntor (A)."
+            )
+            continue
+        key, _, label = _STAIRCASE_UNITS[quantity.unit]
+        if key in parameters:
+            reasons.append(f"O texto indica mais de um valor para a {label}.")
+        parameters[key] = quantity.value
+    if reasons:
+        raise UninterpretableTextError(reasons)
+
+    for unit, (key, default, label) in _STAIRCASE_UNITS.items():
+        if key not in parameters:
+            parameters[key] = default
+            assumptions.append(f"{label.capitalize()} não indicada: assumidos {default:g} {unit}.")
+    lit = bool(_LIT.search(folded)) and not _UNLIT.search(folded)
+    if not lit and not _UNLIT.search(folded):
+        assumptions.append("Comutadores na mesma posição: a lâmpada começa apagada.")
+    parameters |= {"switch1ToL2": lit, "switch2ToL2": False}
+
+    template = "staircase_lighting"
+    spec = get_template(template)
+    try:
+        params = spec.params_model.model_validate(parameters)
+    except ValidationError as exc:
+        raise InvalidParametersError(template, exc) from exc
+    data = params.model_dump(by_alias=True)
+    state = "acesa" if lit else "apagada"
+    summary = (
+        f"{spec.title}: rede de {_format_value(data['voltageV'], 'V')} "
+        f"{data['frequencyHz']:g} Hz, disjuntor de {data['breakerRatedA']:g} A, dois "
+        f"comutadores e lâmpada de {_format_value(data['lampPowerW'], 'W')} ({state})."
+    )
+    return Interpretation(template, data, summary, assumptions, params)
 
 
 def _summary(title: str, template: str, parameters: dict[str, Any]) -> str:

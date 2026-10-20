@@ -62,8 +62,9 @@ class TestOtherTemplates:
             ("parallel_dc", {"voltageV": 12, "resistorsOhm": [100, 200]}),
             ("voltage_divider", {"voltageV": 12, "resistorsOhm": [100, 220]}),
             ("switch_circuit", {"voltageV": 12, "loadOhm": 100, "closed": True}),
+            ("staircase_lighting", {"lampPowerW": 100, "switch1ToL2": True}),
         ],
-        ids=["parallel_dc", "voltage_divider", "switch_circuit"],
+        ids=["parallel_dc", "voltage_divider", "switch_circuit", "staircase_lighting"],
     )
     def test_generates_valid_document(self, template: str, parameters: dict[str, Any]) -> None:
         response = client.post(GENERATE, json={"template": template, "parameters": parameters})

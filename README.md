@@ -93,6 +93,8 @@ Geração por texto livre (F2-06): em «Gerar…», o modo «Texto livre» aceit
 
 Rede elétrica e proteções (F2-07): o catálogo inclui a rede CA 230/400 V, a lâmpada de rede, o comutador de escada, o disjuntor, o interruptor diferencial (grupo «Proteção») e o relé (só símbolo, ainda não simulado). A rede é simulada em regime RMS equivalente, só com cargas resistivas. O resultado avisa sempre que é uma simulação didática a tensões perigosas, e também quando falta o disjuntor ou quando uma proteção dispararia (sobrecorrente ou corrente diferencial). Detalhes em [`apps/api/README.md`](apps/api/README.md#rede-elétrica-230400-v-e-proteções-f2-07).
 
+Iluminação de escada (F2-08): em «Gerar…», o template «Iluminação de escada (rede 230 V)» cria uma instalação com rede, disjuntor, dois comutadores e uma lâmpada de rede. Também se gera em texto livre, por exemplo «iluminação de escada com lâmpada de 100 W». Qualquer um dos comutadores acende e apaga a lâmpada.
+
 Mais detalhes em [`apps/web`](apps/web/README.md), [`apps/api`](apps/api/README.md) e [`packages/circuit-schema`](packages/circuit-schema/README.md).
 
 ## Documentação

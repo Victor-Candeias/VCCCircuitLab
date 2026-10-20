@@ -65,6 +65,51 @@ class TestTemplates:
         assert result.assumptions == []
 
 
+class TestStaircase:
+    def test_defaults_are_assumed(self) -> None:
+        result = interpret("iluminação de escada")
+
+        assert result.template == "staircase_lighting"
+        assert result.parameters == {
+            "voltageV": 230.0,
+            "frequencyHz": 50.0,
+            "lampPowerW": 60.0,
+            "breakerRatedA": 10.0,
+            "switch1ToL2": False,
+            "switch2ToL2": False,
+        }
+        assert len(result.assumptions) == 5
+        assert result.summary.endswith("lâmpada de 60 W (apagada).")
+
+    def test_reads_power_breaker_and_state(self) -> None:
+        result = interpret("Comutadores de escada com lâmpada de 100 W acesa e disjuntor de 16 A")
+
+        assert result.parameters["lampPowerW"] == 100.0
+        assert result.parameters["breakerRatedA"] == 16.0
+        assert result.parameters["switch1ToL2"] is True
+
+    def test_rejects_resistances(self) -> None:
+        with pytest.raises(UninterpretableTextError) as exc:
+            interpret("escada com uma lâmpada de 10 ohm")
+
+        assert "«10 ohm»" in exc.value.reasons[0]
+
+    def test_values_outside_the_limits_are_invalid_parameters(self) -> None:
+        with pytest.raises(InvalidParametersError):
+            interpret("escada a 500 V")
+
+    def test_endpoint_returns_a_simulable_circuit(self) -> None:
+        response = client.post(GENERATE_TEXT, json={"text": "luz de escada acesa"})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["template"] == "staircase_lighting"
+        assert [w["code"] for w in body["warnings"]] == ["MAINS_VOLTAGE"]
+        simulated = client.post("/api/v1/circuits/simulate", json=body["circuit"])
+        assert simulated.status_code == 200, simulated.json()
+        assert simulated.json()["components"]["HR1"]["powerW"] == pytest.approx(60)
+
+
 class TestValues:
     def test_unitless_list_takes_the_unit_of_its_neighbour(self) -> None:
         result = interpret("série a 5 V com 100, 220, e 330 ohms")

@@ -48,3 +48,28 @@ class SwitchCircuitParams(GenerationParams):
     voltage_v: PositiveFloat = Field(alias="voltageV")
     load_ohm: PositiveFloat = Field(alias="loadOhm")
     closed: bool = True
+
+
+class StaircaseLightingParams(GenerationParams):
+    """`staircase_lighting` (F2-08): iluminação de escada a 230 V com dois comutadores.
+
+    Rede `AC1` → disjuntor `QF1` → comutadores `SC1`/`SC2` (ligados pelos dois condutores de
+    retorno) → lâmpada `HR1` → neutro, com o neutro ligado à terra. A lâmpada acende quando
+    os dois comutadores estão em posições diferentes (`switch1ToL2 != switch2ToL2`). Os
+    limites são os do catálogo (`mains_source`, `mains_lamp`, `circuit_breaker`).
+    """
+
+    voltage_v: Annotated[float, Field(gt=0, le=400, allow_inf_nan=False)] = Field(
+        default=230, alias="voltageV"
+    )
+    frequency_hz: Annotated[float, Field(ge=50, le=60, allow_inf_nan=False)] = Field(
+        default=50, alias="frequencyHz"
+    )
+    lamp_power_w: Annotated[float, Field(gt=0, le=5000, allow_inf_nan=False)] = Field(
+        default=60, alias="lampPowerW"
+    )
+    breaker_rated_a: Annotated[float, Field(gt=0, le=125, allow_inf_nan=False)] = Field(
+        default=10, alias="breakerRatedA"
+    )
+    switch1_to_l2: bool = Field(default=False, alias="switch1ToL2")
+    switch2_to_l2: bool = Field(default=False, alias="switch2ToL2")

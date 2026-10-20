@@ -12,12 +12,14 @@ from typing import Any
 from app.generation.params import (
     ParallelDcParams,
     SeriesDcParams,
+    StaircaseLightingParams,
     SwitchCircuitParams,
     VoltageDividerParams,
 )
 from app.generation.templates import (
     build_parallel_dc,
     build_series_dc,
+    build_staircase_lighting,
     build_switch_circuit,
     build_voltage_divider,
 )
@@ -40,6 +42,12 @@ _SPECS = (
     ),
     TemplateSpec(
         "switch_circuit", "Circuito com interruptor", SwitchCircuitParams, build_switch_circuit
+    ),
+    TemplateSpec(
+        "staircase_lighting",
+        "Iluminação de escada",
+        StaircaseLightingParams,
+        build_staircase_lighting,
     ),
 )
 

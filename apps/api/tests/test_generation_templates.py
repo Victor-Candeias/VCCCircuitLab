@@ -12,6 +12,7 @@ from app.circuit.validate import validate
 from app.generation.params import (
     ParallelDcParams,
     SeriesDcParams,
+    StaircaseLightingParams,
     SwitchCircuitParams,
     VoltageDividerParams,
 )
@@ -19,6 +20,7 @@ from app.generation.registry import TEMPLATES, get_template
 from app.generation.templates import (
     build_parallel_dc,
     build_series_dc,
+    build_staircase_lighting,
     build_switch_circuit,
     build_voltage_divider,
 )
@@ -139,6 +141,51 @@ class TestSwitchCircuit:
         assert params.closed is True
 
 
+class TestStaircaseLighting:
+    def test_builds_valid_document_with_defaults(self) -> None:
+        document = build_staircase_lighting(StaircaseLightingParams())
+
+        report = validate(document, load_catalog())
+        assert report.ok, report.errors
+        assert [c.id for c in document.components] == ["AC1", "QF1", "SC1", "SC2", "HR1", "GND1"]
+        # Rede com disjuntor: só o aviso de segurança; nenhum pino por ligar.
+        assert [w.code for w in report.warnings] == ["MAINS_VOLTAGE"]
+
+    @pytest.mark.parametrize(
+        ("first", "second", "lit"),
+        [(False, False, False), (True, False, True), (False, True, True), (True, True, False)],
+    )
+    def test_either_switch_toggles_the_lamp(self, first: bool, second: bool, lit: bool) -> None:
+        params = StaircaseLightingParams(switch1ToL2=first, switch2ToL2=second)
+
+        result = simulate_dc(build_staircase_lighting(params), load_catalog())
+
+        lamp = result.components["HR1"]
+        assert lamp.voltage_v == pytest.approx(230 if lit else 0)
+        assert lamp.power_w == pytest.approx(60 if lit else 0)
+
+    def test_parameters_reach_the_components(self) -> None:
+        params = StaircaseLightingParams(
+            voltageV=400, frequencyHz=60, lampPowerW=100, breakerRatedA=16, switch2ToL2=True
+        )
+
+        document = build_staircase_lighting(params)
+
+        props = {c.id: c.properties for c in document.components}
+        assert props["AC1"] == {"voltageV": 400, "frequencyHz": 60}
+        assert props["QF1"] == {"closed": True, "ratedCurrentA": 16}
+        assert props["HR1"] == {"ratedVoltageV": 400, "ratedPowerW": 100}
+        assert props["SC2"] == {"toL2": True}
+
+    @pytest.mark.parametrize(
+        "parameters",
+        [{"voltageV": 401}, {"frequencyHz": 45}, {"lampPowerW": 0}, {"breakerRatedA": 200}],
+    )
+    def test_rejects_values_outside_the_catalog_limits(self, parameters: dict[str, float]) -> None:
+        with pytest.raises(ValidationError):
+            StaircaseLightingParams(**parameters)
+
+
 class TestRegistry:
     @pytest.mark.parametrize("name", list(TEMPLATES))
     def test_registered_templates_are_discoverable(self, name: str) -> None:
@@ -157,7 +204,9 @@ class TestRegistry:
     def test_registry_builds_valid_documents_with_minimal_params(self, name: str) -> None:
         spec = get_template(name)
         minimal: dict[str, object] = {"voltageV": 12}
-        if name == "switch_circuit":
+        if name == "staircase_lighting":
+            pass
+        elif name == "switch_circuit":
             minimal["loadOhm"] = 100
         else:
             needs_two = name == "voltage_divider"

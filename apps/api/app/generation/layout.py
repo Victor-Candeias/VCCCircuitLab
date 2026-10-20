@@ -16,7 +16,12 @@ Dois esquemas, reutilizados pelos templates (`app.generation.templates`):
   superior e o inferior, lado a lado — os fios ficam todos alinhados aos carris, sem
   waypoints. Usado por `parallel_dc`.
 
-Em ambos, a terra fica por baixo da fonte, ligada a `negative` por um fio vertical.
+- `staircase_loop` (F2-08): como `chain_loop`, mas com dois comutadores de escada no carril
+  superior; o segundo fica rodado 180°, para que os dois condutores de retorno (`l1`/`l2`)
+  sejam fios horizontais paralelos, sem cruzamentos. Usado por `staircase_lighting`.
+
+Em todos, a terra fica por baixo da fonte, ligada a `negative` (ou ao neutro) por um fio
+vertical.
 """
 
 from app.circuit.catalog import load_catalog
@@ -121,6 +126,48 @@ def chain_loop(
     wires.append(_wire(f"W{len(parts) + 2}", ground.terminal("gnd"), source.terminal("negative")))
 
     return _document(template, name, [source, *parts, ground], wires)
+
+
+def staircase_loop(
+    template: str,
+    name: str,
+    source: Component,
+    parts: tuple[Component, Component, Component, Component],
+    ground: Component,
+) -> CircuitDocument:
+    """Rede `line` → disjuntor → comutador → comutador (180°) → lâmpada → `neutral`.
+
+    `parts` = (disjuntor, comutador 1, comutador 2, lâmpada). Os retornos ligam `l1` de um
+    comutador a `l2` do outro (o que fica à mesma altura com o segundo rodado), pelo que a
+    lâmpada acende com os comutadores em posições diferentes.
+    """
+    source_x, step_x, source_center_y, ground_gap = _grid_constants()
+    source = _place(source, source_x, source_center_y, rotation=0)
+    top_rail = _pin_point(source, "line").y
+    bottom_rail = _pin_point(source, "neutral").y
+
+    breaker, first, second, lamp = (
+        _place(part, source_x + step_x * i, top_rail, rotation=180 if i == 3 else 0)
+        for i, part in enumerate(parts, start=1)
+    )
+    lamp_end = _pin_point(lamp, "b")
+    wires = [
+        _wire("W1", source.terminal("line"), breaker.terminal("a")),
+        _wire("W2", breaker.terminal("b"), first.terminal("common")),
+        _wire("W3", first.terminal("l1"), second.terminal("l2")),
+        _wire("W4", first.terminal("l2"), second.terminal("l1")),
+        _wire("W5", second.terminal("common"), lamp.terminal("a")),
+        _wire(
+            "W6",
+            lamp.terminal("b"),
+            source.terminal("neutral"),
+            waypoints=[Point(x=lamp_end.x, y=bottom_rail)],
+        ),
+    ]
+    ground = _place(ground, source_x, bottom_rail + ground_gap, rotation=0)
+    wires.append(_wire("W7", ground.terminal("gnd"), source.terminal("neutral")))
+
+    return _document(template, name, [source, breaker, first, second, lamp, ground], wires)
 
 
 def parallel_ladder(

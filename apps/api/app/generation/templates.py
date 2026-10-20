@@ -1,5 +1,5 @@
 """Geradores de circuitos por template (E3-01): série, paralelo, divisor de tensão e
-interruptor.
+interruptor; iluminação de escada a 230 V (F2-08).
 
 Cada gerador recebe parâmetros validados (`app.generation.params`) e devolve um
 `CircuitDocument` canónico, pronto a validar/simular (`app.circuit.validate`,
@@ -12,16 +12,28 @@ posições finais e os fios (incluindo waypoints ortogonais, quando necessários
 de layout (`app.generation.layout`, E3-03).
 """
 
-from app.generation.layout import chain_loop, parallel_ladder
+from app.generation.layout import chain_loop, parallel_ladder, staircase_loop
 from app.generation.params import (
     ParallelDcParams,
     SeriesDcParams,
+    StaircaseLightingParams,
     SwitchCircuitParams,
     VoltageDividerParams,
 )
 from app.models.circuit import CircuitDocument, Component, Point
 
 _PLACEHOLDER = Point(x=0, y=0)
+
+
+def _component(cid: str, ctype: str, pins: list[str], **properties: float | bool) -> Component:
+    return Component(
+        id=cid,
+        type=ctype,
+        position=_PLACEHOLDER,
+        rotation=0,
+        properties=properties,
+        pins=pins,
+    )
 
 
 def _resistor(rid: str, resistance_ohm: float) -> Component:
@@ -105,5 +117,44 @@ def build_switch_circuit(params: SwitchCircuitParams) -> CircuitDocument:
         "Circuito com interruptor",
         _source(params.voltage_v),
         [switch, load],
+        _ground(),
+    )
+
+
+def build_staircase_lighting(params: StaircaseLightingParams) -> CircuitDocument:
+    """`staircase_lighting`: `AC1` → `QF1` → `SC1` ⇄ `SC2` → `HR1`, neutro à terra (`GND1`)."""
+    voltage = params.voltage_v
+    return staircase_loop(
+        "staircase_lighting",
+        "Iluminação de escada",
+        _component(
+            "AC1",
+            "mains_source",
+            ["line", "neutral"],
+            voltageV=voltage,
+            frequencyHz=params.frequency_hz,
+        ),
+        (
+            _component(
+                "QF1",
+                "circuit_breaker",
+                ["a", "b"],
+                closed=True,
+                ratedCurrentA=params.breaker_rated_a,
+            ),
+            _component(
+                "SC1", "changeover_switch", ["common", "l1", "l2"], toL2=params.switch1_to_l2
+            ),
+            _component(
+                "SC2", "changeover_switch", ["common", "l1", "l2"], toL2=params.switch2_to_l2
+            ),
+            _component(
+                "HR1",
+                "mains_lamp",
+                ["a", "b"],
+                ratedVoltageV=voltage,
+                ratedPowerW=params.lamp_power_w,
+            ),
+        ),
         _ground(),
     )

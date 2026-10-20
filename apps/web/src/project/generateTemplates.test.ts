@@ -9,12 +9,13 @@ const seriesDc = GENERATE_TEMPLATES.find((t) => t.id === 'series_dc')!;
 const switchCircuit = GENERATE_TEMPLATES.find((t) => t.id === 'switch_circuit')!;
 
 describe('generateTemplates', () => {
-  test('existem os 4 templates conhecidos pela API', () => {
+  test('existem os 5 templates conhecidos pela API', () => {
     expect(GENERATE_TEMPLATES.map((t) => t.id)).toEqual([
       'series_dc',
       'parallel_dc',
       'voltage_divider',
       'switch_circuit',
+      'staircase_lighting',
     ]);
   });
 

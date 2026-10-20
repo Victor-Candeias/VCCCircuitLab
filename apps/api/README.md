@@ -246,6 +246,9 @@ O corpo é sempre o documento canónico (`CircuitDocument`), enviado como `appli
 | `parallel_dc` | `voltageV` (> 0), `resistorsOhm` (1 a 12 valores > 0) |
 | `voltage_divider` | `voltageV` (> 0), `resistorsOhm` (2 a 12 valores > 0) |
 | `switch_circuit` | `voltageV` (> 0), `loadOhm` (> 0), `closed` (opcional, por omissão `true`) |
+| `staircase_lighting` (F2-08) | Todos opcionais: `voltageV` (230, até 400 V RMS), `frequencyHz` (50, 50–60), `lampPowerW` (60, até 5000), `breakerRatedA` (10, até 125), `switch1ToL2`/`switch2ToL2` (`false`) |
+
+`staircase_lighting` é o `iluminacao_escada` da arquitetura (§6.1): rede `AC1` → disjuntor `QF1` → comutadores `SC1`/`SC2` → lâmpada de rede `HR1` → neutro, com o neutro à terra (`GND1`). O segundo comutador fica rodado 180°, para os dois retornos serem fios paralelos (`SC1.l1`–`SC2.l2`, `SC1.l2`–`SC2.l1`). A lâmpada acende quando os comutadores estão em posições diferentes, pelo que qualquer um deles a liga e desliga. A simulação é a da rede elétrica (RMS, ver [F2-07](#rede-elétrica-230400-v-e-proteções-f2-07)), com o aviso `MAINS_VOLTAGE`.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/circuits/generate \
@@ -257,10 +260,11 @@ curl -X POST http://127.0.0.1:8000/api/v1/circuits/generate \
 
 `POST /api/v1/circuits/generate/text` recebe `{ "text": "…" }` (1 a 1000 caracteres, em português) e escolhe um dos templates acima. O parser de intenções (`app/generation/natural.py`) é determinístico e corre só no servidor: não usa LLM nem serviços externos e o texto nunca é executado. O resultado passa sempre pelo modelo Pydantic do template (schema) e pelo validador elétrico (`validate`), tal como um pedido a `/generate`.
 
-- **Topologia** (palavras-chave, sem acentos nem maiúsculas): `divisor` → `voltage_divider`; `interruptor`/`comutador` → `switch_circuit`; `paralelo` → `parallel_dc`; `série` → `series_dc`. Sem palavra-chave, mas com valores, assume série. Série e paralelo ao mesmo tempo é erro (circuitos mistos ainda não são gerados).
+- **Topologia** (palavras-chave, sem acentos nem maiúsculas): `escada`/`lustre` → `staircase_lighting` (tem prioridade, ver abaixo); `divisor` → `voltage_divider`; `interruptor`/`comutador` → `switch_circuit`; `paralelo` → `parallel_dc`; `série` → `series_dc`. Sem palavra-chave, mas com valores, assume série. Série e paralelo ao mesmo tempo é erro (circuitos mistos ainda não são gerados).
 - **Valores:** `12 V`, `500 mV`, `1,5 volts`, `100 Ω`, `4,7k`, `1MΩ`, `10 kohm`. A vírgula entre dígitos é decimal. Números sem unidade ficam com a da lista a que pertencem («100, 220 e 330 Ω») ou com a do contexto («fonte de 5», «resistência de 220»); se não, é erro. Corrente, potência, capacidade, indutância e frequência são rejeitadas.
 - **Contagens:** «três resistências de 1 kΩ» repete o valor; «duas resistências de 10k e 4,7k» exige um valor por resistência. Máximo de 12.
 - **Interruptor:** `aberto`/`desligado` → `closed: false`; `fechado` ou nada → `true`. Lâmpadas e cargas são resistências.
+- **Iluminação de escada (F2-08):** só aceita tensão da rede (V), frequência (Hz), potência da lâmpada (W) e disjuntor (A); resistências e números sem unidade são erro. «Acesa»/«ligada» põe os comutadores em posições diferentes; senão a lâmpada começa apagada. Ex.: «iluminação de escada com lâmpada de 100 W e disjuntor de 16 A».
 - **Valores assumidos:** o que falta (tensão: 12 V; resistências: as do formulário de cada template; estado do interruptor; topologia) é preenchido e listado em `assumptions`, para o editor pedir confirmação com a pré-visualização antes de abrir o circuito.
 
 Erros: 422 `uninterpretable-text` (`code: UNINTERPRETABLE_TEXT`), com um item em `errors` por motivo; valores fora dos limites do template dão 422 `invalid-parameters`, como em `/generate`.
