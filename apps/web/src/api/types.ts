@@ -108,3 +108,39 @@ export interface UserAccount {
   role: UserRole;
   createdAt: string;
 }
+
+/** Permissão de um convidado num projeto partilhado (F2-09). */
+export type ShareRole = 'viewer' | 'editor';
+
+/** Acesso do utilizador da sessão a um projeto: o dono pode ainda apagar e partilhar. */
+export type ProjectAccess = 'owner' | ShareRole;
+
+export interface ProjectUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface ProjectShare {
+  user: ProjectUser;
+  role: ShareRole;
+}
+
+/** Projeto guardado na conta, sem o circuito (`GET /api/v1/projects`). */
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  owner: ProjectUser;
+  access: ProjectAccess;
+  /** Sobe a cada gravação; enviada de volta ao gravar para detetar conflitos. */
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: ProjectUser;
+}
+
+/** Projeto completo, com o circuito e os convidados. */
+export interface ProjectDetail extends ProjectSummary {
+  circuit: CircuitDocument;
+  shares: ProjectShare[];
+}

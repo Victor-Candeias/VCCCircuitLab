@@ -27,6 +27,12 @@ from app.generation.errors import (
     UninterpretableTextError,
     UnknownTemplateError,
 )
+from app.projects.errors import (
+    InvalidShareError,
+    ProjectNotFoundError,
+    ProjectVersionConflictError,
+    ShareUserNotFoundError,
+)
 from app.spice.errors import SimulationEngineError
 from app.spice.exchange import InvalidNetlistError
 from app.users.errors import EmailAlreadyRegisteredError
@@ -55,6 +61,10 @@ class ApiErrorCode(StrEnum):
     FORBIDDEN = "FORBIDDEN"
     TEMPLATE_NOT_FOUND = "TEMPLATE_NOT_FOUND"
     TEMPLATE_TYPE_ALREADY_EXISTS = "TEMPLATE_TYPE_ALREADY_EXISTS"
+    PROJECT_NOT_FOUND = "PROJECT_NOT_FOUND"
+    PROJECT_VERSION_CONFLICT = "PROJECT_VERSION_CONFLICT"
+    SHARE_USER_NOT_FOUND = "SHARE_USER_NOT_FOUND"
+    INVALID_SHARE = "INVALID_SHARE"
     PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE"
     RATE_LIMITED = "RATE_LIMITED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
@@ -453,6 +463,61 @@ async def _duplicate_template_type_handler(request: Request, exc: Exception) -> 
     )
 
 
+async def _project_not_found_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, ProjectNotFoundError)
+    issue = Issue(
+        code=ApiErrorCode.PROJECT_NOT_FOUND,
+        message="Projeto não encontrado ou sem acesso.",
+    )
+    return problem_response(
+        request,
+        status=404,
+        kind="project-not-found",
+        title="Projeto não encontrado",
+        errors=[issue],
+    )
+
+
+async def _project_conflict_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, ProjectVersionConflictError)
+    issue = Issue(
+        code=ApiErrorCode.PROJECT_VERSION_CONFLICT,
+        message=(
+            "O projeto foi alterado por outra pessoa depois de o abrir "
+            f"(versão atual: {exc.current_version}). Reabra-o para obter a versão mais recente."
+        ),
+    )
+    return problem_response(
+        request,
+        status=409,
+        kind="project-version-conflict",
+        title="Conflito de versões",
+        errors=[issue],
+    )
+
+
+async def _share_user_not_found_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, ShareUserNotFoundError)
+    issue = Issue(
+        code=ApiErrorCode.SHARE_USER_NOT_FOUND, message="Não existe nenhuma conta com este email."
+    )
+    return problem_response(
+        request,
+        status=404,
+        kind="share-user-not-found",
+        title="Conta não encontrada",
+        errors=[issue],
+    )
+
+
+async def _invalid_share_handler(request: Request, exc: Exception) -> ProblemResponse:
+    assert isinstance(exc, InvalidShareError)
+    issue = Issue(code=ApiErrorCode.INVALID_SHARE, message=exc.reason)
+    return problem_response(
+        request, status=422, kind="invalid-share", title="Partilha inválida", errors=[issue]
+    )
+
+
 async def _database_unavailable_handler(request: Request, exc: Exception) -> ProblemResponse:
     assert isinstance(exc, DatabaseUnavailableError)
     # A causa (configuração em falta, credenciais, ligação) fica só no log do servidor.
@@ -516,6 +581,10 @@ def install_problem_handlers(app: FastAPI) -> None:
     app.add_exception_handler(NotAuthorizedError, _not_authorized_handler)
     app.add_exception_handler(TemplateNotFoundError, _template_not_found_handler)
     app.add_exception_handler(DuplicateTemplateTypeError, _duplicate_template_type_handler)
+    app.add_exception_handler(ProjectNotFoundError, _project_not_found_handler)
+    app.add_exception_handler(ProjectVersionConflictError, _project_conflict_handler)
+    app.add_exception_handler(ShareUserNotFoundError, _share_user_not_found_handler)
+    app.add_exception_handler(InvalidShareError, _invalid_share_handler)
     app.add_exception_handler(StarletteHTTPException, _http_error_handler)
     app.add_exception_handler(Exception, _internal_error_handler)
 

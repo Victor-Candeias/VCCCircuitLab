@@ -88,6 +88,22 @@ O menu **Projeto**, no cabeçalho da aplicação, gere o ciclo de vida do circui
   - *Interruptor e carga*
 - **Guardar JSON:** descarrega o circuito atual como ficheiro JSON canónico.
 - **Gerar…:** abre o diálogo de geração automática (secção seguinte).
+- **Guardar na conta:** grava o circuito na sua conta, para o abrir noutro computador ou o
+  partilhar. Da primeira vez cria um projeto novo (com o nome do circuito); depois disso, grava
+  sobre esse projeto. Ao lado do nome do circuito aparece "Na conta" (ou, num projeto
+  partilhado consigo, o dono e a sua permissão).
+- **Projetos…:** lista os seus projetos e os que foram partilhados consigo, com a data e o autor
+  da última alteração. **Abrir** carrega o projeto no editor; **Apagar** (os seus) ou **Sair**
+  (os partilhados consigo) pedem confirmação.
+- **Partilhar…:** (só para o dono de um projeto guardado na conta) convida outra pessoa pelo
+  email da conta dela, com permissão **Só leitura** ou **Edição**; pode mudar a permissão ou
+  remover o acesso a qualquer momento.
+
+**Colaboração:** quem tem permissão de **Edição** abre o projeto, altera-o e usa *Guardar na
+conta*. Se outra pessoa gravou o projeto depois de o ter aberto, a gravação é recusada com uma
+mensagem a indicar a versão atual — reabra o projeto em *Projetos…* (pode antes descarregar as
+suas alterações com *Guardar JSON*). Com permissão **Só leitura**, *Guardar na conta* oferece-se
+para guardar uma cópia na sua conta. Não há edição simultânea em tempo real.
 
 **Confirmação ao descartar trabalho não guardado:** sempre que *Novo*, *Exemplos…* ou *Gerar…*
 iriam substituir um circuito que já tem pelo menos um componente ou um fio, a aplicação pergunta

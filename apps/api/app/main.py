@@ -4,7 +4,7 @@ from app.auth.dependencies import require_user
 from app.http_security import install_security
 from app.observability import Metrics, ObservabilityMiddleware, configure_logging
 from app.problems import install_problem_handlers, problem_responses
-from app.routes import auth, circuits, components, health, metrics, templates, users
+from app.routes import auth, circuits, components, health, metrics, projects, templates, users
 
 app = FastAPI(title="VCCCircuitLab API", version="0.1.0")
 install_problem_handlers(app)
@@ -24,3 +24,4 @@ _protected = {"dependencies": [Depends(require_user)], "responses": problem_resp
 app.include_router(circuits.router, **_protected)
 app.include_router(components.router, **_protected)
 app.include_router(templates.router, **_protected)
+app.include_router(projects.router, **_protected)

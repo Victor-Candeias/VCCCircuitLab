@@ -8,10 +8,34 @@ import { ProjectMenu } from './ProjectMenu';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
-  return { ...actual, exportSpice: vi.fn(), importSpice: vi.fn() };
+  return {
+    ...actual,
+    exportSpice: vi.fn(),
+    importSpice: vi.fn(),
+    createProject: vi.fn(),
+    saveProject: vi.fn(),
+    listProjects: vi.fn(),
+    getProject: vi.fn(),
+    deleteProject: vi.fn(),
+    shareProject: vi.fn(),
+    removeShare: vi.fn(),
+  };
 });
 
-import { ApiError, exportSpice, importSpice } from '../api/client';
+import {
+  ApiError,
+  createProject,
+  deleteProject,
+  exportSpice,
+  getProject,
+  importSpice,
+  listProjects,
+  removeShare,
+  saveProject,
+  shareProject,
+} from '../api/client';
+import type { ProjectAccess, ProjectDetail } from '../api/types';
+import { CLOUD_PROJECT_STORAGE_KEY, useCloudProjectStore } from './cloudProjectStore';
 
 const exportSpiceMock = vi.mocked(exportSpice);
 const importSpiceMock = vi.mocked(importSpice);
@@ -19,14 +43,32 @@ const initialState = useEditorStore.getState();
 
 beforeEach(async () => {
   useEditorStore.setState(initialState, true);
+  useCloudProjectStore.getState().unlink();
   await clearAutosave();
 });
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  exportSpiceMock.mockReset();
-  importSpiceMock.mockReset();
+  vi.resetAllMocks();
+  sessionStorage.clear();
   await clearAutosave();
+});
+
+const ana = { id: 'u-ana', name: 'Ana', email: 'ana@exemplo.pt' };
+const rui = { id: 'u-rui', name: 'Rui', email: 'rui@exemplo.pt' };
+
+const cloudProject = (overrides: Partial<ProjectDetail> = {}): ProjectDetail => ({
+  id: 'p1',
+  name: demoCircuit.name,
+  owner: ana,
+  access: 'owner' as ProjectAccess,
+  version: 1,
+  createdAt: '2026-01-01T10:00:00Z',
+  updatedAt: '2026-01-01T10:00:00Z',
+  updatedBy: ana,
+  circuit: demoCircuit,
+  shares: [],
+  ...overrides,
 });
 
 const chooseFile = (content: string, name = 'circuito.json') => {
@@ -222,5 +264,186 @@ describe('ProjectMenu', () => {
     fireEvent.click(generateButton);
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(generateButton).toHaveFocus();
+  });
+});
+
+describe('ProjectMenu — projetos na conta (F2-09)', () => {
+  test('Guardar na conta cria o projeto e liga-o ao editor; depois grava com a versão', async () => {
+    vi.mocked(createProject).mockResolvedValue(cloudProject());
+    vi.mocked(saveProject).mockResolvedValue(cloudProject({ version: 2 }));
+    render(<ProjectMenu />);
+    const share = screen.getByRole('button', { name: 'Partilhar…' });
+    expect(share).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar na conta' }));
+
+    expect(await screen.findByText(/novo projeto/)).toBeInTheDocument();
+    expect(createProject).toHaveBeenCalledWith(demoCircuit);
+    expect(screen.getByText('Na conta')).toBeInTheDocument();
+    expect(share).toBeEnabled();
+    expect(JSON.parse(sessionStorage.getItem(CLOUD_PROJECT_STORAGE_KEY) ?? '')).toMatchObject({
+      id: 'p1',
+      version: 1,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar na conta' }));
+
+    expect(await screen.findByText(/versão 2/)).toBeInTheDocument();
+    expect(saveProject).toHaveBeenCalledWith('p1', demoCircuit, 1);
+    expect(useCloudProjectStore.getState().link?.version).toBe(2);
+  });
+
+  test('um conflito de versão mostra o erro e mantém a versão ligada', async () => {
+    useCloudProjectStore.getState().linkProject(cloudProject({ version: 3 }));
+    const problem = {
+      type: 'urn:vcccircuitlab:problem:project-version-conflict',
+      title: 'Conflito de versões',
+      status: 409,
+      detail: 'O projeto foi alterado por outra pessoa (versão atual: 4).',
+      code: 'PROJECT_VERSION_CONFLICT',
+      errors: [
+        {
+          code: 'PROJECT_VERSION_CONFLICT',
+          message: 'O projeto foi alterado por outra pessoa (versão atual: 4).',
+          refs: [],
+        },
+      ],
+    };
+    vi.mocked(saveProject).mockRejectedValue(
+      new ApiError('problem', problem.detail, { status: 409, problem }),
+    );
+    render(<ProjectMenu />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar na conta' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Não foi possível guardar na conta');
+    expect(alert).toHaveTextContent('versão atual: 4');
+    expect(useCloudProjectStore.getState().link?.version).toBe(3);
+  });
+
+  test('com permissão de leitura, Guardar na conta cria uma cópia (com confirmação)', async () => {
+    useCloudProjectStore
+      .getState()
+      .linkProject(cloudProject({ owner: rui, access: 'viewer', updatedBy: rui }));
+    vi.mocked(createProject).mockResolvedValue(cloudProject({ id: 'p2' }));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<ProjectMenu />);
+    expect(screen.getByText('De Rui · Só leitura')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar na conta' }));
+
+    await waitFor(() => expect(useCloudProjectStore.getState().link?.id).toBe('p2'));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('permissão de leitura'));
+    expect(saveProject).not.toHaveBeenCalled();
+  });
+
+  test('abrir um ficheiro desliga o projeto da conta', async () => {
+    useCloudProjectStore.getState().linkProject(cloudProject());
+    render(<ProjectMenu />);
+    chooseFile(serializeCircuit({ ...demoCircuit, id: 'outro', name: 'Outro' }));
+
+    await waitFor(() => expect(useEditorStore.getState().circuit.id).toBe('outro'));
+    expect(useCloudProjectStore.getState().link).toBeNull();
+    expect(sessionStorage.getItem(CLOUD_PROJECT_STORAGE_KEY)).toBeNull();
+  });
+
+  test('Projetos… lista os projetos e abre um partilhado no editor', async () => {
+    const other = { ...demoCircuit, id: 'partilhado', name: 'Do Rui' };
+    const shared = cloudProject({
+      id: 'p2',
+      name: 'Do Rui',
+      owner: rui,
+      access: 'editor',
+      version: 5,
+      updatedBy: rui,
+      circuit: other,
+    });
+    vi.mocked(listProjects).mockResolvedValue([cloudProject({ name: 'Meu' }), shared]);
+    vi.mocked(getProject).mockResolvedValue(shared);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<ProjectMenu />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projetos…' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Projetos na conta' });
+    expect(await screen.findByRole('button', { name: 'Apagar Meu' })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent('De Rui · Edição');
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Do Rui' }));
+
+    await waitFor(() => expect(useEditorStore.getState().circuit.id).toBe('partilhado'));
+    expect(getProject).toHaveBeenCalledWith('p2');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useCloudProjectStore.getState().link).toMatchObject({
+      id: 'p2',
+      version: 5,
+      access: 'editor',
+    });
+    expect(screen.getByText('De Rui · Edição')).toBeInTheDocument();
+  });
+
+  test('Projetos… apaga um projeto próprio e desliga-o se estiver aberto', async () => {
+    useCloudProjectStore.getState().linkProject(cloudProject());
+    vi.mocked(listProjects)
+      .mockResolvedValueOnce([cloudProject({ name: 'Meu' })])
+      .mockResolvedValueOnce([]);
+    vi.mocked(deleteProject).mockResolvedValue();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<ProjectMenu />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projetos…' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apagar Meu' }));
+
+    expect(await screen.findByText(/Ainda não guardou nenhum projeto/)).toBeInTheDocument();
+    expect(deleteProject).toHaveBeenCalledWith('p1');
+    expect(useCloudProjectStore.getState().link).toBeNull();
+  });
+
+  test('Partilhar… convida por email, muda a permissão e remove o convidado', async () => {
+    useCloudProjectStore.getState().linkProject(cloudProject());
+    const withRui = cloudProject({ shares: [{ user: rui, role: 'viewer' }] });
+    vi.mocked(getProject).mockResolvedValue(cloudProject());
+    vi.mocked(shareProject)
+      .mockResolvedValueOnce(withRui)
+      .mockResolvedValueOnce(cloudProject({ shares: [{ user: rui, role: 'editor' }] }));
+    vi.mocked(removeShare).mockResolvedValue();
+    render(<ProjectMenu />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partilhar…' }));
+    expect(await screen.findByText('Ainda não partilhou este projeto.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Email da conta'), {
+      target: { value: ' rui@exemplo.pt ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Partilhar' }));
+
+    const role = await screen.findByRole('combobox', { name: 'Permissão de Rui' });
+    expect(shareProject).toHaveBeenCalledWith('p1', 'rui@exemplo.pt', 'viewer');
+    expect(screen.getByLabelText('Email da conta')).toHaveValue('');
+
+    fireEvent.change(role, { target: { value: 'editor' } });
+    await waitFor(() => expect(role).toHaveValue('editor'));
+    expect(shareProject).toHaveBeenLastCalledWith('p1', 'rui@exemplo.pt', 'editor');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover Rui' }));
+    expect(await screen.findByText('Ainda não partilhou este projeto.')).toBeInTheDocument();
+    expect(removeShare).toHaveBeenCalledWith('p1', 'u-rui');
+  });
+
+  test('Partilhar… mostra o erro de um email sem conta', async () => {
+    useCloudProjectStore.getState().linkProject(cloudProject());
+    vi.mocked(getProject).mockResolvedValue(cloudProject());
+    vi.mocked(shareProject).mockRejectedValue(
+      new ApiError('problem', 'Não existe nenhuma conta com esse email.', { status: 404 }),
+    );
+    render(<ProjectMenu />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partilhar…' }));
+    await screen.findByText('Ainda não partilhou este projeto.');
+    fireEvent.change(screen.getByLabelText('Email da conta'), {
+      target: { value: 'x@exemplo.pt' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Partilhar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não existe nenhuma conta');
   });
 });

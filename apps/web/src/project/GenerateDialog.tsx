@@ -5,6 +5,7 @@ import type { CircuitIssue, GenerateTextResult } from '../api/types';
 import { useEditorStore } from '../store/editorStore';
 import { CircuitPreview } from './CircuitPreview';
 import { toCanonical } from './circuitJson';
+import { unlinkCloudProject } from './cloudProjectStore';
 import {
   defaultGenerateValues,
   GENERATE_TEMPLATES,
@@ -108,6 +109,7 @@ export function GenerateDialog({ onClose }: { onClose: () => void }) {
       return;
     }
     loadCircuit(circuit);
+    unlinkCloudProject();
     onClose();
   };
 

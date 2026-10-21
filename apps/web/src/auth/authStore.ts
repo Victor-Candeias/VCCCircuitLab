@@ -8,6 +8,7 @@ import {
   toApiError,
 } from '../api/client';
 import type { UserAccount } from '../api/types';
+import { unlinkCloudProject } from '../project/cloudProjectStore';
 
 /** Chave do token de sessão no `sessionStorage` (dura enquanto o separador estiver aberto). */
 export const SESSION_STORAGE_KEY = 'vcccircuitlab.session';
@@ -98,6 +99,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   logout: async () => {
     const { token } = get();
     writeToken(null);
+    unlinkCloudProject();
     set({ status: 'anonymous', user: null, token: null, notice: null });
     if (!token) return;
     try {
@@ -113,6 +115,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   expire: () => {
     if (get().status === 'anonymous') return;
     writeToken(null);
+    unlinkCloudProject();
     set({
       status: 'anonymous',
       user: null,

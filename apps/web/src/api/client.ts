@@ -3,6 +3,9 @@ import { toCanonical } from '../project/circuitJson';
 import type {
   GenerateTextResult,
   Problem,
+  ProjectDetail,
+  ProjectSummary,
+  ShareRole,
   SimulationResult,
   SpiceImportResult,
   TransientParameters,
@@ -123,7 +126,7 @@ function isAnything(value: unknown): value is unknown {
 }
 
 async function requestJson<T>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
   body: unknown,
   isExpected: (value: unknown) => value is T,
@@ -417,6 +420,117 @@ export function getCurrentUser(options: RequestOptions = {}): Promise<UserAccoun
 /** `POST /api/v1/auth/logout`: termina a sessão atual no servidor. */
 export async function logoutSession(options: RequestOptions = {}): Promise<void> {
   await requestJson('POST', '/api/v1/auth/logout', undefined, isAnything, options);
+}
+
+function isProjectUser(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.email === 'string'
+  );
+}
+
+function isProjectSummary(value: unknown): value is ProjectSummary {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    isProjectUser(value.owner) &&
+    (value.access === 'owner' || value.access === 'editor' || value.access === 'viewer') &&
+    typeof value.version === 'number' &&
+    typeof value.updatedAt === 'string' &&
+    isProjectUser(value.updatedBy)
+  );
+}
+
+function isProjectDetail(value: unknown): value is ProjectDetail {
+  return (
+    isProjectSummary(value) &&
+    isRecord(value) &&
+    isCircuitDocument(value.circuit) &&
+    Array.isArray(value.shares) &&
+    value.shares.every((s) => isRecord(s) && isProjectUser(s.user))
+  );
+}
+
+function isProjectList(value: unknown): value is ProjectSummary[] {
+  return Array.isArray(value) && value.every(isProjectSummary);
+}
+
+const projectUrl = (id: string) => `/api/v1/projects/${encodeURIComponent(id)}`;
+
+/** `GET /api/v1/projects`: projetos da conta e partilhados com ela (mais recentes primeiro). */
+export function listProjects(options: RequestOptions = {}): Promise<ProjectSummary[]> {
+  return requestJson('GET', '/api/v1/projects', undefined, isProjectList, options);
+}
+
+/** `GET /api/v1/projects/{id}`: projeto com o circuito e os convidados. */
+export function getProject(id: string, options: RequestOptions = {}): Promise<ProjectDetail> {
+  return requestJson('GET', projectUrl(id), undefined, isProjectDetail, options);
+}
+
+/** `POST /api/v1/projects`: guarda o circuito (canónico, sem `nets`) como novo projeto. */
+export function createProject(
+  circuit: CircuitDocument,
+  options: RequestOptions = {},
+): Promise<ProjectDetail> {
+  return requestJson(
+    'POST',
+    '/api/v1/projects',
+    { circuit: toCanonical(circuit) },
+    isProjectDetail,
+    options,
+  );
+}
+
+/**
+ * `PUT /api/v1/projects/{id}`: grava o circuito. `version` é a versão aberta; se outra pessoa
+ * gravou entretanto, a API responde 409 (`project-version-conflict`).
+ */
+export function saveProject(
+  id: string,
+  circuit: CircuitDocument,
+  version: number,
+  options: RequestOptions = {},
+): Promise<ProjectDetail> {
+  return requestJson(
+    'PUT',
+    projectUrl(id),
+    { circuit: toCanonical(circuit), version },
+    isProjectDetail,
+    options,
+  );
+}
+
+/** `DELETE /api/v1/projects/{id}` (só o dono). */
+export async function deleteProject(id: string, options: RequestOptions = {}): Promise<void> {
+  await requestJson('DELETE', projectUrl(id), undefined, isAnything, options);
+}
+
+/** `PUT /api/v1/projects/{id}/shares`: partilha com a conta do email (ou muda a permissão). */
+export function shareProject(
+  id: string,
+  email: string,
+  role: ShareRole,
+  options: RequestOptions = {},
+): Promise<ProjectDetail> {
+  return requestJson('PUT', `${projectUrl(id)}/shares`, { email, role }, isProjectDetail, options);
+}
+
+/** `DELETE /api/v1/projects/{id}/shares/{userId}`: remove um convidado, ou sai da partilha. */
+export async function removeShare(
+  id: string,
+  userId: string,
+  options: RequestOptions = {},
+): Promise<void> {
+  await requestJson(
+    'DELETE',
+    `${projectUrl(id)}/shares/${encodeURIComponent(userId)}`,
+    undefined,
+    isAnything,
+    options,
+  );
 }
 
 /** Converte qualquer falha numa `ApiError` (erros inesperados ficam como falha de rede). */

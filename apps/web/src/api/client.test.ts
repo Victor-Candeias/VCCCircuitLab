@@ -5,14 +5,17 @@ import {
   ApiError,
   exportSpice,
   createUser,
+  deleteProject,
   generateCircuit,
   generateFromText,
   getComponents,
   getCurrentUser,
   importSpice,
+  listProjects,
   login,
   logoutSession,
   normalizeBaseUrl,
+  saveProject,
   setAuthToken,
   setUnauthorizedHandler,
   simulateCircuit,
@@ -20,7 +23,8 @@ import {
   toApiError,
   validateCircuit,
 } from './client';
-import type { SimulationResult } from './types';
+import { toCanonical } from '../project/circuitJson';
+import type { ProjectDetail, SimulationResult } from './types';
 
 const result: SimulationResult = {
   analysis: 'dc_operating_point',
@@ -403,5 +407,40 @@ describe('cliente da API', () => {
     await failure(login({ email: 'a@b.pt', password: 'x' }));
 
     expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+  test('saveProject envia PUT com o circuito canónico e a versão aberta', async () => {
+    const user = { id: 'u1', name: 'Ana', email: 'ana@exemplo.pt' };
+    const project: ProjectDetail = {
+      id: 'p/1',
+      name: demoCircuit.name,
+      owner: user,
+      access: 'owner',
+      version: 4,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z',
+      updatedBy: user,
+      circuit: demoCircuit,
+      shares: [],
+    };
+    fetchMock.mockResolvedValue(json(project));
+
+    await expect(saveProject('p/1', demoCircuit, 3)).resolves.toEqual(project);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/v1/projects/p%2F1');
+    expect(init?.method).toBe('PUT');
+    expect(JSON.parse(init?.body as string)).toEqual({
+      circuit: JSON.parse(JSON.stringify(toCanonical(demoCircuit))),
+      version: 3,
+    });
+  });
+
+  test('listProjects rejeita respostas com forma inesperada; deleteProject aceita 204', async () => {
+    fetchMock.mockResolvedValueOnce(json([{ id: 'p1' }]));
+    expect((await failure(listProjects())).kind).toBe('invalid-response');
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await expect(deleteProject('p1')).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('DELETE');
   });
 });

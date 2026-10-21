@@ -24,7 +24,7 @@ status: draft
 | F2-06 | Gerador de circuitos por linguagem natural | done | 2026-10-12 | developer | medium | 2026-10-20 |  |  | [F2-06](../specs/fase-2/f2-06-spec.md) |
 | F2-07 | Catálogo IEC e modelos para instalações 230/400 V | done | 2026-10-12 | developer | medium | 2026-10-20 |  |  | [F2-07](../specs/fase-2/f2-07-spec.md) |
 | F2-08 | Template de geração iluminacao_escada (230 V) | done | 2026-10-12 | developer | medium | 2026-10-20 |  | F2-07 | [F2-08](../specs/fase-2/f2-08-spec.md) |
-| F2-09 | Contas, partilha e colaboração | backlog | 2026-10-12 | developer | low |  |  |  |  |
+| F2-09 | Contas, partilha e colaboração | done | 2026-10-12 | developer | low | 2026-10-21 |  |  | [F2-09](../specs/fase-2/f2-09-spec.md) |
 | F2-10 | Coleção de templates de componentes com acesso restrito a admin | done | 2026-10-14 | developer | medium | 2026-10-14 |  |  |  |
 | F2-11 | Catálogo de componentes do frontend a partir da API (remover ficheiro estático) | done | 2026-10-15 | developer | medium | 2026-10-19 |  |  | [F2-11](../specs/fase-2/f2-11-spec.md) |
 <!-- /maestru:work-items-list -->

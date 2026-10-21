@@ -9,13 +9,14 @@ apps/api/
 ├── app/
 │   ├── main.py        # app = FastAPI()
 │   ├── problems.py    # Erros application/problem+json
-│   ├── routes/        # Rotas HTTP (GET /health, /health/ready, /metrics, /api/v1/circuits/…, /api/v1/users, /api/v1/auth/…)
+│   ├── routes/        # Rotas HTTP (GET /health, /health/ready, /metrics, /api/v1/circuits/…, /api/v1/users, /api/v1/auth/…, /api/v1/projects)
 │   ├── models/        # Modelos Pydantic
 │   ├── db/            # Ligação ao MongoDB e CRUD de collections
 │   ├── security/      # Encriptação de campos, hash e qualidade de passwords
 │   ├── users/         # Criação de utilizadores
 │   ├── auth/          # Login, sessões e dependência require_user
 │   ├── component_templates/  # CRUD da coleção `templates` (F2-10), só para admin
+│   ├── projects/      # Projetos na conta, partilha e versões (F2-09)
 │   ├── generation/    # Templates e layout
 │   ├── circuit/       # Redes, normalização, validação
 │   ├── solver/        # MNA DC, transitória e semicondutores
@@ -301,6 +302,25 @@ Coleção `templates` (MongoDB): fonte da verdade do catálogo de componentes, g
 
 Numa instalação nova a coleção está vazia (o editor mostra um erro ao carregar o catálogo). Para a semear com os componentes de um catálogo JSON (`{"components": [...]}`), a partir de `apps/api`: `python -m app.component_templates.seed ../../packages/circuit-schema/test/fixtures/catalog.json`. É idempotente: só insere os tipos que ainda não existem (`createdBy: "seed"`), sem tocar nos templates editados por administradores. Usado também pelo workflow E2E (E5-06).
 
+## Projetos, partilha e colaboração (F2-09)
+
+Coleção `projects` (MongoDB, `app/projects/service.py`): circuitos guardados na conta, com `name` (= `circuit.name`), `circuit` (documento canónico), `ownerId`, `shares` (`[{ userId, role }]`), `version`, `createdAt`, `updatedAt` e `updatedById`. Índices em `ownerId` e `shares.userId`.
+
+| Método | Endpoint | Acesso | Resposta |
+|---|---|---|---|
+| `GET` | `/api/v1/projects` | Sessão válida | `200 ProjectSummary[]`: projetos próprios e partilhados com a conta, mais recentes primeiro (sem o circuito) |
+| `POST` | `/api/v1/projects` | Sessão válida | `{ circuit }` → `201 ProjectOut` (versão 1; quem cria é o dono) |
+| `GET` | `/api/v1/projects/{id}` | Dono ou convidado | `200 ProjectOut` |
+| `PUT` | `/api/v1/projects/{id}` | Dono ou `editor` | `{ circuit, version }` → `200 ProjectOut` (versão + 1), `409 project-version-conflict` |
+| `DELETE` | `/api/v1/projects/{id}` | Dono | `204` |
+| `PUT` | `/api/v1/projects/{id}/shares` | Dono | `{ email, role: "viewer" \| "editor" }` → `200 ProjectOut` (convida ou muda a permissão), `404 share-user-not-found`, `422 invalid-share` |
+| `DELETE` | `/api/v1/projects/{id}/shares/{userId}` | Dono, ou o próprio convidado (sair) | `204` (idempotente) |
+
+- `ProjectSummary`: `{ id, name, owner, access: "owner" | "editor" | "viewer", version, createdAt, updatedAt, updatedBy }`, com `owner`/`updatedBy` = `{ id, name, email }` (desencriptados; uma conta apagada aparece como "(conta removida)"). `ProjectOut` acrescenta `circuit` e `shares` (`[{ user, role }]`).
+- Sem acesso ao projeto, ou ID inválido → `404 project-not-found` (não revela se o projeto existe). Um `viewer` a gravar, ou um não-dono a apagar/partilhar → `403 forbidden`.
+- Colaboração **assíncrona** com controlo de concorrência otimista: o `PUT` envia a `version` que foi aberta e só grava se ainda for a atual (`update_one` filtrado por `version`, com `$inc`). Se outra pessoa gravou entretanto, `409 project-version-conflict` indica a versão atual; o cliente reabre o projeto (ou guarda uma cópia). Edição simultânea em tempo real não faz parte do âmbito.
+- A partilha procura a conta pelo `emailIndex` (blind index do email normalizado). Não se partilha com o próprio dono e há um máximo de 50 convidados por projeto (`422 invalid-share`).
+
 ### Erros (`application/problem+json`, RFC 9457)
 
 Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
@@ -335,8 +355,12 @@ Todos os erros da API, incluindo 404, 405 e 500, usam o mesmo formato:
 | `…:simulation-failed` | 422 | `SINGULAR_MATRIX`, `ILL_CONDITIONED_MATRIX`, `NO_CONVERGENCE` (método de Newton com semicondutores) |
 | `…:invalid-credentials` | 401 | `INVALID_CREDENTIALS` (login com email ou password errados) |
 | `…:not-authenticated` | 401 | `NOT_AUTHENTICATED` (sem token, ou token inválido, expirado ou terminado; com `WWW-Authenticate: Bearer`) |
-| `…:forbidden` | 403 | `FORBIDDEN` (sessão válida sem o role necessário, ex.: não `ADMIN`) |
+| `…:forbidden` | 403 | `FORBIDDEN` (sessão válida sem o role ou a permissão necessária, ex.: não `ADMIN`, ou `viewer` a gravar um projeto) |
 | `…:template-not-found` | 404 | `TEMPLATE_NOT_FOUND` (id de template inexistente) |
+| `…:project-not-found` | 404 | `PROJECT_NOT_FOUND` (projeto inexistente ou sem acesso, ver [Projetos](#projetos-partilha-e-colaboração-f2-09)) |
+| `…:share-user-not-found` | 404 | `SHARE_USER_NOT_FOUND` (partilha com um email sem conta) |
+| `…:project-version-conflict` | 409 | `PROJECT_VERSION_CONFLICT` (o projeto foi gravado por outra pessoa; a mensagem indica a versão atual) |
+| `…:invalid-share` | 422 | `INVALID_SHARE` (partilha com o próprio dono ou acima do limite de convidados) |
 | `…:template-type-already-exists` | 409 | `TEMPLATE_TYPE_ALREADY_EXISTS` (já existe um template com o mesmo `type`) |
 | `…:payload-too-large` | 413 | `PAYLOAD_TOO_LARGE` (corpo acima de `MAX_REQUEST_BODY_BYTES`) |
 | `…:rate-limited` | 429 | `RATE_LIMITED` (com `Retry-After`, ver [Segurança operacional](#segurança-operacional-e5-04)) |
@@ -355,7 +379,7 @@ Configuração em `.env` na raiz (ignorado pelo git; modelo em `.env.example`): 
 
 ## Sessão e autenticação
 
-Públicos: `GET /health`, `GET /health/ready`, `POST /api/v1/users` e `POST /api/v1/auth/login`. Tudo o resto (`/api/v1/circuits/…`, `/api/v1/components`, `/api/v1/templates`) exige `Authorization: Bearer <token>` — dependência `require_user` (`app/auth/dependencies.py`), aplicada aos routers em `app/main.py`. A escrita em `/api/v1/templates` (`POST`/`PUT`/`DELETE`) exige ainda `role: "ADMIN"` (ver [Templates de componentes](#templates-de-componentes-f2-10)).
+Públicos: `GET /health`, `GET /health/ready`, `POST /api/v1/users` e `POST /api/v1/auth/login`. Tudo o resto (`/api/v1/circuits/…`, `/api/v1/components`, `/api/v1/templates`, `/api/v1/projects`) exige `Authorization: Bearer <token>` — dependência `require_user` (`app/auth/dependencies.py`), aplicada aos routers em `app/main.py`. A escrita em `/api/v1/templates` (`POST`/`PUT`/`DELETE`) exige ainda `role: "ADMIN"` (ver [Templates de componentes](#templates-de-componentes-f2-10)).
 
 | Método | Endpoint | Resposta |
 |---|---|---|

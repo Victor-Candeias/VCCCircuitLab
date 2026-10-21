@@ -28,7 +28,7 @@ src/
 │   ├── export.ts          # exportação PNG/SVG do canvas e impressão/PDF via browser
 │   ├── PropertiesPanel.tsx    # formulário das propriedades do componente selecionado (React Hook Form + Zod)
 │   └── demoCircuit.ts
-├── project/               # Projeto: novo, abrir, guardar, gerar e autosave
+├── project/               # Projeto: novo, abrir, guardar, gerar, autosave e projetos na conta
 │   ├── circuitJson.ts     # JSON canónico: serializar, validar (schema + integridade), ler ficheiro
 │   ├── examples.ts        # circuitos de exemplo (fixtures de @vcccircuitlab/circuit-schema)
 │   ├── generateTemplates.ts   # templates de geração (campos, valores por omissão, parsing)
@@ -101,6 +101,14 @@ src/
 - **Gerar…** abre um diálogo com os templates da API (série, paralelo, divisor de tensão, interruptor e carga — ver `apps/api/README.md`), pede os parâmetros (tensão, lista de resistências, carga, estado do interruptor) e envia-os a `POST /api/v1/circuits/generate`. O circuito devolvido (sem `nets`, recalculados no editor) substitui o atual, com confirmação se este não estiver vazio. Parâmetros inválidos (localmente, ou devolvidos pela API) aparecem no diálogo sem fechar.
 - Round-trip: exportar e voltar a importar dá o mesmo documento (topologia, parâmetros e geometria) e o mesmo ficheiro.
 - **Autosave**: o documento é gravado automaticamente em IndexedDB (Dexie, `useAutosave`) sempre que é alterado (com um pequeno atraso, para não gravar a cada pixel de um arrasto). Ao arrancar, se houver uma gravação válida, substitui o circuito de exemplo por omissão e aparece uma mensagem a confirmar a recuperação — assim um refresh da página não perde o projeto em curso.
+
+### Projetos na conta, partilha e colaboração (F2-09)
+
+- **Guardar na conta** grava o circuito em `/api/v1/projects` (ver `apps/api/README.md`): sem projeto ligado, cria um novo (o nome é o do circuito); com projeto ligado, grava nele com `PUT`, enviando a versão aberta. Se outra pessoa gravou entretanto, a API responde `409` e a mensagem pede para reabrir o projeto — o circuito no editor não é alterado (pode guardar uma cópia com **Guardar JSON**). Num projeto só de leitura, pergunta se quer guardar uma cópia na sua conta.
+- **Projetos…** lista "Os meus projetos" e "Partilhados comigo" (dono, permissão, última alteração e por quem). **Abrir** substitui o circuito atual (com confirmação se não estiver vazio) e liga-o ao projeto; **Apagar** (dono) e **Sair** (convidado) pedem confirmação.
+- **Partilhar…** (só o dono de um projeto ligado) convida outra conta pelo email, com permissão **Só leitura** ou **Edição**, e permite mudar a permissão ou remover convidados.
+- O projeto ligado aparece ao lado do nome do circuito ("Na conta", ou "De \<dono\> · \<permissão\>") e fica em `project/cloudProjectStore.ts` (zustand, persistido no `sessionStorage` em `vcccircuitlab.cloudProject`, para acompanhar o autosave depois de um refresh). Abrir um ficheiro, um exemplo, um circuito gerado ou importado, **Novo**, ou terminar a sessão desligam o editor do projeto.
+- A colaboração é assíncrona (cada pessoa abre, edita e grava; o controlo de versões evita perder alterações de outros); não há edição simultânea em tempo real.
 
 ### Simulação (API)
 

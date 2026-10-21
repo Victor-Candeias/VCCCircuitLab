@@ -1,7 +1,7 @@
 import type { CircuitDocument } from '@vcccircuitlab/circuit-schema';
 import { useRef, useState, type ChangeEvent } from 'react';
-import { exportSpice, importSpice, toApiError } from '../api/client';
-import type { CircuitIssue } from '../api/types';
+import { createProject, exportSpice, importSpice, saveProject, toApiError } from '../api/client';
+import type { CircuitIssue, ProjectDetail } from '../api/types';
 import { useEditorStore } from '../store/editorStore';
 import {
   circuitFileName,
@@ -11,8 +11,11 @@ import {
   readCircuitFile,
   serializeCircuit,
 } from './circuitJson';
+import { ACCESS_LABELS, unlinkCloudProject, useCloudProjectStore } from './cloudProjectStore';
 import { CIRCUIT_EXAMPLES } from './examples';
 import { GenerateDialog } from './GenerateDialog';
+import { ProjectsDialog } from './ProjectsDialog';
+import { ShareDialog } from './ShareDialog';
 import { useAutosave } from './useAutosave';
 import './project.css';
 
@@ -33,10 +36,21 @@ function downloadText(text: string, fileName: string, type = 'application/json')
 
 const issueMessages = (issues: CircuitIssue[]) => issues.map((issue) => issue.message);
 
+/** Mensagens de uma falha da API: os erros do `problem+json` ou, sem eles, a mensagem geral. */
+function apiErrorDetails(cause: unknown): string[] {
+  const apiError = toApiError(cause);
+  const issues = issueMessages(apiError.problem?.errors ?? []);
+  return issues.length > 0 ? issues : [apiError.problem?.title ?? apiError.message];
+}
+
 /**
  * Projeto: novo circuito, abrir um ficheiro JSON canónico (validado antes de substituir o
  * circuito atual), guardar o circuito atual em JSON canónico e importar/exportar netlists SPICE
  * (traduzidas pela API).
+ *
+ * Projetos na conta (F2-09): "Guardar na conta" grava o circuito no projeto ligado (ou cria um
+ * novo), "Projetos…" abre/apaga projetos da conta e partilhados, e "Partilhar…" (só o dono)
+ * gere os convidados. Abrir qualquer outro circuito desliga o editor do projeto da conta.
  */
 export function ProjectMenu() {
   const name = useEditorStore((s) => s.circuit.name);
@@ -46,6 +60,10 @@ export function ProjectMenu() {
   const generateButtonRef = useRef<HTMLButtonElement>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const cloudLink = useCloudProjectStore((s) => s.link);
   useAutosave((savedAt) => {
     const when = new Date(savedAt).toLocaleTimeString('pt-PT');
     setNotice({
@@ -55,13 +73,18 @@ export function ProjectMenu() {
     });
   });
 
-  /** Substitui o circuito atual, pedindo confirmação se este não estiver vazio. */
-  const replaceCircuit = (next: CircuitDocument, question: string) => {
+  /**
+   * Substitui o circuito atual, pedindo confirmação se este não estiver vazio; o editor deixa de
+   * estar ligado ao projeto da conta. Devolve `false` se o utilizador cancelar.
+   */
+  const replaceCircuit = (next: CircuitDocument, question: string): boolean => {
     const { circuit, loadCircuit } = useEditorStore.getState();
     const hasContent = circuit.components.length > 0 || circuit.wires.length > 0;
-    if (hasContent && !window.confirm(question)) return;
+    if (hasContent && !window.confirm(question)) return false;
     loadCircuit(next);
+    unlinkCloudProject();
     setNotice(null);
+    return true;
   };
 
   const onNew = () =>
@@ -94,6 +117,7 @@ export function ProjectMenu() {
       return;
     }
     useEditorStore.getState().loadCircuit(result.circuit);
+    unlinkCloudProject();
     setNotice(
       result.warnings.length > 0
         ? { kind: 'info', title: `Aberto "${result.circuit.name}".`, details: result.warnings }
@@ -109,12 +133,10 @@ export function ProjectMenu() {
       downloadText(netlist, `${circuitSlug(circuit)}.cir`, 'text/plain');
       setNotice(null);
     } catch (cause) {
-      const apiError = toApiError(cause);
-      const issues = issueMessages(apiError.problem?.errors ?? []);
       setNotice({
         kind: 'error',
         title: 'Não foi possível exportar a netlist SPICE:',
-        details: issues.length > 0 ? issues : [apiError.problem?.title ?? apiError.message],
+        details: apiErrorDetails(cause),
       });
     } finally {
       setSpiceBusy(false);
@@ -144,6 +166,7 @@ export function ProjectMenu() {
         return;
       }
       useEditorStore.getState().loadCircuit(parsed.circuit);
+      unlinkCloudProject();
       const details = [...issueMessages(result.warnings), ...issueMessages(result.issues)];
       setNotice(
         details.length > 0
@@ -151,12 +174,83 @@ export function ProjectMenu() {
           : null,
       );
     } catch (cause) {
-      const apiError = toApiError(cause);
-      const issues = issueMessages(apiError.problem?.errors ?? []);
-      failed(issues.length > 0 ? issues : [apiError.problem?.title ?? apiError.message]);
+      failed(apiErrorDetails(cause));
     } finally {
       setSpiceBusy(false);
     }
+  };
+
+  /**
+   * Grava no projeto ligado (dono ou editor), enviando a versão aberta: se outra pessoa gravou
+   * entretanto, a API recusa (409) e o aviso pede para reabrir. Sem projeto ligado, ou só com
+   * leitura, cria um projeto novo na conta.
+   */
+  const onSaveCloud = async () => {
+    const { circuit } = useEditorStore.getState();
+    const { link, linkProject } = useCloudProjectStore.getState();
+    const readOnly = link?.access === 'viewer';
+    if (
+      readOnly &&
+      !window.confirm('Só tem permissão de leitura neste projeto. Guardar uma cópia na sua conta?')
+    ) {
+      return;
+    }
+    setCloudBusy(true);
+    try {
+      if (link && !readOnly) {
+        const saved = await saveProject(link.id, circuit, link.version);
+        linkProject(saved);
+        setNotice({
+          kind: 'info',
+          title: `Guardado na conta: "${saved.name}" (versão ${saved.version}).`,
+          details: [],
+        });
+      } else {
+        const created = await createProject(circuit);
+        linkProject(created);
+        setNotice({
+          kind: 'info',
+          title: `Guardado na conta como novo projeto: "${created.name}".`,
+          details: [],
+        });
+      }
+    } catch (cause) {
+      setNotice({
+        kind: 'error',
+        title: 'Não foi possível guardar na conta (o circuito no editor não foi alterado):',
+        details: apiErrorDetails(cause),
+      });
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  /** Abre um projeto da conta no editor e liga-o, para "Guardar na conta" gravar nele. */
+  const openCloudProject = (project: ProjectDetail): boolean => {
+    const parsed = parseCircuit(JSON.stringify(project.circuit));
+    if (!parsed.ok) {
+      setNotice({
+        kind: 'error',
+        title: `Não foi possível abrir "${project.name}" (o circuito atual não foi alterado):`,
+        details: parsed.errors,
+      });
+      return true;
+    }
+    if (!replaceCircuit(parsed.circuit, `Descartar o circuito atual e abrir "${project.name}"?`)) {
+      return false;
+    }
+    useCloudProjectStore.getState().linkProject(project);
+    setNotice({
+      kind: 'info',
+      title: `Aberto "${project.name}" da conta.`,
+      details: [
+        project.access === 'owner'
+          ? `Versão ${project.version}.`
+          : `Partilhado por ${project.owner.name} (${ACCESS_LABELS[project.access]}); versão ${project.version}.`,
+        ...parsed.warnings,
+      ],
+    });
+    return true;
   };
 
   return (
@@ -164,6 +258,16 @@ export function ProjectMenu() {
       <span className="project-menu__name" title="Nome do circuito">
         {name}
       </span>
+      {cloudLink && (
+        <span
+          className="project-menu__cloud"
+          title={`Projeto na conta, versão ${cloudLink.version}`}
+        >
+          {cloudLink.access === 'owner'
+            ? 'Na conta'
+            : `De ${cloudLink.ownerName} · ${ACCESS_LABELS[cloudLink.access]}`}
+        </span>
+      )}
       <button type="button" onClick={onNew}>
         Novo
       </button>
@@ -182,6 +286,24 @@ export function ProjectMenu() {
       </select>
       <button type="button" onClick={onSave}>
         Guardar JSON
+      </button>
+      <button type="button" onClick={() => void onSaveCloud()} disabled={cloudBusy}>
+        Guardar na conta
+      </button>
+      <button type="button" onClick={() => setShowProjects(true)}>
+        Projetos…
+      </button>
+      <button
+        type="button"
+        onClick={() => setShowShare(true)}
+        disabled={cloudLink?.access !== 'owner'}
+        title={
+          cloudLink?.access === 'owner'
+            ? undefined
+            : 'Guarde o circuito na sua conta para o poder partilhar.'
+        }
+      >
+        Partilhar…
       </button>
       <button type="button" ref={generateButtonRef} onClick={() => setShowGenerate(true)}>
         Gerar…
@@ -214,11 +336,13 @@ export function ProjectMenu() {
           role={notice.kind === 'error' ? 'alert' : 'status'}
         >
           <p className="project-notice__title">{notice.title}</p>
-          <ul>
-            {notice.details.map((detail, i) => (
-              <li key={i}>{detail}</li>
-            ))}
-          </ul>
+          {notice.details.length > 0 && (
+            <ul>
+              {notice.details.map((detail, i) => (
+                <li key={i}>{detail}</li>
+              ))}
+            </ul>
+          )}
           <button
             type="button"
             className="project-notice__close"
@@ -228,6 +352,12 @@ export function ProjectMenu() {
             ×
           </button>
         </div>
+      )}
+      {showProjects && (
+        <ProjectsDialog onOpen={openCloudProject} onClose={() => setShowProjects(false)} />
+      )}
+      {showShare && cloudLink && (
+        <ShareDialog projectId={cloudLink.id} onClose={() => setShowShare(false)} />
       )}
       {showGenerate && (
         <GenerateDialog
